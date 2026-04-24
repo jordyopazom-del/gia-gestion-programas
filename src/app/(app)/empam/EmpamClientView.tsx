@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Search, MapPin, AlertTriangle, CheckCircle, Clock, Download, Activity, ClipboardList } from "lucide-react";
+import { Search, MapPin, AlertTriangle, CheckCircle, Clock, Download, Activity, ClipboardList, X, User, Phone, Map, Calendar, ChevronRight } from "lucide-react";
 import * as XLSX from "xlsx";
 
 const getEmpamStatus = (fechaString: string | null, resultado: string | null) => {
@@ -17,10 +17,12 @@ const getEmpamStatus = (fechaString: string | null, resultado: string | null) =>
   const isRisk = resUpper.includes('CON RIESGO') || resUpper.includes('RIESGO DE DEPENDENCIA');
   const vigenciaDias = isRisk ? 180 : 365;
   
-  if (diffDays <= vigenciaDias) {
-    return { status: "Vigente", color: "bg-emerald-100 text-emerald-800 border-emerald-200", icon: <CheckCircle size={14} className="mr-1" /> };
-  } else {
+  if (diffDays > vigenciaDias) {
     return { status: "Vencido", color: "bg-yellow-100 text-yellow-800 border-yellow-200", icon: <Clock size={14} className="mr-1" /> };
+  } else if (diffDays >= (vigenciaDias - 30)) {
+    return { status: "Próximo a Vencer", color: "bg-orange-100 text-orange-800 border-orange-200", icon: <AlertTriangle size={14} className="mr-1" /> };
+  } else {
+    return { status: "Vigente", color: "bg-emerald-100 text-emerald-800 border-emerald-200", icon: <CheckCircle size={14} className="mr-1" /> };
   }
 };
 
@@ -40,6 +42,7 @@ export default function EmpamClientView({ data }: { data: any[] }) {
   const [filterSector, setFilterSector] = useState("Todos");
   const [filterStatus, setFilterStatus] = useState("Todos");
   const [filterEfam, setFilterEfam] = useState("Todos");
+  const [selectedPatient, setSelectedPatient] = useState<any>(null);
 
   const sectors = useMemo(() => ["Todos", ...Array.from(new Set(data.map(p => p.sector))).sort()], [data]);
 
@@ -285,8 +288,12 @@ export default function EmpamClientView({ data }: { data: any[] }) {
                   }
 
                   return (
-                    <tr key={i} className="hover:bg-slate-50">
-                      <td className="px-3 py-3 font-medium">{p.rut}-{p.dv}</td>
+                    <tr 
+                      key={i} 
+                      onClick={() => setSelectedPatient(p)}
+                      className="hover:bg-blue-50 cursor-pointer transition-colors group"
+                    >
+                      <td className="px-3 py-3 font-medium text-blue-600 group-hover:underline">{p.rut}-{p.dv}</td>
                       <td className="px-3 py-3 uppercase truncate max-w-[150px]">{p.nombre_completo}</td>
                       <td className="px-3 py-3 text-center">{age}</td>
                       <td className="px-3 py-3 uppercase">{p.sector}</td>
@@ -401,6 +408,133 @@ export default function EmpamClientView({ data }: { data: any[] }) {
 
           </div>
         </div>
+      )}
+      {/* Panel Lateral: Tarjeta de Seguimiento */}
+      {selectedPatient && (
+        <>
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 transition-opacity"
+            onClick={() => setSelectedPatient(null)}
+          ></div>
+          
+          {/* Panel */}
+          <div className="fixed right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl z-50 animate-in slide-in-from-right duration-300 flex flex-col">
+            {/* Header del Panel */}
+            <div className="p-6 border-b border-slate-100 flex justify-between items-start bg-slate-50/50">
+              <div className="flex items-center space-x-4">
+                <div className="h-12 w-12 rounded-full bg-blue-600 flex items-center justify-center text-white text-xl font-bold">
+                  {selectedPatient.nombre_completo.charAt(0)}
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 leading-tight uppercase">{selectedPatient.nombre_completo}</h3>
+                  <p className="text-sm text-slate-500 font-mono">{selectedPatient.rut}-{selectedPatient.dv}</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setSelectedPatient(null)}
+                className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-400"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Contenido del Panel */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-8">
+              
+              {/* Sección 1: Información Base */}
+              <div className="space-y-4">
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center">
+                  <User size={12} className="mr-2" /> Datos del Adulto Mayor
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <p className="text-[10px] text-slate-400 uppercase font-bold mb-1">Edad</p>
+                    <p className="text-sm font-semibold text-slate-700">
+                      {selectedPatient.fecha_nacimiento ? (new Date().getFullYear() - new Date(selectedPatient.fecha_nacimiento).getFullYear()) : '-'} Años
+                    </p>
+                  </div>
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <p className="text-[10px] text-slate-400 uppercase font-bold mb-1">Sector</p>
+                    <p className="text-sm font-semibold text-slate-700 uppercase">{selectedPatient.sector}</p>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center text-sm text-slate-600">
+                    <Phone size={14} className="mr-3 text-slate-400" /> {selectedPatient.telefono || 'Sin teléfono registrado'}
+                  </div>
+                  <div className="flex items-center text-sm text-slate-600">
+                    <Map size={14} className="mr-3 text-slate-400" /> {selectedPatient.direccion || 'Sin dirección registrada'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Sección 2: Estado EMPAM Actual */}
+              <div className="space-y-4">
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center">
+                  <Calendar size={12} className="mr-2" /> Seguimiento EMPAM
+                </h4>
+                <div className={`p-4 rounded-2xl border ${getEmpamStatus(selectedPatient.ultima_atencion, selectedPatient.resultado_efam).color} flex flex-col space-y-2`}>
+                   <div className="flex justify-between items-center">
+                      <span className="text-xs font-bold uppercase tracking-tight">Estado Actual</span>
+                      <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-white/20 uppercase">
+                        {getEmpamStatus(selectedPatient.ultima_atencion, selectedPatient.resultado_efam).status}
+                      </span>
+                   </div>
+                   <p className="text-xl font-black uppercase leading-tight">
+                     {selectedPatient.resultado_efam || 'PENDIENTE'}
+                   </p>
+                   <p className="text-[10px] opacity-80 pt-2 border-t border-black/10">
+                     Última Evaluación: {formatDate(selectedPatient.ultima_atencion)}
+                   </p>
+                </div>
+              </div>
+
+              {/* Sección 3: Detalle Clínico (Variables de Gestión) */}
+              {selectedPatient.data_clinica && (
+                <div className="space-y-4">
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center">
+                    <Activity size={12} className="mr-2" /> Variables de Gestión
+                  </h4>
+                  <div className="space-y-2">
+                    {[
+                      { label: "Estado Nutricional", value: selectedPatient.data_clinica.estado_nutricional },
+                      { label: "Riesgo de Caídas", value: selectedPatient.data_clinica.riesgo_caidas },
+                      { label: "Actividad Física", value: selectedPatient.data_clinica.actividad_fisica },
+                      { label: "Glicemia Alterada", value: selectedPatient.data_clinica.glicemia },
+                      { label: "Presión Arterial", value: selectedPatient.data_clinica.presion_arterial },
+                      { label: "Sospecha Maltrato", value: selectedPatient.data_clinica.sospecha_maltrato },
+                    ].map((item, idx) => (
+                      <div key={idx} className="flex justify-between items-center py-2 border-b border-slate-50 last:border-0">
+                        <span className="text-xs text-slate-500 font-medium">{item.label}</span>
+                        <span className="text-xs font-bold text-slate-700 uppercase">{item.value || '-'}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Sección 4: Nota para Referente Técnico */}
+              <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100">
+                <p className="text-[10px] text-blue-600 font-black uppercase mb-1">Recordatorio de Gestión</p>
+                <p className="text-xs text-blue-800 leading-relaxed italic">
+                  "Esta tarjeta reemplaza el tarjetero físico. Los datos mostrados corresponden al último ingreso registrado en GIA. Verifique vigencia antes de realizar derivaciones."
+                </p>
+              </div>
+
+            </div>
+
+            {/* Footer del Panel */}
+            <div className="p-6 bg-slate-50 border-t border-slate-100">
+              <button 
+                onClick={() => setSelectedPatient(null)}
+                className="w-full bg-white text-slate-600 font-bold py-3 rounded-xl border border-slate-200 hover:bg-slate-100 transition-colors text-sm"
+              >
+                Cerrar Tarjeta
+              </button>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

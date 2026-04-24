@@ -89,6 +89,7 @@ export async function getEmpamDashboardData() {
         p.fecha_nacimiento,
         p.sector,
         p.telefono,
+        p.direccion,
         e.fecha_atencion as ultima_atencion,
         e.resultado_efam,
         e.profesional_rut,
