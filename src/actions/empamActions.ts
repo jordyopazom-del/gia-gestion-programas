@@ -97,6 +97,7 @@ export async function getEmpamDashboardData() {
       FROM gia_pacientes p
       LEFT JOIN UltimoEmpam e ON p.rut = e.rut_paciente AND e.rn = 1
       WHERE p.fecha_nacimiento IS NOT NULL
+        AND p.estado = 'ACTIVO'
         AND DATE_PART('year', AGE(CURRENT_DATE, p.fecha_nacimiento::DATE)) >= 65
       ORDER BY p.nombre_completo ASC
     `;

@@ -45,9 +45,27 @@ export async function syncPadronMaestro(pacientes: PacienteData[]) {
 export async function getDirectorioCompleto() {
   try {
     const result = await sql`SELECT * FROM gia_pacientes ORDER BY nombre_completo ASC`;
-    return result as unknown as PacienteData[];
+    return result as any[];
   } catch (error) {
     console.error("Error obteniendo el directorio:", error);
     return [];
+  }
+}
+
+export async function egresarPaciente(rut: string, motivo: string) {
+  try {
+    await sql`
+      UPDATE gia_pacientes 
+      SET estado = 'EGRESADO', 
+          motivo_egreso = ${motivo}, 
+          fecha_egreso = CURRENT_TIMESTAMP 
+      WHERE rut = ${rut}
+    `;
+    revalidatePath("/directorio");
+    revalidatePath("/empam");
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error al egresar paciente:", error);
+    return { error: error.message };
   }
 }

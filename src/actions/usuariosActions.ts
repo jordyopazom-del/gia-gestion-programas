@@ -29,10 +29,12 @@ export async function crearUsuario(formData: FormData) {
     const rutClean = rut.trim().toLowerCase();
     const hashedPassword = hashPassword(password);
 
+    console.time("crearUsuario_db");
     await sql`
       INSERT INTO gia_usuarios (rut, nombre, profesion, rol, password)
       VALUES (${rutClean}, ${nombre}, ${profesion || null}, ${rol || 'CLINICO'}, ${hashedPassword})
     `;
+    console.timeEnd("crearUsuario_db");
 
     revalidatePath("/admin/usuarios");
     return { success: true };

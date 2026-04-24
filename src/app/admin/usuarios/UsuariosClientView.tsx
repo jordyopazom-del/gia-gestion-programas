@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { UserPlus, Users, Trash2, Shield, Activity } from "lucide-react";
 import { crearUsuario, eliminarUsuario } from "@/actions/usuariosActions";
 
@@ -9,6 +9,11 @@ export default function UsuariosClientView({ initialUsuarios }: { initialUsuario
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  // Sincronizar el estado local cuando los datos del servidor cambian (revalidatePath)
+  useEffect(() => {
+    setUsuarios(initialUsuarios);
+  }, [initialUsuarios]);
 
   const handleCreate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -22,8 +27,17 @@ export default function UsuariosClientView({ initialUsuarios }: { initialUsuario
     if (result.success) {
       setSuccess("Usuario creado exitosamente.");
       e.currentTarget.reset();
-      // Recargar página para mostrar nuevo usuario
-      window.location.reload();
+      
+      // Actualización optimista: agregamos el usuario a la lista local inmediatamente
+      const nuevoUsuario = {
+        rut: formData.get("rut"),
+        nombre: formData.get("nombre"),
+        profesion: formData.get("profesion"),
+        rol: formData.get("rol")
+      };
+      setUsuarios(prev => [...prev, nuevoUsuario].sort((a, b) => a.nombre.localeCompare(b.nombre)));
+      
+      setLoading(false);
     } else {
       setError(result.error || "Error al crear usuario.");
       setLoading(false);
@@ -75,8 +89,21 @@ export default function UsuariosClientView({ initialUsuarios }: { initialUsuario
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Profesión</label>
-                <input name="profesion" placeholder="Ej: Médico Familiar" className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50" />
+                <label className="block text-sm font-medium text-slate-700 mb-1">Profesión / Estamento</label>
+                <select name="profesion" className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50">
+                  <option value="">Seleccione estamento...</option>
+                  <option value="Médico">Médico</option>
+                  <option value="Enfermero/a">Enfermero/a</option>
+                  <option value="Kinesiólogo/a">Kinesiólogo/a</option>
+                  <option value="Nutricionista">Nutricionista</option>
+                  <option value="Matrón/a">Matrón/a</option>
+                  <option value="Psicólogo/a">Psicólogo/a</option>
+                  <option value="TENS">TENS</option>
+                  <option value="Asistente Social">Asistente Social</option>
+                  <option value="Odontólogo/a">Odontólogo/a</option>
+                  <option value="Administrativo">Administrativo</option>
+                  <option value="Otro">Otro</option>
+                </select>
               </div>
 
               <div>

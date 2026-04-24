@@ -28,6 +28,9 @@ export async function initDatabase() {
         direccion TEXT,
         sexo TEXT,
         es_pad BOOLEAN DEFAULT FALSE,
+        estado TEXT DEFAULT 'ACTIVO',
+        motivo_egreso TEXT,
+        fecha_egreso TIMESTAMP,
         fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `;
@@ -63,7 +66,7 @@ export async function initDatabase() {
       )
     `;
 
-    // 5. Crear el usuario Maestro (Si no existe) para que no nos quedemos fuera
+    // 5. Crear el usuario Maestro (Si no existe)
     const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
     const adminRut = process.env.ADMIN_RUT || '12345678-5';
     const hashedAdminPassword = hashPassword(adminPassword);
