@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { Search, MapPin, AlertTriangle, CheckCircle, Clock, Download, Activity, ClipboardList, X, User, Phone, Map, Calendar, ChevronRight } from "lucide-react";
 import * as XLSX from "xlsx";
+import { UserProfile } from "@/actions/userActions";
 
 const getEmpamStatus = (fechaString: string | null, resultado: string | null) => {
   if (!fechaString) return { status: "Pendiente", color: "bg-red-100 text-red-800 border-red-200", icon: <AlertTriangle size={14} className="mr-1" /> };
@@ -36,7 +37,7 @@ const formatDate = (dateString: string | null) => {
   }
 };
 
-export default function EmpamClientView({ data }: { data: any[] }) {
+export default function EmpamClientView({ data, user }: { data: any[], user: UserProfile }) {
   const [view, setView] = useState<'lista' | 'analisis'>('lista');
   const [searchRut, setSearchRut] = useState("");
   const [filterSector, setFilterSector] = useState("Todos");

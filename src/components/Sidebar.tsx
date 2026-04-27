@@ -13,20 +13,16 @@ import {
 } from "lucide-react";
 import { logoutAction } from "@/actions/authActions";
 import { useRouter } from "next/navigation";
+import { UserProfile } from "@/actions/userActions";
 
 const navigation = [
-  { name: "Dashboard Central", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Población y Directorio", href: "/directorio", icon: Users },
-  { name: "Programa Adulto Mayor", href: "/empam", icon: Activity },
-  { name: "Programa Respiratorio", href: "/respiratorio", icon: Stethoscope },
-  { name: "Oportunidad de Atención", href: "/oportunidad", icon: Target },
+  { name: "Dashboard Central", href: "/dashboard", icon: LayoutDashboard, roles: ["ADMINISTRADOR", "ADMINISTRATIVO", "REFERENTE", "CLINICO"] },
+  { name: "Población y Directorio", href: "/directorio", icon: Users, roles: ["ADMINISTRADOR", "ADMINISTRATIVO", "REFERENTE", "CLINICO"] },
+  { name: "Programa Adulto Mayor", href: "/empam", icon: Activity, roles: ["ADMINISTRADOR", "REFERENTE", "CLINICO"] },
+  { name: "Programa Respiratorio", href: "/respiratorio", icon: Stethoscope, roles: ["ADMINISTRADOR", "REFERENTE", "CLINICO"] },
 ];
 
-const adminNavigation = [
-  { name: "Administración de Accesos", href: "/admin/usuarios", icon: Shield },
-];
-
-export default function Sidebar() {
+export default function Sidebar({ user }: { user: UserProfile }) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -34,6 +30,8 @@ export default function Sidebar() {
     await logoutAction();
     router.push("/login");
   };
+
+  const filteredNav = navigation.filter(item => item.roles.includes(user.rol));
 
   return (
     <div className="flex h-screen w-64 flex-col border-r border-slate-200 bg-white">
@@ -47,7 +45,7 @@ export default function Sidebar() {
           <p className="px-2 text-xs font-semibold uppercase tracking-wider text-slate-400 mb-4">
             Gestión Clínica
           </p>
-          {navigation.map((item) => {
+          {filteredNav.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
             return (
               <Link
@@ -69,41 +67,39 @@ export default function Sidebar() {
             );
           })}
 
-          <p className="px-2 text-xs font-semibold uppercase tracking-wider text-slate-400 mt-8 mb-4">
-            Ajustes Sistema
-          </p>
-          {adminNavigation.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
-            return (
+          {user.rol === "ADMINISTRADOR" && (
+            <>
+              <p className="px-2 text-xs font-semibold uppercase tracking-wider text-slate-400 mt-8 mb-4">
+                Ajustes Sistema
+              </p>
               <Link
-                key={item.href}
-                href={item.href}
+                href="/admin/usuarios"
                 className={`group flex items-center rounded-md px-2 py-2.5 text-sm font-medium transition-colors ${
-                  isActive
+                  pathname.startsWith("/admin/usuarios")
                     ? "bg-purple-50 text-purple-700"
                     : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                 }`}
               >
-                <item.icon
+                <Shield
                   className={`mr-3 h-5 w-5 flex-shrink-0 ${
-                    isActive ? "text-purple-600" : "text-slate-400 group-hover:text-slate-500"
+                    pathname.startsWith("/admin/usuarios") ? "text-purple-600" : "text-slate-400 group-hover:text-slate-500"
                   }`}
                 />
-                {item.name}
+                Administración de Accesos
               </Link>
-            );
-          })}
+            </>
+          )}
         </nav>
       </div>
 
       <div className="border-t border-slate-200 p-4">
         <div className="flex items-center mb-4">
-          <div className="h-9 w-9 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 font-bold">
-            PF
+          <div className="h-9 w-9 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-xs">
+            {user.nombre.substring(0, 2).toUpperCase()}
           </div>
-          <div className="ml-3">
-            <p className="text-sm font-medium text-slate-700">Profesional</p>
-            <p className="text-xs font-medium text-slate-500">Clínico</p>
+          <div className="ml-3 overflow-hidden">
+            <p className="text-sm font-bold text-slate-700 truncate" title={user.nombre}>{user.nombre}</p>
+            <p className="text-[10px] font-bold text-blue-600 uppercase tracking-tight">{user.rol}</p>
           </div>
         </div>
         <button

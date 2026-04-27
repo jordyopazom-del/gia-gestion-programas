@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { PacienteData } from "@/actions/pacientesActions";
 import { Search, MapPin, Download, UserMinus, History, CheckCircle, AlertCircle, X } from "lucide-react";
 import { egresarPaciente } from "@/actions/pacientesActions";
+import { UserProfile } from "@/actions/userActions";
 
 const calculateAge = (birthDate: string | Date | null) => {
   if (!birthDate) return "-";
@@ -38,7 +38,7 @@ const calculateAge = (birthDate: string | Date | null) => {
   }
 };
 
-export default function DirectorioClientView({ pacientes }: { pacientes: PacienteData[] }) {
+export default function DirectorioClientView({ pacientes, user }: { pacientes: any[], user: UserProfile }) {
   const [searchRut, setSearchRut] = useState("");
   const [searchName, setSearchName] = useState("");
   const [filterSector, setFilterSector] = useState("Todos");
@@ -186,7 +186,9 @@ export default function DirectorioClientView({ pacientes }: { pacientes: Pacient
                   <th className="px-4 py-3 font-semibold text-slate-500">Sector</th>
                   <th className="px-4 py-3 font-semibold text-slate-500">Teléfono</th>
                   {tab === "activos" ? (
-                    <th className="px-4 py-3 font-semibold text-slate-500 text-center">Acciones</th>
+                    (user?.rol === "ADMINISTRADOR" || user?.rol === "ADMINISTRATIVO") && (
+                      <th className="px-4 py-3 font-semibold text-slate-500 text-center">Acciones</th>
+                    )
                   ) : (
                     <>
                       <th className="px-4 py-3 font-semibold text-red-500">Motivo Egreso</th>
@@ -205,15 +207,17 @@ export default function DirectorioClientView({ pacientes }: { pacientes: Pacient
                     <td className="px-4 py-2 uppercase truncate max-w-[150px]" title={p.sector}>{p.sector}</td>
                     <td className="px-4 py-2">{p.telefono || '-'}</td>
                     {tab === "activos" ? (
-                      <td className="px-4 py-2 text-center">
-                        <button 
-                          onClick={() => setIsEgresando(p.rut)}
-                          className="p-1.5 hover:bg-red-50 text-red-400 hover:text-red-600 rounded-lg transition-colors border border-transparent hover:border-red-100"
-                          title="Egresar Paciente"
-                        >
-                          <UserMinus size={14} />
-                        </button>
-                      </td>
+                      (user?.rol === "ADMINISTRADOR" || user?.rol === "ADMINISTRATIVO") && (
+                        <td className="px-4 py-2 text-center">
+                          <button 
+                            onClick={() => setIsEgresando(p.rut)}
+                            className="p-1.5 hover:bg-red-50 text-red-400 hover:text-red-600 rounded-lg transition-colors border border-transparent hover:border-red-100"
+                            title="Egresar Paciente"
+                          >
+                            <UserMinus size={14} />
+                          </button>
+                        </td>
+                      )
                     ) : (
                       <>
                         <td className="px-4 py-2 font-bold text-red-600 uppercase">{(p as any).motivo_egreso}</td>

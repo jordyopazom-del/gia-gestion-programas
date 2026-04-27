@@ -2,9 +2,13 @@ import { getEmpamDashboardData } from "@/actions/empamActions";
 import EmpamClientView from "./EmpamClientView";
 import { Activity, Plus } from "lucide-react";
 import Link from "next/link";
+import { getCurrentUser } from "@/actions/userActions";
 
 export default async function EmpamDashboardPage() {
   const data = await getEmpamDashboardData();
+  const user = await getCurrentUser();
+
+  const canCreate = user?.rol !== "ADMINISTRATIVO";
 
   return (
     <div>
@@ -18,15 +22,17 @@ export default async function EmpamDashboardPage() {
             <p className="text-slate-500">Gestión Clínica del Programa Adulto Mayor</p>
           </div>
         </div>
-        <div>
-          <Link href="/empam/nuevo" className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-lg flex items-center font-medium shadow-sm transition">
-            <Plus size={18} className="mr-2" /> Nuevo Ingreso EMPAM
-          </Link>
-        </div>
+        {canCreate && (
+          <div>
+            <Link href="/empam/nuevo" className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-lg flex items-center font-medium shadow-sm transition">
+              <Plus size={18} className="mr-2" /> Nuevo Ingreso EMPAM
+            </Link>
+          </div>
+        )}
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden flex flex-col min-h-[600px]">
-        <EmpamClientView data={data as any} />
+        <EmpamClientView data={data as any} user={user!} />
       </div>
     </div>
   );

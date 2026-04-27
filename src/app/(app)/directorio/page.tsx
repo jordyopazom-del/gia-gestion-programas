@@ -2,9 +2,11 @@ import { getDirectorioCompleto } from "@/actions/pacientesActions";
 import CargaPadronWrapper from "./CargaPadronWrapper";
 import DirectorioClientView from "./DirectorioClientView";
 import { Users } from "lucide-react";
+import { getCurrentUser } from "@/actions/userActions";
 
 export default async function DirectorioPage() {
   const pacientes = await getDirectorioCompleto();
+  const user = await getCurrentUser();
 
   return (
     <div>
@@ -19,13 +21,15 @@ export default async function DirectorioPage() {
       </div>
 
       <div className="flex flex-col gap-6">
-        <div className="w-full xl:w-1/3">
-          <CargaPadronWrapper />
-        </div>
+        {user?.rol === "ADMINISTRADOR" || user?.rol === "ADMINISTRATIVO" ? (
+          <div className="w-full xl:w-1/3">
+            <CargaPadronWrapper />
+          </div>
+        ) : null}
 
         <div className="w-full">
           <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden flex flex-col min-h-[600px]">
-            <DirectorioClientView pacientes={pacientes} />
+            <DirectorioClientView pacientes={pacientes} user={user!} />
           </div>
         </div>
       </div>

@@ -66,6 +66,18 @@ export async function initDatabase() {
       )
     `;
 
+    // 5. Tabla de Solicitudes de Acceso
+    await sql`
+      CREATE TABLE IF NOT EXISTS gia_solicitudes_acceso (
+        id SERIAL PRIMARY KEY,
+        rut TEXT UNIQUE NOT NULL,
+        nombre TEXT NOT NULL,
+        profesion TEXT NOT NULL,
+        fecha_solicitud TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        estado TEXT DEFAULT 'PENDIENTE'
+      )
+    `;
+
     // 5. Crear el usuario Maestro (Si no existe)
     const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
     const adminRut = process.env.ADMIN_RUT || '12345678-5';
@@ -73,8 +85,8 @@ export async function initDatabase() {
     
     await sql`
       INSERT INTO gia_usuarios (rut, nombre, profesion, rol, password)
-      VALUES (${adminRut}, 'Administrador Maestro', 'Soporte TI', 'ADMIN', ${hashedAdminPassword})
-      ON CONFLICT (rut) DO NOTHING
+      VALUES (${adminRut}, 'Administrador Maestro', 'Soporte TI', 'ADMINISTRADOR', ${hashedAdminPassword})
+      ON CONFLICT (rut) DO UPDATE SET rol = 'ADMINISTRADOR'
     `;
 
     return { success: true, message: "Base de datos inicializada correctamente con esquemas GIA." };
