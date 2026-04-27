@@ -15,7 +15,7 @@ export default function LoginPage() {
 
   // Estados para Solicitud
   const [showSolicitud, setShowSolicitud] = useState(false);
-  const [solicitudData, setSolicitudData] = useState({ rut: "", nombre: "", profesion: "" });
+  const [solicitudData, setSolicitudData] = useState({ rut: "", nombre: "", email: "", profesion: "" });
   const [solicitudLoading, setSolicitudLoading] = useState(false);
   const [solicitudSuccess, setSolicitudSuccess] = useState(false);
 
@@ -89,7 +89,7 @@ export default function LoginPage() {
       setTimeout(() => {
         setShowSolicitud(false);
         setSolicitudSuccess(false);
-        setSolicitudData({ rut: "", nombre: "", profesion: "" });
+        setSolicitudData({ rut: "", nombre: "", email: "", profesion: "" });
       }, 3000);
     } else {
       alert(res.error);

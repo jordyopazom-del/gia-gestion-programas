@@ -38,7 +38,7 @@ export async function listarUsuarios() {
 
   try {
     const result = await sql`SELECT rut, nombre, email, profesion, rol FROM gia_usuarios ORDER BY nombre ASC`;
-    return { success: true, data: result as UserProfile[] };
+    return { success: true, data: result as unknown as UserProfile[] };
   } catch (error) {
     return { error: "Error de base de datos" };
   }
