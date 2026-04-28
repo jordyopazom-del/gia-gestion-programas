@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { loginAction, cambiarPasswordAction } from "@/actions/authActions";
+import { loginAction, cambiarPasswordAction, getPreguntaAction, resetPasswordAction } from "@/actions/authActions";
 import { solicitarAcceso } from "@/actions/userActions";
 import { Activity, UserPlus, X, Contact, User, Briefcase, Key, CheckCircle, ShieldAlert } from "lucide-react";
 
@@ -21,8 +21,15 @@ export default function LoginPage() {
 
   // Estados para Cambio de Clave Obligatorio
   const [showChangePass, setShowChangePass] = useState(false);
-  const [newPass, setNewPass] = useState({ p1: "", p2: "" });
+  const [newPass, setNewPass] = useState({ p1: "", p2: "", pregunta: "", respuesta: "" });
   const [changeLoading, setChangeLoading] = useState(false);
+  const [changeSuccess, setChangeSuccess] = useState(false);
+
+  // Estados para Recuperación (Olvidé mi clave)
+  const [showForgot, setShowForgot] = useState(false);
+  const [forgotStep, setForgotStep] = useState(1); // 1: RUT, 2: Respuesta + Clave
+  const [forgotData, setForgotData] = useState({ rut: "", pregunta: "", respuesta: "", p1: "", p2: "" });
+  const [forgotLoading, setForgotLoading] = useState(false);
 
   const formatRut = (value: string) => {
     let clean = value.replace(/[^0-9kK]/g, "");
@@ -63,13 +70,78 @@ export default function LoginPage() {
       alert("La contraseña debe tener al menos 6 caracteres");
       return;
     }
+    if (!newPass.pregunta || !newPass.respuesta) {
+      alert("Debes configurar una pregunta y respuesta de seguridad");
+      return;
+    }
 
     setChangeLoading(true);
-    const res = await cambiarPasswordAction(newPass.p1);
-    setChangeLoading(false);
+
+    const timeoutId = setTimeout(() => {
+      setChangeLoading(false);
+      alert("⚠️ El servidor tardó demasiado. Intenta nuevamente.");
+    }, 12000);
+
+    try {
+      // Usar fetch directo en lugar de Server Action para evitar conflictos RSC
+      const res = await fetch("/api/cambiar-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nuevaPass: newPass.p1,
+          pregunta: newPass.pregunta,
+          respuesta: newPass.respuesta,
+        }),
+      });
+      clearTimeout(timeoutId);
+
+      const data = await res.json();
+
+      if (data.success) {
+        setChangeSuccess(true);
+        setChangeLoading(false);
+        setTimeout(() => {
+          window.location.href = "/dashboard";
+        }, 600);
+      } else {
+        setChangeLoading(false);
+        alert(data.error || "Error al guardar la configuración inicial");
+      }
+    } catch (err) {
+      clearTimeout(timeoutId);
+      setChangeLoading(false);
+      alert("Error de red. Verifica tu conexión e intenta nuevamente.");
+    }
+  };
+
+  const handleForgotStep1 = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotLoading(true);
+    const res = await getPreguntaAction(forgotData.rut);
+    setForgotLoading(false);
+    
+    if (res.success) {
+      setForgotData({ ...forgotData, pregunta: res.pregunta || "" });
+      setForgotStep(2);
+    } else {
+      alert(res.error);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (forgotData.p1 !== forgotData.p2) {
+      alert("Las contraseñas no coinciden");
+      return;
+    }
+    setForgotLoading(true);
+    const res = await resetPasswordAction(forgotData.rut, forgotData.respuesta, forgotData.p1);
+    setForgotLoading(false);
 
     if (res.success) {
-      router.push("/dashboard");
+      alert("¡Contraseña restablecida con éxito! Ya puedes iniciar sesión.");
+      setShowForgot(false);
+      setForgotStep(1);
     } else {
       alert(res.error);
     }
@@ -121,7 +193,16 @@ export default function LoginPage() {
           </div>
 
           <div className="space-y-1">
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Contraseña</label>
+            <div className="flex justify-between items-center">
+              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Contraseña</label>
+              <button 
+                type="button"
+                onClick={() => setShowForgot(true)}
+                className="text-[10px] font-bold text-blue-600 hover:underline"
+              >
+                ¿Olvidaste tu contraseña?
+              </button>
+            </div>
             <input
               type="password"
               value={password}
@@ -169,47 +250,193 @@ export default function LoginPage() {
               <div className="h-16 w-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/30 backdrop-blur-sm">
                 <ShieldAlert size={32} />
               </div>
-              <h3 className="text-xl font-bold mb-2 uppercase tracking-tight">Cambio Obligatorio</h3>
-              <p className="text-blue-100 text-xs">Por seguridad, debes establecer una contraseña privada en tu primer ingreso.</p>
+              <h3 className="text-xl font-bold mb-2 uppercase tracking-tight">Configuración Inicial</h3>
+              <p className="text-blue-100 text-[10px]">Establece tu contraseña y una pregunta de seguridad para recuperar el acceso si lo olvidas.</p>
             </div>
             
-            <form onSubmit={handleChangePass} className="p-8 space-y-5">
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase flex items-center tracking-widest">
-                  <Key size={12} className="mr-1" /> Nueva Contraseña
-                </label>
-                <input 
-                  required
-                  type="password"
-                  value={newPass.p1}
-                  onChange={(e) => setNewPass({...newPass, p1: e.target.value})}
-                  placeholder="Mínimo 6 caracteres"
-                  className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-200 outline-none transition-all"
-                />
+            <form onSubmit={handleChangePass} className="p-8 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase flex items-center tracking-widest">
+                    <Key size={10} className="mr-1" /> Nueva Clave
+                  </label>
+                  <input 
+                    required
+                    type="password"
+                    value={newPass.p1}
+                    onChange={(e) => setNewPass({...newPass, p1: e.target.value})}
+                    placeholder="Mínimo 6 carac."
+                    className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-3 text-xs focus:ring-2 focus:ring-blue-200 outline-none transition-all"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase flex items-center tracking-widest">
+                    <CheckCircle size={10} className="mr-1" /> Repetir
+                  </label>
+                  <input 
+                    required
+                    type="password"
+                    value={newPass.p2}
+                    onChange={(e) => setNewPass({...newPass, p2: e.target.value})}
+                    placeholder="Idéntica"
+                    className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-3 text-xs focus:ring-2 focus:ring-blue-200 outline-none transition-all"
+                  />
+                </div>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1 border-t pt-4">
                 <label className="text-[10px] font-bold text-slate-400 uppercase flex items-center tracking-widest">
-                  <CheckCircle size={12} className="mr-1" /> Repetir Contraseña
+                  Pregunta de Seguridad
+                </label>
+                <select 
+                  required
+                  value={newPass.pregunta}
+                  onChange={(e) => setNewPass({...newPass, pregunta: e.target.value})}
+                  className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-3 text-xs focus:ring-2 focus:ring-blue-200 outline-none"
+                >
+                  <option value="">Selecciona una pregunta...</option>
+                  <option value="¿Cuál es el nombre de tu primera mascota?">¿Cuál es el nombre de tu primera mascota?</option>
+                  <option value="¿En qué ciudad nacieron tus padres?">¿En qué ciudad nacieron tus padres?</option>
+                  <option value="¿Cuál era el nombre de tu escuela primaria?">¿Cuál era el nombre de tu escuela primaria?</option>
+                  <option value="¿Cuál es tu color favorito de la infancia?">¿Cuál es tu color favorito de la infancia?</option>
+                  <option value="¿Cuál fue tu primer trabajo?">¿Cuál fue tu primer trabajo?</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase flex items-center tracking-widest">
+                  Tu Respuesta
                 </label>
                 <input 
                   required
-                  type="password"
-                  value={newPass.p2}
-                  onChange={(e) => setNewPass({...newPass, p2: e.target.value})}
-                  placeholder="Debe ser idéntica"
-                  className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-200 outline-none transition-all"
+                  type="text"
+                  value={newPass.respuesta}
+                  onChange={(e) => setNewPass({...newPass, respuesta: e.target.value})}
+                  placeholder="Escribe la respuesta aquí"
+                  className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-3 text-xs focus:ring-2 focus:ring-blue-200 outline-none uppercase"
                 />
+                <p className="text-[9px] text-slate-400 italic mt-1">* Recuerda esta respuesta, es la única forma de recuperar tu clave sin ayuda del Admin.</p>
               </div>
 
               <button 
                 type="submit"
-                disabled={changeLoading}
-                className="w-full px-4 py-4 rounded-xl text-sm font-bold bg-blue-600 text-white hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 disabled:opacity-50 mt-4 active:scale-[0.98]"
+                disabled={changeLoading || changeSuccess}
+                className={`w-full px-4 py-3 rounded-xl text-sm font-bold transition-all shadow-lg mt-2 flex items-center justify-center ${
+                  changeSuccess 
+                    ? 'bg-emerald-500 text-white shadow-emerald-100' 
+                    : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-100'
+                } disabled:opacity-70`}
               >
-                {changeLoading ? 'Guardando...' : 'Actualizar y Entrar'}
+                {changeLoading ? (
+                  <>Guardando...</>
+                ) : changeSuccess ? (
+                  <>
+                    <CheckCircle size={18} className="mr-2 animate-bounce" /> ¡Configuración Exitosa!
+                  </>
+                ) : (
+                  'Finalizar y Entrar'
+                )}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Olvidé mi Clave */}
+      {showForgot && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-blue-50">
+              <h3 className="font-bold text-slate-800 flex items-center">
+                <ShieldAlert size={20} className="mr-2 text-blue-600" /> Recuperar Acceso
+              </h3>
+              <button onClick={() => { setShowForgot(false); setForgotStep(1); }} className="text-slate-400 hover:text-slate-600">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="p-8">
+              {forgotStep === 1 ? (
+                <form onSubmit={handleForgotStep1} className="space-y-4">
+                  <p className="text-xs text-slate-500 mb-4">Ingresa tu RUT para identificar tu cuenta y pregunta de seguridad.</p>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">RUT Funcionario</label>
+                    <input 
+                      required
+                      type="text"
+                      value={forgotData.rut}
+                      onChange={(e) => setForgotData({...forgotData, rut: formatRut(e.target.value)})}
+                      placeholder="12345678-9"
+                      className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-200 outline-none font-mono"
+                    />
+                  </div>
+                  <button 
+                    type="submit"
+                    disabled={forgotLoading}
+                    className="w-full px-4 py-3 rounded-xl text-sm font-bold bg-blue-600 text-white hover:bg-blue-700 transition-all shadow-lg"
+                  >
+                    {forgotLoading ? 'Buscando...' : 'Continuar'}
+                  </button>
+                </form>
+              ) : (
+                <form onSubmit={handleResetPassword} className="space-y-4">
+                  <div className="bg-blue-50 p-4 rounded-xl mb-4 border border-blue-100">
+                    <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-1">Tu Pregunta de Seguridad:</p>
+                    <p className="text-sm font-bold text-blue-800">{forgotData.pregunta}</p>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tu Respuesta</label>
+                    <input 
+                      required
+                      type="text"
+                      value={forgotData.respuesta}
+                      onChange={(e) => setForgotData({...forgotData, respuesta: e.target.value})}
+                      placeholder="Respuesta secreta"
+                      className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-200 outline-none uppercase"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Nueva Clave</label>
+                      <input 
+                        required
+                        type="password"
+                        value={forgotData.p1}
+                        onChange={(e) => setForgotData({...forgotData, p1: e.target.value})}
+                        className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-200 outline-none"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Repetir</label>
+                      <input 
+                        required
+                        type="password"
+                        value={forgotData.p2}
+                        onChange={(e) => setForgotData({...forgotData, p2: e.target.value})}
+                        className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-200 outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <button 
+                    type="submit"
+                    disabled={forgotLoading}
+                    className="w-full px-4 py-3 rounded-xl text-sm font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition-all shadow-lg mt-4"
+                  >
+                    {forgotLoading ? 'Restableciendo...' : 'Cambiar Clave y Entrar'}
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => setForgotStep(1)}
+                    className="w-full text-[10px] font-bold text-slate-400 uppercase hover:text-slate-600 transition-colors"
+                  >
+                    Volver atrás
+                  </button>
+                </form>
+              )}
+            </div>
           </div>
         </div>
       )}

@@ -56,22 +56,81 @@ export async function loginAction(rut: string, pass: string) {
   }
 }
 
-export async function cambiarPasswordAction(nuevaPass: string) {
+export async function cambiarPasswordAction(nuevaPass: string, pregunta: string, respuesta: string) {
   try {
     const cookieStore = await cookies();
     const rut = cookieStore.get("gia_auth_token")?.value;
-    if (!rut) return { error: "No autorizado" };
+    
+    if (!rut) {
+      console.error("[cambiarPassword] Cookie gia_auth_token no encontrada");
+      return { error: "Sesión no válida. Vuelve a iniciar sesión." };
+    }
+
+    console.log("[cambiarPassword] Procesando para RUT:", rut);
 
     const hashedPassword = hashPassword(nuevaPass);
+    const respuestaLimpia = respuesta.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const hashedRespuesta = hashPassword(respuestaLimpia);
+
+    console.log("[cambiarPassword] Hash generado OK, actualizando DB...");
+
     await sql`
       UPDATE gia_usuarios 
-      SET password = ${hashedPassword}, debe_cambiar_password = FALSE 
+      SET 
+        password = ${hashedPassword}, 
+        pregunta_seguridad = ${pregunta},
+        respuesta_seguridad = ${hashedRespuesta},
+        debe_cambiar_password = FALSE 
       WHERE rut = ${rut}
     `;
 
+    console.log("[cambiarPassword] DB actualizada OK");
+    return { success: true };
+  } catch (error: any) {
+    console.error("[cambiarPassword] ERROR:", error?.message || error);
+    return { error: `Error interno: ${error?.message || "desconocido"}` };
+  }
+}
+
+export async function getPreguntaAction(rut: string) {
+  try {
+    // Normalizar RUT para la búsqueda
+    const rutLimpio = rut.replace(/[^0-9kK]/g, "");
+    const cuerpo = rutLimpio.slice(0, -1);
+    const dv = rutLimpio.slice(-1).toUpperCase();
+    const rutStandar = `${cuerpo}-${dv}`;
+
+    const res = await sql`SELECT pregunta_seguridad FROM gia_usuarios WHERE rut = ${rutStandar}`;
+    if (res.length === 0) return { error: "Usuario no encontrado" };
+    if (!res[0].pregunta_seguridad) return { error: "El usuario no tiene configurada una pregunta de seguridad. Contacte al Administrador." };
+
+    return { success: true, pregunta: res[0].pregunta_seguridad };
+  } catch (error) {
+    return { error: "Error al buscar usuario" };
+  }
+}
+
+export async function resetPasswordAction(rut: string, respuesta: string, nuevaPass: string) {
+  try {
+    const rutLimpio = rut.replace(/[^0-9kK]/g, "");
+    const cuerpo = rutLimpio.slice(0, -1);
+    const dv = rutLimpio.slice(-1).toUpperCase();
+    const rutStandar = `${cuerpo}-${dv}`;
+
+    const res = await sql`SELECT respuesta_seguridad FROM gia_usuarios WHERE rut = ${rutStandar}`;
+    if (res.length === 0) return { error: "Usuario no encontrado" };
+
+    const respuestaLimpia = respuesta.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const isValid = verifyPassword(respuestaLimpia, res[0].respuesta_seguridad);
+
+    if (!isValid) return { error: "Respuesta incorrecta" };
+
+    const hashedPassword = hashPassword(nuevaPass);
+    await sql`UPDATE gia_usuarios SET password = ${hashedPassword} WHERE rut = ${rutStandar}`;
+
     return { success: true };
   } catch (error) {
-    return { error: "Error al actualizar contraseña" };
+    return { error: "Error al resetear contraseña" };
   }
 }
 

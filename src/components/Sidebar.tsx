@@ -18,6 +18,7 @@ import { UserProfile } from "@/actions/userActions";
 const navigation = [
   { name: "Dashboard Central", href: "/dashboard", icon: LayoutDashboard, roles: ["ADMINISTRADOR", "ADMINISTRATIVO", "REFERENTE", "CLINICO"] },
   { name: "Población y Directorio", href: "/directorio", icon: Users, roles: ["ADMINISTRADOR", "ADMINISTRATIVO", "REFERENTE", "CLINICO"] },
+  { name: "Oportunidad de Atención", href: "/oportunidad", icon: Target, roles: ["ADMINISTRADOR", "REFERENTE"] },
   { name: "Programa Adulto Mayor", href: "/empam", icon: Activity, roles: ["ADMINISTRADOR", "REFERENTE", "CLINICO"] },
   { name: "Programa Respiratorio", href: "/respiratorio", icon: Stethoscope, roles: ["ADMINISTRADOR", "REFERENTE", "CLINICO"] },
 ];
@@ -34,7 +35,7 @@ export default function Sidebar({ user }: { user: UserProfile }) {
   const filteredNav = navigation.filter(item => item.roles.includes(user.rol));
 
   return (
-    <div className="flex h-screen w-64 flex-col border-r border-slate-200 bg-white">
+    <div className="flex h-screen w-64 flex-col border-r border-slate-200 bg-white no-print">
       <div className="flex h-16 shrink-0 items-center border-b border-slate-100 px-6">
         <Activity className="h-6 w-6 text-blue-600 mr-2" />
         <span className="text-lg font-bold text-slate-800">GIA Health</span>
