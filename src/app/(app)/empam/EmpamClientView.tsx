@@ -8,9 +8,15 @@ import { UserProfile } from "@/actions/userActions";
 const getEmpamStatus = (fechaString: string | null, resultado: string | null) => {
   if (!fechaString) return { status: "Pendiente", color: "bg-red-100 text-red-800 border-red-200", icon: <AlertTriangle size={14} className="mr-1" /> };
   
+  // Usamos UTC para evitar desfases de zona horaria
   const fecha = new Date(fechaString);
   const now = new Date();
-  const diffTime = Math.abs(now.getTime() - fecha.getTime());
+  
+  // Normalizar ambas fechas a medianoche UTC para comparar días reales
+  const d1 = Date.UTC(fecha.getUTCFullYear(), fecha.getUTCMonth(), fecha.getUTCDate());
+  const d2 = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  
+  const diffTime = Math.abs(d2 - d1);
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   
   // Normativa MINSAL: 6 meses (180 días) para riesgo, 12 meses (365 días) para el resto
@@ -31,7 +37,7 @@ const formatDate = (dateString: string | null) => {
   if (!dateString) return "-";
   try {
     const d = new Date(dateString);
-    return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth()+1).toString().padStart(2, '0')}/${d.getFullYear()}`;
+    return `${d.getUTCDate().toString().padStart(2, '0')}/${(d.getUTCMonth()+1).toString().padStart(2, '0')}/${d.getUTCFullYear()}`;
   } catch(e) {
     return dateString;
   }
@@ -92,8 +98,8 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
       if (p.fecha_nacimiento) {
          const bd = new Date(p.fecha_nacimiento);
          const today = new Date();
-         let a = today.getFullYear() - bd.getFullYear();
-         if (today.getMonth() < bd.getMonth() || (today.getMonth() === bd.getMonth() && today.getDate() < bd.getDate())) a--;
+         let a = today.getFullYear() - bd.getUTCFullYear();
+         if (today.getMonth() < bd.getUTCMonth() || (today.getMonth() === bd.getUTCMonth() && today.getDate() < bd.getUTCDate())) a--;
          age = a.toString();
       }
       return {
@@ -272,19 +278,19 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
                      const d = new Date(p.ultima_atencion);
                      const resUpper = String(p.resultado_efam || '').toUpperCase();
                      if (resUpper.includes('CON RIESGO') || resUpper.includes('RIESGO DE DEPENDENCIA')) {
-                        d.setMonth(d.getMonth() + 6);
+                        d.setUTCMonth(d.getUTCMonth() + 6);
                      } else {
-                        d.setFullYear(d.getFullYear() + 1);
+                        d.setUTCFullYear(d.getUTCFullYear() + 1);
                      }
-                     fechaVence = `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth()+1).toString().padStart(2, '0')}/${d.getFullYear()}`;
+                     fechaVence = `${d.getUTCDate().toString().padStart(2, '0')}/${(d.getUTCMonth()+1).toString().padStart(2, '0')}/${d.getUTCFullYear()}`;
                   }
                   
                   let age = "-";
                   if (p.fecha_nacimiento) {
                      const bd = new Date(p.fecha_nacimiento);
                      const today = new Date();
-                     let a = today.getFullYear() - bd.getFullYear();
-                     if (today.getMonth() < bd.getMonth() || (today.getMonth() === bd.getMonth() && today.getDate() < bd.getDate())) a--;
+                     let a = today.getFullYear() - bd.getUTCFullYear();
+                     if (today.getMonth() < bd.getUTCMonth() || (today.getMonth() === bd.getUTCMonth() && today.getDate() < bd.getUTCDate())) a--;
                      age = a.toString();
                   }
 
@@ -452,7 +458,7 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
                   <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                     <p className="text-[10px] text-slate-400 uppercase font-bold mb-1">Edad</p>
                     <p className="text-sm font-semibold text-slate-700">
-                      {selectedPatient.fecha_nacimiento ? (new Date().getFullYear() - new Date(selectedPatient.fecha_nacimiento).getFullYear()) : '-'} Años
+                      {selectedPatient.fecha_nacimiento ? (new Date().getFullYear() - new Date(selectedPatient.fecha_nacimiento).getUTCFullYear()) : '-'} Años
                     </p>
                   </div>
                   <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">

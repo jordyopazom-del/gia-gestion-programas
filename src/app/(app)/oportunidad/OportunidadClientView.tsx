@@ -288,7 +288,12 @@ export default function OportunidadClientView({ initialData, initialDate }: { in
                     {item.empam_estado}
                   </div>
                   {item.empam_fecha && (
-                    <p className="text-[9px] text-slate-400 mt-1 font-bold">Último: {new Date(item.empam_fecha).toLocaleDateString()}</p>
+                    <p className="text-[9px] text-slate-400 mt-1 font-bold">
+                      Último: {item.empam_fecha ? (() => {
+                        const d = new Date(item.empam_fecha);
+                        return `${d.getUTCDate().toString().padStart(2, '0')}/${(d.getUTCMonth()+1).toString().padStart(2, '0')}/${d.getUTCFullYear()}`;
+                      })() : '—'}
+                    </p>
                   )}
                 </td>
                 <td className="px-6 py-5 text-center">

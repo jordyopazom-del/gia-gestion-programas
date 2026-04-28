@@ -222,7 +222,10 @@ export default function DirectorioClientView({ pacientes, user }: { pacientes: a
                       <>
                         <td className="px-4 py-2 font-bold text-red-600 uppercase">{(p as any).motivo_egreso}</td>
                         <td className="px-4 py-2 font-mono text-[10px]">
-                          {(p as any).fecha_egreso ? new Date((p as any).fecha_egreso).toLocaleDateString("es-CL") : '-'}
+                          {(p as any).fecha_egreso ? (() => {
+                            const d = new Date((p as any).fecha_egreso);
+                            return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth()+1).toString().padStart(2, '0')}/${d.getFullYear()} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+                          })() : '-'}
                         </td>
                       </>
                     )}

@@ -12,7 +12,12 @@ export default function NuevoEmpam() {
   const [searchError, setSearchError] = useState("");
   const [searchWarning, setSearchWarning] = useState("");
 
-  const [fechaAtencion, setFechaAtencion] = useState(new Date().toISOString().split("T")[0]);
+  const [fechaAtencion, setFechaAtencion] = useState(() => {
+    const d = new Date();
+    const offset = d.getTimezoneOffset() * 60000;
+    const localISOTime = new Date(d.getTime() - offset).toISOString().slice(0, 10);
+    return localISOTime;
+  });
   const [resultadoEfam, setResultadoEfam] = useState("Autovalente sin riesgo");
   const [estadoNutricional, setEstadoNutricional] = useState("NORMAL");
   const [pertenenciaIndigena, setPertenenciaIndigena] = useState("NO");
