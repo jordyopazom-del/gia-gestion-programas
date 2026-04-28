@@ -2,8 +2,8 @@
 
 import { sql } from "@/lib/db";
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
 import { PacienteData } from "./pacientesActions";
+import { getCurrentUser } from "./userActions";
 
 export async function buscarPacientePorRut(rutInput: string) {
   const cleanRut = rutInput.replace(/[^0-9kK]/g, "").toUpperCase();
@@ -47,16 +47,11 @@ export type EmpamSubmission = {
 };
 
 export async function saveEmpamRecord(data: EmpamSubmission) {
-  // Get current user session to sign the clinical record
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get("session")?.value;
-  if (!sessionCookie) return { error: "Sesión expirada. Vuelva a Iniciar Sesión." };
+  // Obtener usuario actual para firmar el registro clínico
+  const user = await getCurrentUser();
+  if (!user) return { error: "Sesión expirada. Vuelva a Iniciar Sesión." };
   
-  let userRut = "SISTEMA";
-  try {
-    const sessionData = JSON.parse(Buffer.from(sessionCookie, 'base64').toString('utf-8'));
-    userRut = sessionData.rut;
-  } catch(e) {}
+  const userRut = user.rut;
 
   try {
     const motivo = data.motivo_egreso || 'ACTIVO';
