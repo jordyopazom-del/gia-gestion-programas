@@ -37,7 +37,7 @@ export default function Sidebar({ user }: { user: UserProfile }) {
   return (
     <div className="flex h-screen w-64 flex-col border-r border-slate-200 bg-white no-print">
       <div className="flex items-center mb-8 px-2 mt-6">
-        <img src="/logo_cesfam.png" alt="Logo CESFAM" className="h-10 w-10 mr-3 object-contain" />
+        <img src="/logo.png" alt="Logo CESFAM" className="h-14 w-14 mr-2 object-contain" />
         <div className="flex flex-col">
           <span className="text-lg font-bold text-slate-800 leading-tight">GIA Belarmina</span>
           <span className="text-[9px] font-bold text-blue-500 uppercase tracking-tighter">Gestión Integral APS</span>
