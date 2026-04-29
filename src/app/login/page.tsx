@@ -171,10 +171,8 @@ export default function LoginPage() {
   return (
     <div className="flex h-screen w-full items-center justify-center bg-slate-50">
       <div className="w-full max-w-md rounded-xl bg-white p-8 shadow-lg border border-slate-100">
-        <div className="mb-8 flex flex-col items-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-600 text-white mb-4 shadow-lg shadow-blue-200">
-            <Activity size={28} />
-          </div>
+        <div className="flex flex-col items-center mb-8">
+          <img src="/logo.png" alt="Logo CESFAM" className="h-24 w-24 mb-4 object-contain" />
           <h1 className="text-2xl font-bold text-slate-800">GIA Belarmina</h1>
           <p className="text-xs font-bold text-blue-600 uppercase tracking-widest mt-1">Gestión Integral APS</p>
         </div>
