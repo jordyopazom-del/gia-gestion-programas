@@ -1,8 +1,8 @@
 import "./globals.css";
 
 export const metadata = {
-  title: 'GIA Health Systems | Dashboard',
-  description: 'Gestión Clínica Inteligente',
+  title: 'GIA Belarmina | Gestión Integral APS',
+  description: 'Sistema de Gestión de Programas de Salud - Futrono',
 }
 
 export default function RootLayout({

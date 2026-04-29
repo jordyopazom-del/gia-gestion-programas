@@ -175,8 +175,8 @@ export default function LoginPage() {
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-600 text-white mb-4 shadow-lg shadow-blue-200">
             <Activity size={28} />
           </div>
-          <h1 className="text-2xl font-bold text-slate-800">GIA Health Systems</h1>
-          <p className="mt-1 text-sm text-slate-500 italic">Gestión Clínica Inteligente</p>
+          <h1 className="text-2xl font-bold text-slate-800">GIA Belarmina</h1>
+          <p className="text-xs font-bold text-blue-600 uppercase tracking-widest mt-1">Gestión Integral APS</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
