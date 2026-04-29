@@ -78,13 +78,8 @@ export async function getEmpamDashboardData() {
         FROM gia_empam
       )
       SELECT 
-        p.rut, 
-        p.dv,
-        p.nombre_completo,
-        p.fecha_nacimiento,
-        p.sector,
-        p.telefono,
-        p.direccion,
+        p.rut, p.dv, p.nombre_completo, p.fecha_nacimiento, p.sector, p.telefono, p.direccion,
+        p.estado, p.motivo_egreso, p.fecha_egreso,
         e.fecha_atencion as ultima_atencion,
         e.resultado_efam,
         e.profesional_rut,
@@ -92,7 +87,6 @@ export async function getEmpamDashboardData() {
       FROM gia_pacientes p
       LEFT JOIN UltimoEmpam e ON p.rut = e.rut_paciente AND e.rn = 1
       WHERE p.fecha_nacimiento IS NOT NULL
-        AND p.estado = 'ACTIVO'
         AND DATE_PART('year', AGE(CURRENT_DATE, p.fecha_nacimiento::DATE)) >= 65
       ORDER BY p.nombre_completo ASC
     `;

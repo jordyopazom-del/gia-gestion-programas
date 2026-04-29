@@ -29,6 +29,7 @@ export async function initDatabase() {
         sexo TEXT,
         es_pad BOOLEAN DEFAULT FALSE,
         estado TEXT DEFAULT 'ACTIVO',
+        estado_registro TEXT DEFAULT 'OFICIAL', -- OFICIAL o PROVISORIO
         motivo_egreso TEXT,
         fecha_egreso TIMESTAMP,
         fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP

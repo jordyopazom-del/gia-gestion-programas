@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Search, MapPin, Download, UserMinus, History, CheckCircle, AlertCircle, X } from "lucide-react";
-import { egresarPaciente } from "@/actions/pacientesActions";
+import { Search, MapPin, Download, UserMinus, History, CheckCircle, AlertCircle, X, ShieldCheck, UserCheck, Trash2, UserPlus, Edit2, Phone, Calendar, Hash, ClipboardList } from "lucide-react";
+import { egresarPaciente, validarPaciente, eliminarPacienteProvisorio, upsertPaciente, PacienteData } from "@/actions/pacientesActions";
 import { UserProfile } from "@/actions/userActions";
 
 const calculateAge = (birthDate: string | Date | null) => {
@@ -42,8 +42,13 @@ export default function DirectorioClientView({ pacientes, user }: { pacientes: a
   const [searchRut, setSearchRut] = useState("");
   const [searchName, setSearchName] = useState("");
   const [filterSector, setFilterSector] = useState("Todos");
-  const [tab, setTab] = useState<"activos" | "egresados">("activos");
+  const [tab, setTab] = useState<"activos" | "egresados" | "pendientes">("activos");
   const [isEgresando, setIsEgresando] = useState<string | null>(null);
+  const [isValidando, setIsValidando] = useState<any | null>(null);
+  const [isEditing, setIsEditing] = useState<any | null>(null);
+  const [formData, setFormData] = useState<PacienteData>({
+    rut: "", dv: "", nombre_completo: "", fecha_nacimiento: "", sexo: "MASCULINO", sector: "ARQUILHUE", telefono: "", direccion: "", es_pad: false
+  });
   const [motivoEgreso, setMotivoEgreso] = useState("Fallecimiento");
   const [loading, setLoading] = useState(false);
 
@@ -55,7 +60,11 @@ export default function DirectorioClientView({ pacientes, user }: { pacientes: a
 
   const filtered = useMemo(() => {
     return pacientes.filter(p => {
-      const matchTab = tab === "activos" ? (p as any).estado === "ACTIVO" : (p as any).estado === "EGRESADO";
+      let matchTab = false;
+      if (tab === "activos") matchTab = (p as any).estado === "ACTIVO" && (p as any).estado_registro === "OFICIAL";
+      if (tab === "egresados") matchTab = (p as any).estado === "EGRESADO";
+      if (tab === "pendientes") matchTab = (p as any).estado_registro === "PROVISORIO";
+      
       const qRut = searchRut.replace(/[-.]/g, "").toLowerCase();
       const matchRut = p.rut.toLowerCase().includes(qRut);
       const matchName = p.nombre_completo.toLowerCase().includes(searchName.toLowerCase());
@@ -69,11 +78,86 @@ export default function DirectorioClientView({ pacientes, user }: { pacientes: a
     setLoading(true);
     const res = await egresarPaciente(isEgresando, motivoEgreso);
     setLoading(false);
+    if (!res.success) alert("Error al egresar: " + res.error);
+  };
+
+  const handleOpenValidar = (p: any) => {
+    setIsValidando(p);
+    setFormData({
+      rut: p.rut,
+      dv: p.dv,
+      nombre_completo: p.nombre_completo,
+      fecha_nacimiento: p.fecha_nacimiento ? new Date(p.fecha_nacimiento).toISOString().split('T')[0] : "",
+      sexo: p.sexo || "MASCULINO",
+      sector: p.sector,
+      telefono: p.telefono || "",
+      direccion: p.direccion || "",
+      es_pad: p.es_pad || false
+    });
+  };
+
+  const handleValidarConfirm = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isValidando) return;
+    setLoading(true);
+    const res = await validarPaciente(
+        isValidando.rut, 
+        formData.rut, 
+        formData.dv, 
+        formData.nombre_completo, 
+        formData.fecha_nacimiento || "", 
+        formData.sexo, 
+        formData.sector, 
+        formData.telefono
+    );
+    setLoading(false);
     if (res.success) {
-      setIsEgresando(null);
+      setIsValidando(null);
     } else {
-      alert("Error al egresar: " + res.error);
+      alert("Error al validar: " + res.error);
     }
+  };
+
+  const handleOpenNuevo = () => {
+    setIsEditing("NUEVO");
+    setFormData({
+      rut: "", dv: "", nombre_completo: "", fecha_nacimiento: "", sexo: "MASCULINO", sector: "ARQUILHUE", telefono: "", direccion: "", es_pad: false
+    });
+  };
+
+  const handleOpenEdit = (p: any) => {
+    setIsEditing(p);
+    setFormData({
+      rut: p.rut,
+      dv: p.dv,
+      nombre_completo: p.nombre_completo,
+      fecha_nacimiento: p.fecha_nacimiento ? new Date(p.fecha_nacimiento).toISOString().split('T')[0] : "",
+      sexo: p.sexo || "MASCULINO",
+      sector: p.sector,
+      telefono: p.telefono || "",
+      direccion: p.direccion || "",
+      es_pad: p.es_pad || false
+    });
+  };
+
+  const handleSavePaciente = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    const res = await upsertPaciente(formData);
+    setLoading(false);
+    if (res.success) {
+      setIsEditing(null);
+    } else {
+      alert("Error al guardar: " + res.error);
+    }
+  };
+
+  const handleRechazar = async (rut: string) => {
+    if (!confirm("¿Deseas rechazar y ELIMINAR este registro provisorio? Se perderá la vinculación clínica.")) return;
+    setLoading(true);
+    const res = await eliminarPacienteProvisorio(rut);
+    setLoading(false);
+    if (!res.success) alert("Error al eliminar: " + res.error);
   };
 
   // Derived stats
@@ -89,6 +173,19 @@ export default function DirectorioClientView({ pacientes, user }: { pacientes: a
 
   return (
     <div className="flex flex-col space-y-6">
+      <div className="px-6 pt-6 flex justify-between items-center">
+        <h2 className="text-lg font-bold text-slate-800 flex items-center">
+          <ClipboardList className="mr-2 text-blue-500" size={18} /> Gestión de Padrón
+        </h2>
+        {(user?.rol === "ADMINISTRADOR" || user?.rol === "ADMINISTRATIVO") && (
+          <button 
+            onClick={handleOpenNuevo}
+            className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center hover:bg-blue-700 transition shadow-lg shadow-blue-100"
+          >
+            <UserPlus size={16} className="mr-2" /> Nuevo Paciente
+          </button>
+        )}
+      </div>
       {/* Target Stats Header to mimic prototype */}
       <div className="grid grid-cols-4 gap-4 px-6 pt-4">
         <div className="text-center pb-6 border-b border-slate-200">
@@ -109,6 +206,22 @@ export default function DirectorioClientView({ pacientes, user }: { pacientes: a
         </div>
       </div>
 
+      {/* Banner de Alerta para Pendientes */}
+      {pacientes.some(p => p.estado_registro === 'PROVISORIO') && (
+        <div className="mx-6 p-4 bg-orange-50 border border-orange-200 rounded-2xl flex items-center justify-between animate-pulse">
+           <div className="flex items-center">
+              <AlertCircle className="text-orange-500 mr-3" size={20} />
+              <div>
+                <p className="text-sm font-bold text-orange-800 uppercase tracking-tight">Atención Percápita</p>
+                <p className="text-xs text-orange-600">Hay pacientes capturados en Box que requieren validación oficial.</p>
+              </div>
+           </div>
+           <button onClick={() => setTab("pendientes")} className="text-xs font-black text-white bg-orange-500 px-4 py-2 rounded-xl hover:bg-orange-600 transition uppercase">
+             Revisar Ahora
+           </button>
+        </div>
+      )}
+
       {/* Selector de Pestañas */}
       <div className="px-6 flex items-center space-x-1">
         <button 
@@ -122,6 +235,12 @@ export default function DirectorioClientView({ pacientes, user }: { pacientes: a
           className={`flex items-center px-4 py-2 rounded-t-lg text-sm font-bold transition-colors ${tab === "egresados" ? 'bg-white text-red-600 border-x border-t border-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
         >
           <History size={14} className="mr-2" /> Historial de Egresados
+        </button>
+        <button 
+          onClick={() => setTab("pendientes")}
+          className={`flex items-center px-4 py-2 rounded-t-lg text-sm font-bold transition-colors ${tab === "pendientes" ? 'bg-white text-orange-600 border-x border-t border-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
+        >
+          <UserCheck size={14} className="mr-2" /> Pendientes de Validación
         </button>
       </div>
 
@@ -189,11 +308,13 @@ export default function DirectorioClientView({ pacientes, user }: { pacientes: a
                     (user?.rol === "ADMINISTRADOR" || user?.rol === "ADMINISTRATIVO") && (
                       <th className="px-4 py-3 font-semibold text-slate-500 text-center">Acciones</th>
                     )
-                  ) : (
+                  ) : tab === "egresados" ? (
                     <>
                       <th className="px-4 py-3 font-semibold text-red-500">Motivo Egreso</th>
                       <th className="px-4 py-3 font-semibold text-red-500">Fecha Egreso</th>
                     </>
+                  ) : (
+                    <th className="px-4 py-3 font-semibold text-orange-500 text-center">Acción Percápita</th>
                   )}
                 </tr>
               </thead>
@@ -209,16 +330,25 @@ export default function DirectorioClientView({ pacientes, user }: { pacientes: a
                     {tab === "activos" ? (
                       (user?.rol === "ADMINISTRADOR" || user?.rol === "ADMINISTRATIVO") && (
                         <td className="px-4 py-2 text-center">
-                          <button 
-                            onClick={() => setIsEgresando(p.rut)}
-                            className="p-1.5 hover:bg-red-50 text-red-400 hover:text-red-600 rounded-lg transition-colors border border-transparent hover:border-red-100"
-                            title="Egresar Paciente"
-                          >
-                            <UserMinus size={14} />
-                          </button>
+                          <div className="flex items-center justify-center space-x-2">
+                            <button 
+                                onClick={() => handleOpenEdit(p)}
+                                className="p-1.5 hover:bg-blue-50 text-blue-400 hover:text-blue-600 rounded-lg transition-colors border border-transparent hover:border-blue-100"
+                                title="Editar Paciente"
+                            >
+                                <Edit2 size={14} />
+                            </button>
+                            <button 
+                                onClick={() => setIsEgresando(p.rut)}
+                                className="p-1.5 hover:bg-red-50 text-red-400 hover:text-red-600 rounded-lg transition-colors border border-transparent hover:border-red-100"
+                                title="Egresar Paciente"
+                            >
+                                <UserMinus size={14} />
+                            </button>
+                          </div>
                         </td>
                       )
-                    ) : (
+                    ) : tab === "egresados" ? (
                       <>
                         <td className="px-4 py-2 font-bold text-red-600 uppercase">{(p as any).motivo_egreso}</td>
                         <td className="px-4 py-2 font-mono text-[10px]">
@@ -228,6 +358,24 @@ export default function DirectorioClientView({ pacientes, user }: { pacientes: a
                           })() : '-'}
                         </td>
                       </>
+                    ) : (
+                      <td className="px-4 py-2 text-center">
+                        <div className="flex items-center justify-center space-x-2">
+                          <button 
+                            onClick={() => handleOpenValidar(p)}
+                            className="flex items-center bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold hover:bg-emerald-600 transition shadow-sm"
+                          >
+                            <ShieldCheck size={12} className="mr-1.5" /> Validar
+                          </button>
+                          <button 
+                            onClick={() => handleRechazar(p.rut)}
+                            className="p-1.5 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-lg transition-colors border border-red-100"
+                            title="Rechazar y Eliminar"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
                     )}
                   </tr>
                 ))}
@@ -285,6 +433,158 @@ export default function DirectorioClientView({ pacientes, user }: { pacientes: a
                 {loading ? 'Procesando...' : 'Confirmar Egreso'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Modal de Validación / Edición Percápita */}
+      {(isValidando || isEditing) && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden animate-in zoom-in-95 duration-200">
+            <form onSubmit={isValidando ? handleValidarConfirm : handleSavePaciente}>
+                <div className={`p-6 border-b border-slate-100 flex justify-between items-center ${isValidando ? 'bg-emerald-50' : 'bg-blue-50'}`}>
+                <div className={`flex items-center ${isValidando ? 'text-emerald-700' : 'text-blue-700'}`}>
+                    {isValidando ? <UserCheck className="mr-2" size={20} /> : <UserPlus className="mr-2" size={20} />}
+                    <h3 className="font-bold">
+                        {isValidando ? 'Validar Captura en Box' : (isEditing === "NUEVO" ? 'Nuevo Registro de Población' : 'Editar Datos de Población')}
+                    </h3>
+                </div>
+                <button type="button" onClick={() => { setIsValidando(null); setIsEditing(null); }} className="text-slate-400 hover:text-slate-600"><X size={20}/></button>
+                </div>
+                
+                <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[70vh] overflow-y-auto">
+                    {/* Identidad */}
+                    <div className="md:col-span-2 flex items-center space-x-2 text-slate-400 border-b border-slate-100 pb-2">
+                        <Hash size={14} /> <span className="text-[10px] font-black uppercase">Identificación</span>
+                    </div>
+                    
+                    <div className="flex space-x-2">
+                        <div className="flex-1">
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">RUT</label>
+                            <input 
+                                type="text" required value={formData.rut} 
+                                onChange={e => setFormData({...formData, rut: e.target.value})}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                            />
+                        </div>
+                        <div className="w-16">
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">DV</label>
+                            <input 
+                                type="text" required value={formData.dv} 
+                                onChange={e => setFormData({...formData, dv: e.target.value})}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Nombre Completo</label>
+                        <input 
+                            type="text" required value={formData.nombre_completo} 
+                            onChange={e => setFormData({...formData, nombre_completo: e.target.value})}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none uppercase"
+                        />
+                    </div>
+
+                    {/* Datos Clínicos Básicos */}
+                    <div className="md:col-span-2 flex items-center space-x-2 text-slate-400 border-b border-slate-100 pb-2 mt-4">
+                        <Calendar size={14} /> <span className="text-[10px] font-black uppercase">Datos Demográficos</span>
+                    </div>
+
+                    <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Fecha Nacimiento</label>
+                        <input 
+                            type="date" required value={formData.fecha_nacimiento || ""} 
+                            onChange={e => setFormData({...formData, fecha_nacimiento: e.target.value})}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Sexo</label>
+                        <select 
+                            value={formData.sexo} 
+                            onChange={e => setFormData({...formData, sexo: e.target.value})}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                        >
+                            <option value="MASCULINO">MASCULINO</option>
+                            <option value="FEMENINO">FEMENINO</option>
+                        </select>
+                    </div>
+
+                    {/* Ubicación y Contacto */}
+                    <div className="md:col-span-2 flex items-center space-x-2 text-slate-400 border-b border-slate-100 pb-2 mt-4">
+                        <MapPin size={14} /> <span className="text-[10px] font-black uppercase">Ubicación y Contacto</span>
+                    </div>
+
+                    <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Sector Oficial</label>
+                        <select 
+                            value={formData.sector} 
+                            onChange={e => setFormData({...formData, sector: e.target.value})}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                        >
+                            <option value="ARQUILHUE">ARQUILHUE</option>
+                            <option value="EMR CHABRANCO">EMR CHABRANCO</option>
+                            <option value="EMR CURRIÑE">EMR CURRIÑE</option>
+                            <option value="EMR HUEINAHUE">EMR HUEINAHUE</option>
+                            <option value="ISLA HUAPI">ISLA HUAPI</option>
+                            <option value="LLIFEN">LLIFEN</option>
+                            <option value="LONCOPAN">LONCOPAN</option>
+                            <option value="MAIHUE">MAIHUE</option>
+                            <option value="NONTUELA">NONTUELA</option>
+                            <option value="SECTOR 1">SECTOR 1</option>
+                            <option value="SECTOR 2">SECTOR 2</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Teléfono</label>
+                        <input 
+                            type="text" value={formData.telefono} 
+                            onChange={e => setFormData({...formData, telefono: e.target.value})}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                            placeholder="+569..."
+                        />
+                    </div>
+
+                    <div className="md:col-span-2">
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Dirección</label>
+                        <input 
+                            type="text" value={formData.direccion} 
+                            onChange={e => setFormData({...formData, direccion: e.target.value})}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none uppercase"
+                            placeholder="Ej: CALLE FAKE 123"
+                        />
+                    </div>
+
+                    <div className="md:col-span-2 mt-2">
+                        <label className="flex items-center space-x-3 cursor-pointer">
+                            <input 
+                                type="checkbox" checked={formData.es_pad} 
+                                onChange={e => setFormData({...formData, es_pad: e.target.checked})}
+                                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span className="text-sm font-semibold text-slate-700">Pertenece al Programa de Atención Domiciliaria (PAD)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div className="p-6 bg-slate-50 flex space-x-3 border-t border-slate-100">
+                    <button 
+                        type="button" onClick={() => { setIsValidando(null); setIsEditing(null); }}
+                        className="flex-1 px-4 py-3 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-200 transition-colors"
+                    >
+                        Cancelar
+                    </button>
+                    <button 
+                        type="submit"
+                        disabled={loading}
+                        className={`flex-1 px-4 py-3 rounded-xl text-sm font-bold text-white transition-colors shadow-lg disabled:opacity-50 ${isValidando ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-100'}`}
+                    >
+                        {loading ? 'Procesando...' : (isValidando ? 'Validar y Oficializar' : 'Guardar Cambios')}
+                    </button>
+                </div>
+            </form>
           </div>
         </div>
       )}

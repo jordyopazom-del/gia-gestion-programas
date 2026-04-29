@@ -50,11 +50,13 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
   const [filterStatus, setFilterStatus] = useState("Todos");
   const [filterEfam, setFilterEfam] = useState("Todos");
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
+  const [tab, setTab] = useState<'activos' | 'egresados'>('activos');
 
   const sectors = useMemo(() => ["Todos", ...Array.from(new Set(data.map(p => p.sector))).sort()], [data]);
 
   const filtered = useMemo(() => {
     return data.filter(p => {
+      const matchTab = tab === 'activos' ? p.estado === 'ACTIVO' : p.estado === 'EGRESADO';
       const qRut = searchRut.replace(/[-.]/g, "").toLowerCase();
       const matchRut = p.rut.toLowerCase().includes(qRut) || p.nombre_completo.toLowerCase().includes(searchRut.toLowerCase());
       const matchSector = filterSector === "Todos" || p.sector === filterSector;
@@ -62,9 +64,9 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
       const matchStatus = filterStatus === "Todos" || statusObj.status === filterStatus;
       const matchEfam = filterEfam === "Todos" || p.resultado_efam === filterEfam;
       
-      return matchRut && matchSector && matchStatus && matchEfam;
+      return matchTab && matchRut && matchSector && matchStatus && matchEfam;
     });
-  }, [data, searchRut, filterSector, filterStatus, filterEfam]);
+  }, [data, searchRut, filterSector, filterStatus, filterEfam, tab]);
 
   // Statistics for Dashboard
   const stats = useMemo(() => {
@@ -169,29 +171,29 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
 
       {/* Selector de Vista */}
       <div className="px-6 flex justify-between items-center">
-        <div className="inline-flex bg-slate-100 p-1 rounded-xl">
-          <button 
-            onClick={() => setView('lista')}
-            className={`px-6 py-2 rounded-lg text-sm font-bold transition ${view === 'lista' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-          >
-            Listado Operativo
-          </button>
-          <button 
-            onClick={() => setView('analisis')}
-            className={`px-6 py-2 rounded-lg text-sm font-bold transition ${view === 'analisis' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-          >
-            Análisis Estadístico
-          </button>
+        <div className="flex bg-slate-100 p-1 rounded-xl w-fit">
+            <button 
+                onClick={() => { setTab('activos'); setView('lista'); }}
+                className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${tab === 'activos' && view === 'lista' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+                Listado Operativo
+            </button>
+            <button 
+                onClick={() => { setTab('egresados'); setView('lista'); }}
+                className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${tab === 'egresados' && view === 'lista' ? 'bg-white text-red-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+                Historial de Egresados
+            </button>
         </div>
-
-        {view === 'lista' && (
-          <button 
-            onClick={exportToExcel}
-            className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 px-4 py-2 rounded-lg text-xs font-bold border border-emerald-200 transition flex items-center"
-          >
-            <Download size={14} className="mr-2" /> Exportar a Excel
-          </button>
-        )}
+        <div className="flex space-x-2">
+            <button onClick={() => setView('analisis')} className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${view === 'analisis' ? 'bg-blue-600 text-white shadow-lg' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}`}>
+                Análisis Estadístico
+            </button>
+            <button onClick={exportToExcel} className="flex items-center space-x-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100 hover:bg-emerald-100 transition shadow-sm font-bold text-sm">
+                <Download size={16} />
+                <span>Exportar a Excel</span>
+            </button>
+        </div>
       </div>
 
       {view === 'lista' ? (
@@ -262,29 +264,25 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
                   <th className="px-3 py-3">RUT</th>
                   <th className="px-3 py-3">Nombre</th>
                   <th className="px-3 py-3 text-center">Edad</th>
-                  <th className="px-3 py-3">Sector</th>
-                  <th className="px-3 py-3">Teléfono</th>
-                  <th className="px-3 py-3">Resultado EFAM</th>
-                  <th className="px-3 py-3">Fecha Último</th>
-                  <th className="px-3 py-3">Fecha Vence</th>
-                  <th className="px-3 py-3">Estado</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Sector</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Teléfono</th>
+                  {tab === 'activos' ? (
+                      <>
+                          <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Resultado EFAM</th>
+                          <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Fecha Último</th>
+                          <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Fecha Vence</th>
+                          <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider text-center">Estado</th>
+                      </>
+                  ) : (
+                      <>
+                          <th className="px-6 py-4 text-left text-xs font-bold text-red-500 uppercase tracking-wider">Motivo Egreso</th>
+                          <th className="px-6 py-4 text-left text-xs font-bold text-red-500 uppercase tracking-wider">Fecha Egreso</th>
+                      </>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filtered.slice(0, 500).map((p, i) => {
-                  const semaforo = getEmpamStatus(p.ultima_atencion, p.resultado_efam);
-                  let fechaVence = "-";
-                  if (p.ultima_atencion) {
-                     const d = new Date(p.ultima_atencion);
-                     const resUpper = String(p.resultado_efam || '').toUpperCase();
-                     if (resUpper.includes('CON RIESGO') || resUpper.includes('RIESGO DE DEPENDENCIA')) {
-                        d.setUTCMonth(d.getUTCMonth() + 6);
-                     } else {
-                        d.setUTCFullYear(d.getUTCFullYear() + 1);
-                     }
-                     fechaVence = `${d.getUTCDate().toString().padStart(2, '0')}/${(d.getUTCMonth()+1).toString().padStart(2, '0')}/${d.getUTCFullYear()}`;
-                  }
-                  
                   let age = "-";
                   if (p.fecha_nacimiento) {
                      const bd = new Date(p.fecha_nacimiento);
@@ -303,16 +301,43 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
                       <td className="px-3 py-3 font-medium text-blue-600 group-hover:underline">{p.rut}-{p.dv}</td>
                       <td className="px-3 py-3 uppercase truncate max-w-[150px]">{p.nombre_completo}</td>
                       <td className="px-3 py-3 text-center">{age}</td>
-                      <td className="px-3 py-3 uppercase">{p.sector}</td>
-                      <td className="px-3 py-3">{p.telefono || '-'}</td>
-                      <td className="px-3 py-3 uppercase font-medium">{p.resultado_efam || "PENDIENTE"}</td>
-                      <td className="px-3 py-3 font-mono">{formatDate(p.ultima_atencion)}</td>
-                      <td className="px-3 py-3 font-mono text-slate-400">{fechaVence}</td>
-                      <td className="px-3 py-3">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-wider ${semaforo.color}`}>
-                          {semaforo.icon} {semaforo.status === 'Pendiente' ? 'SIN REGISTRO' : semaforo.status}
-                        </span>
-                      </td>
+                      <td className="px-6 py-5 text-sm text-slate-600 uppercase whitespace-nowrap">{p.sector}</td>
+                      <td className="px-6 py-5 text-sm text-slate-500 whitespace-nowrap">{p.telefono || "—"}</td>
+                      
+                      {tab === 'activos' ? (
+                        <>
+                          <td className="px-6 py-5">
+                            <div className="flex flex-col">
+                              <span className="text-sm font-bold text-slate-700 uppercase">{p.resultado_efam || "PENDIENTE"}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-5 text-sm text-slate-500 whitespace-nowrap">{formatDate(p.ultima_atencion)}</td>
+                          <td className="px-6 py-5 text-sm text-slate-500 whitespace-nowrap">
+                            {p.ultima_atencion ? (() => {
+                              const d = new Date(p.ultima_atencion);
+                              const isRisk = String(p.resultado_efam || '').toUpperCase().includes('CON RIESGO') || String(p.resultado_efam || '').toUpperCase().includes('RIESGO DE DEPENDENCIA');
+                              d.setFullYear(d.getFullYear() + (isRisk ? 0 : 1));
+                              if (isRisk) d.setMonth(d.getMonth() + 6);
+                              return `${d.getUTCDate().toString().padStart(2, '0')}/${(d.getUTCMonth()+1).toString().padStart(2, '0')}/${d.getUTCFullYear()}`;
+                            })() : "—"}
+                          </td>
+                          <td className="px-6 py-5 text-center">
+                            {(() => {
+                              const { status, color, icon } = getEmpamStatus(p.ultima_atencion, p.resultado_efam);
+                              return (
+                                <div className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold border uppercase tracking-tight ${color}`}>
+                                  {icon} {status}
+                                </div>
+                              );
+                            })()}
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td className="px-6 py-5 font-bold text-red-600 text-sm uppercase">{p.motivo_egreso || "Sin registro"}</td>
+                          <td className="px-6 py-5 text-sm text-slate-500 whitespace-nowrap">{formatDate(p.fecha_egreso)}</td>
+                        </>
+                      )}
                     </tr>
                   )
                 })}

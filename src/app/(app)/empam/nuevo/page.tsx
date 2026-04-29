@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { buscarPacientePorRut, saveEmpamRecord, EmpamSubmission } from "@/actions/empamActions";
-import { Search, UserCircle, Calendar, ShieldCheck, AlertCircle } from "lucide-react";
+import { crearPacienteProvisorio } from "@/actions/pacientesActions";
+import { Search, UserCircle, Calendar, ShieldCheck, AlertCircle, UserPlus, X } from "lucide-react";
 
 export default function NuevoEmpam() {
   const [rutInput, setRutInput] = useState("");
@@ -34,6 +35,14 @@ export default function NuevoEmpam() {
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
   const [saveError, setSaveError] = useState("");
+
+  // Estado para paciente provisorio
+  const [showProvisorio, setShowProvisorio] = useState(false);
+  const [provNombre, setProvNombre] = useState("");
+  const [provFechaNac, setProvFechaNac] = useState("");
+  const [provSexo, setProvSexo] = useState("MASCULINO");
+  const [provSector, setProvSector] = useState("SECTOR 1");
+  const [creatingProv, setCreatingProv] = useState(false);
 
   const handleSearch = async () => {
     if (rutInput.length < 8) return;
@@ -97,6 +106,35 @@ export default function NuevoEmpam() {
     setSaving(false);
   };
 
+  const handleCreateProvisorio = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreatingProv(true);
+    
+    // Extraer DV del RUT
+    const parts = rutInput.split("-");
+    const rut = parts[0].replace(/\./g, "");
+    const dv = parts[1] || "K";
+
+    const res = await crearPacienteProvisorio({
+      rut,
+      dv,
+      nombre: provNombre,
+      fecha_nacimiento: provFechaNac,
+      sexo: provSexo,
+      sector: provSector
+    });
+
+    if (res.success) {
+      // Una vez creado, lo buscamos de nuevo para cargar la info en el form principal
+      await handleSearch();
+      setShowProvisorio(false);
+      setProvNombre("");
+    } else {
+      alert("Error al crear paciente: " + res.error);
+    }
+    setCreatingProv(false);
+  };
+
   return (
     <div className="max-w-6xl mx-auto py-6">
       <div className="flex items-center mb-8 pb-4 border-b border-slate-200">
@@ -136,9 +174,20 @@ export default function NuevoEmpam() {
             </div>
 
             {searchError && (
-              <div className="mt-4 bg-red-50 text-red-700 p-3 rounded-lg text-sm flex items-start">
-                <AlertCircle className="mr-2 shrink-0 mt-0.5" size={16} />
-                {searchError}
+              <div className="mt-4 bg-red-50 text-red-700 p-3 rounded-lg text-sm border border-red-100">
+                <div className="flex items-start">
+                  <AlertCircle className="mr-2 shrink-0 mt-0.5" size={16} />
+                  <div>
+                    <p className="font-bold">Paciente no encontrado</p>
+                    <p className="text-xs opacity-80 mb-2">Este RUT no figura en el padrón maestro actual.</p>
+                    <button 
+                      onClick={() => setShowProvisorio(true)}
+                      className="flex items-center text-[10px] font-black uppercase tracking-wider bg-red-600 text-white px-3 py-1.5 rounded-md hover:bg-red-700 transition shadow-sm"
+                    >
+                      <UserPlus size={12} className="mr-1.5" /> Registrar de forma Provisoria
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -326,6 +375,99 @@ export default function NuevoEmpam() {
           </div>
         </div>
       </div>
+      {/* Modal de Registro Provisorio */}
+      {showProvisorio && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200">
+            <form onSubmit={handleCreateProvisorio}>
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <div className="flex items-center text-slate-800">
+                  <UserPlus className="mr-2 text-blue-600" size={20} />
+                  <h3 className="font-bold">Ingreso de Excepción (Provisorio)</h3>
+                </div>
+                <button type="button" onClick={() => setShowProvisorio(false)} className="text-slate-400 hover:text-slate-600">
+                  <X size={20}/>
+                </button>
+              </div>
+              
+              <div className="p-6 space-y-4">
+                <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 text-[10px] text-blue-700 font-medium">
+                  Este registro permitirá realizar la atención clínica hoy. Percápita lo validará posteriormente.
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">RUT Identificado</label>
+                  <p className="text-sm font-mono font-bold text-slate-700">{rutInput}</p>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Nombre Completo</label>
+                  <input 
+                    type="text" required value={provNombre} onChange={e => setProvNombre(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="EJ: JUAN PEREZ SOTO"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Fecha Nacimiento</label>
+                    <input 
+                      type="date" required value={provFechaNac} onChange={e => setProvFechaNac(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Sexo</label>
+                    <select 
+                      value={provSexo} onChange={e => setProvSexo(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                    >
+                      <option value="MASCULINO">MASCULINO</option>
+                      <option value="FEMENINO">FEMENINO</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Sector Territorial</label>
+                  <select 
+                    value={provSector} onChange={e => setProvSector(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                  >
+                    <option value="ARQUILHUE">ARQUILHUE</option>
+                    <option value="EMR CHABRANCO">EMR CHABRANCO</option>
+                    <option value="EMR CURRIÑE">EMR CURRIÑE</option>
+                    <option value="EMR HUEINAHUE">EMR HUEINAHUE</option>
+                    <option value="ISLA HUAPI">ISLA HUAPI</option>
+                    <option value="LLIFEN">LLIFEN</option>
+                    <option value="LONCOPAN">LONCOPAN</option>
+                    <option value="MAIHUE">MAIHUE</option>
+                    <option value="NONTUELA">NONTUELA</option>
+                    <option value="SECTOR 1">SECTOR 1</option>
+                    <option value="SECTOR 2">SECTOR 2</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="p-6 bg-slate-50 border-t border-slate-100 flex space-x-3">
+                <button 
+                  type="button" onClick={() => setShowProvisorio(false)}
+                  className="flex-1 px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-200 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit" disabled={creatingProv}
+                  className="flex-1 px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-lg shadow-blue-100 disabled:opacity-50"
+                >
+                  {creatingProv ? 'Guardando...' : 'Confirmar e Iniciar EMPAM'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
