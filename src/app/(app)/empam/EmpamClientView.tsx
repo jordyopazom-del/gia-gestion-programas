@@ -124,7 +124,7 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
         "Fuma": cv.fuma || "-",
         "Sospecha Maltrato": cv.sospecha_maltrato || "-",
         "Derivación +AMA": cv.derivacion_medico || "-",
-        "Profesional Responsable": p.profesional_rut || "-"
+        "Profesional Responsable": p.profesional_nombre || "-"
       };
     });
 
@@ -516,9 +516,12 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
                    <p className="text-xl font-black uppercase leading-tight">
                      {selectedPatient.resultado_efam || 'PENDIENTE'}
                    </p>
-                   <p className="text-[10px] opacity-80 pt-2 border-t border-black/10">
-                     Última Evaluación: {formatDate(selectedPatient.ultima_atencion)}
-                   </p>
+                    <p className="text-[10px] opacity-80 pt-2 border-t border-black/10 flex justify-between">
+                      <span>Última Evaluación: {formatDate(selectedPatient.ultima_atencion)}</span>
+                      {selectedPatient.profesional_nombre && (
+                        <span className="font-bold">Por: {selectedPatient.profesional_nombre}</span>
+                      )}
+                    </p>
                 </div>
               </div>
 

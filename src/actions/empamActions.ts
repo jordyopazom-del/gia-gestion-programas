@@ -83,9 +83,11 @@ export async function getEmpamDashboardData() {
         e.fecha_atencion as ultima_atencion,
         e.resultado_efam,
         e.profesional_rut,
+        u.nombre as profesional_nombre,
         e.data_clinica
       FROM gia_pacientes p
       LEFT JOIN UltimoEmpam e ON p.rut = e.rut_paciente AND e.rn = 1
+      LEFT JOIN gia_usuarios u ON e.profesional_rut = u.rut
       WHERE p.fecha_nacimiento IS NOT NULL
         AND DATE_PART('year', AGE(CURRENT_DATE, p.fecha_nacimiento::DATE)) >= 65
       ORDER BY p.nombre_completo ASC
