@@ -75,6 +75,7 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
     const total = data.length;
     const efamCounts: Record<string, number> = {};
     const nutriCounts: Record<string, number> = {};
+    const sectorStats: Record<string, { total: number, vigentes: number }> = {};
     let amaCount = 0;
 
     data.forEach(p => {
