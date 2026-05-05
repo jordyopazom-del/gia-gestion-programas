@@ -3,6 +3,7 @@ import EmpamClientView from "./EmpamClientView";
 import { Activity, Plus } from "lucide-react";
 import Link from "next/link";
 import { getCurrentUser } from "@/actions/userActions";
+export const dynamic = 'force-dynamic';
 
 export default async function EmpamDashboardPage() {
   const data = await getEmpamDashboardData();

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Search, MapPin, AlertTriangle, CheckCircle, Clock, Download, Activity, ClipboardList, X, User, Phone, Map, Calendar, ChevronRight } from "lucide-react";
+import { Search, MapPin, AlertTriangle, CheckCircle, Clock, Download, Activity, ClipboardList, X, User, Phone, Map, Calendar } from "lucide-react";
 import * as XLSX from "xlsx";
 import { UserProfile } from "@/actions/userActions";
 
