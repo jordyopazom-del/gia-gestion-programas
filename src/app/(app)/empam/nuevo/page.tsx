@@ -277,7 +277,14 @@ export default function NuevoEmpam() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Fecha de Evaluación</label>
-                  <input type="date" required value={fechaAtencion} onChange={e => setFechaAtencion(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                  <input 
+                    type="date" 
+                    required 
+                    value={fechaAtencion} 
+                    max={fechaAtencion} 
+                    onChange={e => setFechaAtencion(e.target.value)} 
+                    className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                  />
                 </div>
                 
                 <div>
@@ -325,12 +332,12 @@ export default function NuevoEmpam() {
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Glicemia Alterada (Valor)</label>
-                  <input type="text" placeholder="Ej: 115 o dejar blanco" value={glicemia} onChange={e => setGlicemia(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500" />
+                  <input type="number" step="any" min="0" placeholder="Ej: 115" value={glicemia} onChange={e => setGlicemia(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500" />
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Colesterol ≥ 200 (Valor)</label>
-                  <input type="text" placeholder="Ej: 220 o dejar blanco" value={colesterol} onChange={e => setColesterol(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500" />
+                  <input type="number" step="any" min="0" placeholder="Ej: 220" value={colesterol} onChange={e => setColesterol(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500" />
                 </div>
 
                 <div>
@@ -447,7 +454,7 @@ export default function NuevoEmpam() {
                   <div>
                     <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Fecha Nacimiento</label>
                     <input 
-                      type="date" required value={provFechaNac} onChange={e => setProvFechaNac(e.target.value)}
+                      type="date" required value={provFechaNac} max={fechaAtencion} onChange={e => setProvFechaNac(e.target.value)}
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
