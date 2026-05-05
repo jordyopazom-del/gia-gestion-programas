@@ -437,8 +437,8 @@ export default function NuevoEmpam() {
                 <div>
                   <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Nombre Completo</label>
                   <input 
-                    type="text" required value={provNombre} onChange={e => setProvNombre(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                    type="text" required value={provNombre} onChange={e => setProvNombre(e.target.value.toUpperCase())}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none uppercase font-medium"
                     placeholder="EJ: JUAN PEREZ SOTO"
                   />
                 </div>
