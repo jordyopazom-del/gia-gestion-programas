@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Search, MapPin, AlertTriangle, CheckCircle, Clock, Download, Activity, ClipboardList, X, User, Phone, Map, Calendar } from "lucide-react";
+import { Search, MapPin, AlertTriangle, CheckCircle, Clock, Download, Activity, ClipboardList, X, User, Phone, Map, Calendar, Dumbbell } from "lucide-react";
 import * as XLSX from "xlsx";
 import { UserProfile } from "@/actions/userActions";
 
@@ -273,7 +273,7 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
                    onChange={(e) => setFilterAma(e.target.checked ? 'SI' : 'Todos')}
                  />
                  <span className="text-xs font-bold uppercase tracking-wide flex items-center">
-                   🚀 Filtrar solo derivados a +AMA
+                   <Dumbbell size={14} className="mr-1.5" /> Filtrar solo derivados a +AMA
                  </span>
                </label>
             </div>
@@ -460,8 +460,8 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
             {/* Nueva Card: Derivación +AMA */}
             <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-6 rounded-2xl shadow-lg lg:col-span-2 flex items-center justify-between">
               <div className="flex items-center space-x-6">
-                <div className="h-16 w-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center text-white text-3xl">
-                   🚀
+                <div className="h-16 w-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center text-white">
+                   <Dumbbell size={32} />
                 </div>
                 <div>
                   <h3 className="text-xl font-black text-white uppercase tracking-tight">Derivaciones al Programa +AMA</h3>
