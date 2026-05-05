@@ -56,7 +56,6 @@ export default function NuevoEmpam() {
     if (res.error) {
       setSearchError(res.error);
     } else {
-      if (res.warning) setSearchWarning(res.warning);
       setPaciente(res.data);
       setAge(res.age ?? null);
     }
