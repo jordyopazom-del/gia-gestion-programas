@@ -38,6 +38,7 @@ export default function NuevoEmpam() {
 
   // Estado para paciente provisorio
   const [showProvisorio, setShowProvisorio] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [provNombre, setProvNombre] = useState("");
   const [provFechaNac, setProvFechaNac] = useState("");
   const [provSexo, setProvSexo] = useState("MASCULINO");
@@ -94,6 +95,7 @@ export default function NuevoEmpam() {
       setSaveError(res.error);
     } else {
       setSuccess(true);
+      setShowSuccessModal(true);
       setRutInput("");
       setPaciente(null);
       setSearchWarning("");
@@ -465,6 +467,40 @@ export default function NuevoEmpam() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Éxito Moderno */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="p-8 text-center">
+              <div className="mx-auto w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 mb-6 animate-bounce">
+                <ShieldCheck size={40} />
+              </div>
+              <h3 className="text-2xl font-black text-slate-800 mb-2 uppercase tracking-tight">¡Registro Exitoso!</h3>
+              <p className="text-slate-500 text-sm leading-relaxed mb-8">
+                La evaluación EMPAM ha sido procesada y guardada correctamente en el historial clínico del paciente.
+              </p>
+              <div className="space-y-3">
+                <button 
+                  onClick={() => setShowSuccessModal(false)}
+                  className="w-full bg-emerald-600 text-white py-4 rounded-2xl font-bold text-sm shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  Entendido, Continuar
+                </button>
+                <button 
+                   onClick={() => window.location.href = "/empam"}
+                   className="w-full bg-slate-50 text-slate-600 py-4 rounded-2xl font-bold text-sm hover:bg-slate-100 transition-all"
+                >
+                  Volver al Listado General
+                </button>
+              </div>
+            </div>
+            <div className="bg-slate-50 py-4 px-8 border-t border-slate-100 text-[10px] text-slate-400 font-bold uppercase tracking-widest text-center">
+              GIA Belarmina • Gestión Integral APS
+            </div>
           </div>
         </div>
       )}
