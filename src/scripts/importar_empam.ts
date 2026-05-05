@@ -1,7 +1,7 @@
-
 import * as XLSX from 'xlsx';
 import postgres from 'postgres';
 import * as dotenv from 'dotenv';
+import { hashPassword } from '../lib/password';
 
 // Cargar variables de entorno
 dotenv.config({ path: '.env.local' });
@@ -9,25 +9,40 @@ dotenv.config({ path: '.env.local' });
 const sql = postgres(process.env.DATABASE_URL!);
 
 async function migrar() {
-  console.log('🚀 Iniciando migración de Tarjetero Adulto Mayor...');
+  console.log('🚀 Iniciando migración masiva EMPAM desde reporte Excel...');
 
   try {
-    const filePath = '/Users/jopazo/Downloads/tarjetero adulto mayor.xlsx';
+    // PREGUNTA PARA EL USUARIO: Deberá reemplazar esta ruta por la ruta real de su archivo Excel
+    const filePath = '/Users/jopazo/Downloads/REGISTRO EMPAM 2026.xlsx';
+    
+    // Configurar Usuario Comodín
+    const rutMigracion = '99999999-9';
+    const passMigracion = hashPassword('migracion123');
+    
+    console.log('Creando usuario comodín de respaldo...');
+    await sql`
+      INSERT INTO gia_usuarios (rut, nombre, profesion, rol, password)
+      VALUES (${rutMigracion}, 'MIGRACIÓN SISTEMA', 'Sistema', 'ADMINISTRATIVO', ${passMigracion})
+      ON CONFLICT (rut) DO NOTHING
+    `;
+
     const workbook = XLSX.readFile(filePath);
     const sheetName = workbook.SheetNames[0];
+    // header: 1 permite saltar filas si es necesario, pero como la primera es cabecera, usamos lo por defecto
     const data = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
 
-    console.log(`📊 Procesando ${data.length} registros...`);
+    console.log(`📊 Procesando ${data.length} registros encontrados...`);
 
     let pacientesCreados = 0;
     let atencionesCreadas = 0;
+    let pacientesIgnorados = 0;
 
     for (const row of data as any[]) {
-      const rawRut = row['RUT'];
+      const rawRut = row['Rut'];
       if (!rawRut) continue;
 
       // 1. Limpiar y separar RUT
-      const cleanRutStr = String(rawRut).replace(/\./g, '').trim();
+      const cleanRutStr = String(rawRut).replace(/\./g, '').trim().toUpperCase();
       const parts = cleanRutStr.split('-');
       const rutNum = parseInt(parts[0]);
       const dv = parts[1] || '';
@@ -35,51 +50,53 @@ async function migrar() {
       if (isNaN(rutNum)) continue;
 
       // 2. Procesar Datos del Paciente
-      const nombre = row['Columna 1']?.toUpperCase() || 'SIN NOMBRE';
-      const direccion = row['DIRECCION'] || '';
-      const telefono = row['TELEFONO'] || '';
-      const sexo = row['SEXO']?.toUpperCase() || '';
+      const nombre = row['Nombre']?.toUpperCase() || 'SIN NOMBRE';
+      const telefono = row['CONTACTO'] || '';
+      const sexo = row['Femenino/Masculino']?.toUpperCase() || '';
+      const sector = row['CESFAM (Sector), CECOSF o PSR']?.toUpperCase() || 'SECTOR GENERAL';
       
-      // Estimar fecha de nacimiento para el dashboard (hoy - edad)
-      const edadStr = String(row['EDAD'] || '65');
+      // Estimar fecha de nacimiento
+      const edadStr = String(row['Edad'] || '65');
       const edadNum = parseInt(edadStr.replace(/\D/g, '')) || 65;
       const fechaNacimiento = new Date();
       fechaNacimiento.setFullYear(fechaNacimiento.getFullYear() - edadNum);
 
-      // UPSERT Paciente
+      // UPSERT Paciente (Solo validamos que exista, NO alteramos el Padrón)
       const existingPaciente = await sql`SELECT rut FROM gia_pacientes WHERE rut = ${rutNum}`;
       if (existingPaciente.length === 0) {
-        await sql`
-          INSERT INTO gia_pacientes (rut, dv, nombre_completo, direccion, telefono, sexo, fecha_nacimiento, sector)
-          VALUES (${rutNum}, ${dv}, ${nombre}, ${direccion}, ${telefono}, ${sexo}, ${fechaNacimiento.toISOString().split('T')[0]}, 'SECTOR GENERAL')
-        `;
-        pacientesCreados++;
+        // Ignorar paciente si no existe en el Padrón Maestro
+        pacientesIgnorados++;
+        continue;
+      }
+      // NOTA: No hacemos UPDATE aquí. El Padrón del sistema es la fuente de verdad.
+
+      // Normalización de resultado EFAM
+      const valorOriginalEfam = String(row['RESULTADO EFAM'] || 'PENDIENTE').trim();
+      let resultado = 'PENDIENTE';
+      const resUpper = valorOriginalEfam.toUpperCase();
+      
+      if (resUpper.includes('ASR') || resUpper.includes('SIN RIESGO')) resultado = 'Autovalente sin riesgo';
+      else if (resUpper.includes('ACR') || resUpper.includes('CON RIESGO')) resultado = 'Autovalente con riesgo';
+      else if (resUpper.includes('RDP') || resUpper.includes('RIESGO DE DEPEND')) resultado = 'Riesgo de Dependencia';
+      else if (resUpper.includes('DEPENDIENTE LEVE')) resultado = 'Dependencia leve';
+      else if (resUpper.includes('DEPENDIENTE MOD')) resultado = 'Dependencia moderada';
+      else if (resUpper.includes('DEPENDIENTE SEVERA')) resultado = 'Dependencia severa';
+      else if (resUpper !== 'PENDIENTE' && resUpper !== '') {
+        // Si hay un valor pero no calza con ninguna regla estándar, lo forzamos a PENDIENTE
+        // pero guardaremos el valor original en data_clinica más adelante.
+        resultado = 'PENDIENTE';
       }
 
-      // 3. Procesar Atención EMPAM
-      let resultado = row['RESULTADO '] || row['RESULTADO'] || 'PENDIENTE';
+      const fechaRaw = row['Fecha'];
       
-      // Normalización de resultado EFAM
-      const resUpper = String(resultado).toUpperCase();
-      if (resUpper.includes('SIN RIESGO')) resultado = 'Autovalente sin riesgo';
-      else if (resUpper.includes('CON RIESGO')) resultado = 'Autovalente con riesgo';
-      else if (resUpper.includes('RIESGO DE DEPENDENCIA')) resultado = 'Riesgo de Dependencia';
-      else if (resUpper.includes('DEPENDENCIA LEVE')) resultado = 'Dependencia leve';
-      else if (resUpper.includes('DEPENDENCIA MODERADA')) resultado = 'Dependencia moderada';
-      else if (resUpper.includes('DEPENDENCIA SEVERA')) resultado = 'Dependencia severa';
-
-      const fechaRaw = row['FECHA DE APLICACION EMPAM '];
-      
-      // Solo migramos si hay una fecha de atención válida
-      if (fechaRaw && resultado !== 'PENDIENTE' && resultado !== 'PENDIENTE ') {
+      if (fechaRaw) {
         let fechaAtencion: string = '';
         
         if (typeof fechaRaw === 'number') {
-          // Es un número de Excel
+          // Número de Excel
           const date = XLSX.SSF.parse_date_code(fechaRaw);
           fechaAtencion = `${date.y}-${String(date.m).padStart(2, '0')}-${String(date.d).padStart(2, '0')}`;
         } else {
-          // Intentar parsear string o usar Date
           const d = new Date(fechaRaw);
           if (!isNaN(d.getTime())) {
             fechaAtencion = d.toISOString().split('T')[0];
@@ -87,23 +104,35 @@ async function migrar() {
         }
 
         if (fechaAtencion) {
-          // Verificar si ya existe esta atención exacta
+          // Verificar duplicidad
           const existingAtencion = await sql`
             SELECT id FROM gia_empam 
             WHERE rut_paciente = ${rutNum} AND fecha_atencion = ${fechaAtencion}
           `;
 
           if (existingAtencion.length === 0) {
+            // Objeto JSONB estructurado para la web
             const dataClinica = {
               migrado: true,
-              profesional_original: row['PROFESIONAL '] || '',
-              estado_excel: row['ESTADO EMPAM'] || '',
-              proximo_empam: row['PROXIMO EMPAM'] || ''
+              profesional_original: row['Nombre profesional'] || 'Sin Profesional Registrado',
+              estado_excel_original: (resultado === 'PENDIENTE' && resUpper !== 'PENDIENTE' && resUpper !== '') ? valorOriginalEfam : '',
+              estado_nutricional: row['Estado nutricion'] || '',
+              pertenencia_indigena: row['Pertenencia ind'] || '',
+              tipo_control: row['Ingreso/Control'] || '',
+              presion_arterial: row['P/A>=140/190'] || '',
+              glicemia: row['Glicemia entre'] || '',
+              colesterol: row['Colesterol >=200'] || '',
+              sospecha_maltrato: row['Sospecha de maltrato'] || '',
+              riesgo_caidas: row['Riesgo de caida'] || '',
+              actividad_fisica: row['AM Act. Fis'] || '',
+              fuma: row['FUMA SI/NO'] || '',
+              derivacion_medico: row['DERIVACION +A'] || '',
+              atencion_domiciliaria: row['ATENCION DOMICILIARIA'] || ''
             };
 
             await sql`
               INSERT INTO gia_empam (rut_paciente, fecha_atencion, resultado_efam, profesional_rut, data_clinica, motivo_egreso)
-              VALUES (${rutNum}, ${fechaAtencion}, ${resultado}, '12345678-5', ${sql.json(dataClinica)}, 'ACTIVO')
+              VALUES (${rutNum}, ${fechaAtencion}, ${resultado}, ${rutMigracion}, ${sql.json(dataClinica)}, 'ACTIVO')
             `;
             atencionesCreadas++;
           }
@@ -112,11 +141,17 @@ async function migrar() {
     }
 
     console.log('\n✅ Migración completada con éxito.');
-    console.log(`🆕 Pacientes nuevos: ${pacientesCreados}`);
-    console.log(`📋 Atenciones migradas: ${atencionesCreadas}`);
+    console.log(`🆕 Pacientes actualizados: ${pacientesCreados}`);
+    console.log(`📋 Atenciones migradas/inyectadas: ${atencionesCreadas}`);
+    console.log(`⚠️ Pacientes ignorados (no existen en padrón): ${pacientesIgnorados}`);
 
-  } catch (error) {
-    console.error('❌ Error durante la migración:', error);
+  } catch (error: any) {
+    if (error.code === 'ENOENT') {
+      console.error('❌ Error: No se encontró el archivo Excel en la ruta especificada.');
+      console.error('Por favor, edite el script y ponga la ruta correcta en "filePath".');
+    } else {
+      console.error('❌ Error durante la migración:', error);
+    }
   } finally {
     await sql.end();
   }
