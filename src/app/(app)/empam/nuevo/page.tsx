@@ -7,6 +7,15 @@ import { Search, UserCircle, Calendar, ShieldCheck, AlertCircle, UserPlus, X } f
 
 export default function NuevoEmpam() {
   const [rutInput, setRutInput] = useState("");
+  const formatRut = (value: string) => {
+    // Limpiar de puntos y guiones previos
+    const clean = value.replace(/[^0-9kK]/g, "").toUpperCase();
+    if (clean.length <= 1) return clean;
+    // El último es el DV
+    const dv = clean.slice(-1);
+    const body = clean.slice(0, -1);
+    return `${body}-${dv}`;
+  };
   const [paciente, setPaciente] = useState<any>(null);
   const [age, setAge] = useState<number | null>(null);
   const [loadingSearch, setLoadingSearch] = useState(false);
@@ -182,7 +191,7 @@ export default function NuevoEmpam() {
                 placeholder="RUT del Paciente (Ej: 12345678-9)"
                 className="flex-1 border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 value={rutInput}
-                onChange={(e) => setRutInput(e.target.value)}
+                onChange={(e) => setRutInput(formatRut(e.target.value))}
                 onKeyDown={(e) => e.key === "Enter" && handleSearch()}
               />
               <button 
