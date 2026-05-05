@@ -115,6 +115,22 @@ export default function NuevoEmpam() {
     e.preventDefault();
     setCreatingProv(true);
     
+    // Validar edad para EMPAM
+    if (provFechaNac) {
+      const birth = new Date(provFechaNac);
+      const today = new Date();
+      let age = today.getFullYear() - birth.getFullYear();
+      if (today.getMonth() < birth.getMonth() || (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate())) {
+        age--;
+      }
+      
+      if (age < 65) {
+        alert(`Bloqueo de Seguridad: El paciente tiene ${age} años según la fecha ingresada. EMPAM es exclusivo para 65 o más años.`);
+        setCreatingProv(false);
+        return;
+      }
+    }
+
     // Extraer DV del RUT
     const parts = rutInput.split("-");
     const rut = parts[0].replace(/\./g, "");
