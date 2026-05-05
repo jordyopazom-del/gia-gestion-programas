@@ -55,6 +55,10 @@ export default function NuevoEmpam() {
     const res = await buscarPacientePorRut(rutInput);
     if (res.error) {
       setSearchError(res.error);
+      if (res.data) {
+        setPaciente(res.data);
+        setAge(res.age ?? null);
+      }
     } else {
       setPaciente(res.data);
       setAge(res.age ?? null);
@@ -235,7 +239,7 @@ export default function NuevoEmpam() {
 
         {/* Lado Derecho: Formulario Clínico */}
         <div className="lg:col-span-2">
-          <div className={`transition-all duration-300 ${!paciente ? 'opacity-50 pointer-events-none filter grayscale' : ''}`}>
+          <div className={`transition-all duration-300 ${(!paciente || searchError) ? 'opacity-50 pointer-events-none filter grayscale' : ''}`}>
             <form onSubmit={handleSave} className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm">
               <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center border-b border-slate-100 pb-4">
                 <Calendar className="mr-2 text-slate-400" size={20} /> I. Registro de Variables Clínicas
@@ -366,7 +370,7 @@ export default function NuevoEmpam() {
               <div className="mt-8 pt-6 border-t border-slate-100">
                 <button 
                   type="submit"
-                  disabled={saving || !paciente}
+                  disabled={saving || !paciente || !!searchError}
                   className="w-full bg-red-500 text-white py-3 rounded-md font-semibold text-sm shadow-sm hover:bg-red-600 transition disabled:opacity-50 flex justify-center items-center"
                 >
                   {saving ? "Guardando..." : "📋 Procesar y Registrar Atención"}

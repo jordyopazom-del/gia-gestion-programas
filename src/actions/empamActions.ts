@@ -28,7 +28,7 @@ export async function buscarPacientePorRut(rutInput: string) {
     }
 
     if (age > 0 && age < 65) {
-      return { error: `Bloqueo de Seguridad: El paciente tiene ${age} años. El registro de EMPAM es exclusivo para población de 65 años o más.`, data: null };
+      return { error: `Bloqueo de Seguridad: El paciente tiene ${age} años. El registro de EMPAM es exclusivo para población de 65 años o más.`, data: p, age };
     }
 
     return { error: null, data: p, age };
