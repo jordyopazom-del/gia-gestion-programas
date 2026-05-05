@@ -8,10 +8,11 @@ import { Search, UserCircle, Calendar, ShieldCheck, AlertCircle, UserPlus, X } f
 export default function NuevoEmpam() {
   const [rutInput, setRutInput] = useState("");
   const formatRut = (value: string) => {
-    // Limpiar de puntos y guiones previos
-    const clean = value.replace(/[^0-9kK]/g, "").toUpperCase();
+    // Limpiar y limitar a 9 caracteres (max RUT chileno es 8+DV o 9+DV en el futuro lejano, hoy es 8+DV)
+    let clean = value.replace(/[^0-9kK]/g, "").toUpperCase();
+    if (clean.length > 9) clean = clean.slice(0, 9);
+    
     if (clean.length <= 1) return clean;
-    // El último es el DV
     const dv = clean.slice(-1);
     const body = clean.slice(0, -1);
     return `${body}-${dv}`;
@@ -189,7 +190,8 @@ export default function NuevoEmpam() {
               <input 
                 type="text" 
                 placeholder="RUT del Paciente (Ej: 12345678-9)"
-                className="flex-1 border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="flex-1 border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono"
+                maxLength={10}
                 value={rutInput}
                 onChange={(e) => setRutInput(formatRut(e.target.value))}
                 onKeyDown={(e) => e.key === "Enter" && handleSearch()}
