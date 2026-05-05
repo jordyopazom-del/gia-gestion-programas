@@ -182,15 +182,17 @@ export default function NuevoEmpam() {
               <div className="mt-4 bg-red-50 text-red-700 p-3 rounded-lg text-sm border border-red-100">
                 <div className="flex items-start">
                   <AlertCircle className="mr-2 shrink-0 mt-0.5" size={16} />
-                  <div>
-                    <p className="font-bold">Paciente no encontrado</p>
-                    <p className="text-xs opacity-80 mb-2">Este RUT no figura en el padrón maestro actual.</p>
-                    <button 
-                      onClick={() => setShowProvisorio(true)}
-                      className="flex items-center text-[10px] font-black uppercase tracking-wider bg-red-600 text-white px-3 py-1.5 rounded-md hover:bg-red-700 transition shadow-sm"
-                    >
-                      <UserPlus size={12} className="mr-1.5" /> Registrar de forma Provisoria
-                    </button>
+                  <div className="flex-1">
+                    <p className="font-bold">{searchError.includes('Bloqueo') ? 'Bloqueo de Seguridad' : 'Alerta de Búsqueda'}</p>
+                    <p className="text-xs opacity-90 mb-2">{searchError}</p>
+                    {searchError === "Paciente no encontrado en el padrón interconectado." && (
+                      <button 
+                        onClick={() => setShowProvisorio(true)}
+                        className="flex items-center text-[10px] font-black uppercase tracking-wider bg-red-600 text-white px-3 py-1.5 rounded-md hover:bg-red-700 transition shadow-sm mt-2"
+                      >
+                        <UserPlus size={12} className="mr-1.5" /> Registrar de forma Provisoria
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
