@@ -49,6 +49,7 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
   const [filterSector, setFilterSector] = useState("Todos");
   const [filterStatus, setFilterStatus] = useState("Todos");
   const [filterEfam, setFilterEfam] = useState("Todos");
+  const [filterAma, setFilterAma] = useState("Todos");
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const [tab, setTab] = useState<'activos' | 'egresados'>('activos');
 
@@ -63,17 +64,18 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
       const statusObj = getEmpamStatus(p.ultima_atencion, p.resultado_efam);
       const matchStatus = filterStatus === "Todos" || statusObj.status === filterStatus;
       const matchEfam = filterEfam === "Todos" || p.resultado_efam === filterEfam;
+      const matchAma = filterAma === "Todos" || p.data_clinica?.derivacion_medico === filterAma;
       
-      return matchTab && matchRut && matchSector && matchStatus && matchEfam;
+      return matchTab && matchRut && matchSector && matchStatus && matchEfam && matchAma;
     });
-  }, [data, searchRut, filterSector, filterStatus, filterEfam, tab]);
+  }, [data, searchRut, filterSector, filterStatus, filterEfam, filterAma, tab]);
 
   // Statistics for Dashboard
   const stats = useMemo(() => {
     const total = data.length;
     const efamCounts: Record<string, number> = {};
     const nutriCounts: Record<string, number> = {};
-    const sectorStats: Record<string, { total: number, vigentes: number }> = {};
+    let amaCount = 0;
 
     data.forEach(p => {
       const efam = p.resultado_efam || "SIN REGISTRO";
@@ -81,6 +83,8 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
 
       const nutri = p.data_clinica?.estado_nutricional || "SIN REGISTRO";
       nutriCounts[nutri] = (nutriCounts[nutri] || 0) + 1;
+
+      if (p.data_clinica?.derivacion_medico === "SI") amaCount++;
 
       const sec = p.sector || "SIN SECTOR";
       if (!sectorStats[sec]) sectorStats[sec] = { total: 0, vigentes: 0 };
@@ -90,7 +94,7 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
       }
     });
 
-    return { efamCounts, nutriCounts, sectorStats, total };
+    return { efamCounts, nutriCounts, sectorStats, total, amaCount };
   }, [data]);
 
   const exportToExcel = () => {
@@ -252,6 +256,19 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
                 <option value="Dependencia leve">Dependencia leve</option>
                 <option value="Dependencia moderada">Dependencia moderada</option>
                 <option value="Dependencia severa">Dependencia severa</option>
+              </select>
+            </div>
+            <div className="flex-1">
+              <label className="flex items-center text-xs font-medium text-slate-500 mb-1">
+                <Activity size={12} className="mr-1" /> Derivación +AMA
+              </label>
+              <select 
+                value={filterAma} onChange={e => setFilterAma(e.target.value)}
+                className="w-full bg-slate-100 border-none rounded-md px-3 py-2 text-sm font-bold text-blue-600 focus:ring-2 focus:ring-blue-100"
+              >
+                <option value="Todos">Todas (+AMA)</option>
+                <option value="SI">Derivado a +AMA</option>
+                <option value="NO">No Derivado</option>
               </select>
             </div>
           </div>
@@ -437,6 +454,23 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
                     </div>
                   );
                 })}
+              </div>
+            </div>
+
+            {/* Nueva Card: Derivación +AMA */}
+            <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-6 rounded-2xl shadow-lg lg:col-span-2 flex items-center justify-between">
+              <div className="flex items-center space-x-6">
+                <div className="h-16 w-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center text-white text-3xl">
+                   🚀
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-white uppercase tracking-tight">Derivaciones al Programa +AMA</h3>
+                  <p className="text-blue-100 text-sm">Pacientes con derivación médica activa según último EMPAM realizado.</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-5xl font-black text-white">{stats.amaCount.toLocaleString("es-CL")}</p>
+                <p className="text-xs font-bold text-blue-200 uppercase tracking-widest mt-1">Pacientes Derivados</p>
               </div>
             </div>
 
