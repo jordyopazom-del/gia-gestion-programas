@@ -259,24 +259,23 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
                 <option value="Dependencia severa">Dependencia severa</option>
               </select>
             </div>
-            <div className="flex-1">
-              <label className="flex items-center text-xs font-medium text-slate-500 mb-1">
-                <Activity size={12} className="mr-1" /> Derivación +AMA
-              </label>
-              <select 
-                value={filterAma} onChange={e => setFilterAma(e.target.value)}
-                className="w-full bg-slate-100 border-none rounded-md px-3 py-2 text-sm font-bold text-blue-600 focus:ring-2 focus:ring-blue-100"
-              >
-                <option value="Todos">Todas (+AMA)</option>
-                <option value="SI">Derivado a +AMA</option>
-                <option value="NO">No Derivado</option>
-              </select>
-            </div>
           </div>
 
-          <div className="px-6 pb-6 w-full overflow-x-auto">
-            <div className="flex justify-between items-end mb-2">
+          <div className="px-6 pb-6 w-full overflow-x-auto mt-4">
+            <div className="flex justify-between items-center mb-3">
                <span className="text-sm text-slate-600 font-medium block">Mostrando {filtered.length} adultos mayores según filtros seleccionados.</span>
+               
+               <label className={`flex items-center space-x-2 cursor-pointer px-3 py-1.5 rounded-lg border transition-all ${filterAma === 'SI' ? 'bg-blue-50 border-blue-200 text-blue-700 shadow-sm' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
+                 <input 
+                   type="checkbox" 
+                   className="rounded text-blue-600 focus:ring-blue-500 border-slate-300"
+                   checked={filterAma === 'SI'}
+                   onChange={(e) => setFilterAma(e.target.checked ? 'SI' : 'Todos')}
+                 />
+                 <span className="text-xs font-bold uppercase tracking-wide flex items-center">
+                   🚀 Filtrar solo derivados a +AMA
+                 </span>
+               </label>
             </div>
             <table className="w-full text-left text-xs whitespace-nowrap text-slate-600">
               <thead className="bg-slate-50 border-y border-slate-200 font-medium text-slate-500">
