@@ -19,10 +19,7 @@ export default async function EmpamDashboardPage() {
             <Activity size={24} />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-800 flex items-center">
-              Panel Analítico EMPAM 
-              <span className="ml-3 text-[10px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-black uppercase tracking-tighter">V2.1 - +AMA</span>
-            </h1>
+            <h1 className="text-2xl font-bold text-slate-800">Panel Analítico EMPAM</h1>
             <p className="text-slate-500">Gestión Clínica del Programa Adulto Mayor</p>
           </div>
         </div>
