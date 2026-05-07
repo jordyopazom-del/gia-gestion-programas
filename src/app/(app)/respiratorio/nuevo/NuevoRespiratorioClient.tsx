@@ -1,0 +1,576 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { 
+  Search, 
+  UserCircle, 
+  Calendar, 
+  Stethoscope, 
+  Activity, 
+  Wind, 
+  ArrowLeft,
+  AlertCircle,
+  ShieldCheck,
+  CheckCircle2,
+  X,
+  UserPlus,
+  Heart,
+  ChevronRight,
+  ClipboardList
+} from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { buscarPacienteRespiratorio, guardarAtencionRespiratoria } from "@/actions/respiratorioActions";
+import { crearPacienteProvisorio } from "@/actions/pacientesActions";
+import { UserProfile } from "@/actions/userActions";
+import { toast } from "react-hot-toast";
+
+const LISTA_DIAG = ["ASMA LEVE", "ASMA MODERADA", "ASMA SEVERA", "EPOC TIPO A", "EPOC TIPO B", "SBOR", "OTRAS RESPIRATORIAS"];
+const LISTA_CONTROL = ["CONTROLADO", "PARCIALMENTE CONTROLADO", "NO CONTROLADO", "SIN EVALUAR"];
+const LISTA_TIPO = ["CONTROL MÉDICO", "CONTROL KINESIOLÓGICO", "ESPIROMETRÍA", "INGRESO ERA/IRA", "REINGRESO"];
+
+export default function NuevoRespiratorioClient({ user }: { user: UserProfile }) {
+  const router = useRouter();
+  
+  // Estados de Búsqueda
+  const [rutInput, setRutInput] = useState("");
+  const [loadingSearch, setLoadingSearch] = useState(false);
+  const [paciente, setPaciente] = useState<any>(null);
+  const [age, setAge] = useState<number | null>(null);
+  const [ultimaFicha, setUltimaFicha] = useState<any>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
+
+  // Estados para paciente provisorio
+  const [showProvisorio, setShowProvisorio] = useState(false);
+  const [provNombre, setProvNombre] = useState("");
+  const [provFechaNac, setProvFechaNac] = useState("");
+  const [provSexo, setProvSexo] = useState("MASCULINO");
+  const [provSector, setProvSector] = useState("SECTOR 1");
+  const [creatingProv, setCreatingProv] = useState(false);
+
+  // Estados del Formulario
+  const [fechaAtencion, setFechaAtencion] = useState(() => {
+    const d = new Date();
+    const offset = d.getTimezoneOffset() * 60000;
+    return new Date(d.getTime() - offset).toISOString().slice(0, 10);
+  });
+  
+  const meses = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"];
+  const anios = [new Date().getFullYear() - 1, new Date().getFullYear(), new Date().getFullYear() + 1];
+
+  const [diagnostico, setDiagnostico] = useState(LISTA_DIAG[0]);
+  const [nivelControl, setNivelControl] = useState(LISTA_CONTROL[0]);
+  const [tipoAtencion, setTipoAtencion] = useState(LISTA_TIPO[0]);
+  const [esPad, setEsPad] = useState(false);
+  const [observaciones, setObservaciones] = useState("");
+
+  const [mesCitaMed, setMesCitaMed] = useState("");
+  const [anioCitaMed, setAnioCitaMed] = useState("");
+  const [mesCitaKin, setMesCitaKin] = useState("");
+  const [anioCitaKin, setAnioCitaKin] = useState("");
+  const [mesCitaEsp, setMesCitaEsp] = useState("");
+  const [anioCitaEsp, setAnioCitaEsp] = useState("");
+
+  const [saving, setSaving] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+
+  const formatRut = (value: string) => {
+    let clean = value.replace(/[^0-9kK]/g, "").toUpperCase();
+    if (clean.length > 9) clean = clean.slice(0, 9);
+    if (clean.length <= 1) return clean;
+    const dv = clean.slice(-1);
+    const body = clean.slice(0, -1);
+    return `${body}-${dv}`;
+  };
+
+  const calculateAge = (birthDate: string) => {
+    if (!birthDate) return null;
+    const birth = new Date(birthDate);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  const handleSearch = async () => {
+    if (!rutInput || rutInput.length < 8) return;
+    setLoadingSearch(true);
+    setSearchError(null);
+    setPaciente(null);
+    setAge(null);
+    
+    try {
+      const res = await buscarPacienteRespiratorio(rutInput);
+      if (res.error) {
+        setSearchError(res.error);
+      } else if (res.data) {
+        setPaciente(res.data);
+        setAge(calculateAge(res.data.fecha_nacimiento));
+        setUltimaFicha(res.ficha);
+        if (res.ficha) {
+          setDiagnostico(res.ficha.diagnostico);
+          setNivelControl(res.ficha.nivel_control);
+          setEsPad(res.ficha.es_pad);
+        }
+      }
+    } catch (e) {
+      setSearchError("Error de conexión");
+    }
+    setLoadingSearch(false);
+  };
+
+  const handleCreateProvisorio = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreatingProv(true);
+    
+    const parts = rutInput.split("-");
+    const rut = parts[0].replace(/\./g, "");
+    const dv = parts[1] || "K";
+
+    const res = await crearPacienteProvisorio({
+      rut,
+      dv,
+      nombre: provNombre.toUpperCase(),
+      fecha_nacimiento: provFechaNac,
+      sexo: provSexo,
+      sector: provSector
+    });
+
+    if (res.success) {
+      await handleSearch();
+      setShowProvisorio(false);
+      setProvNombre("");
+      toast.success("Paciente provisorio creado");
+    } else {
+      toast.error("Error al crear: " + res.error);
+    }
+    setCreatingProv(false);
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+
+    const labelMed = mesCitaMed ? `${meses[parseInt(mesCitaMed)]} ${anioCitaMed}` : null;
+    const labelKin = mesCitaKin ? `${meses[parseInt(mesCitaKin)]} ${anioCitaKin}` : null;
+    const labelEsp = mesCitaEsp ? `${meses[parseInt(mesCitaEsp)]} ${anioCitaEsp}` : null;
+
+    const res = await guardarAtencionRespiratoria({
+      rut_paciente: paciente.rut,
+      fecha_atencion: fechaAtencion,
+      tipo_atencion: tipoAtencion,
+      diagnostico,
+      nivel_control: nivelControl,
+      cita_medico: labelMed ? `${anioCitaMed}-${(parseInt(mesCitaMed)+1).toString().padStart(2,'0')}-01` : null,
+      cita_kine: labelKin ? `${anioCitaKin}-${(parseInt(mesCitaKin)+1).toString().padStart(2,'0')}-01` : null,
+      cita_espiro: labelEsp ? `${anioCitaEsp}-${(parseInt(mesCitaEsp)+1).toString().padStart(2,'0')}-01` : null,
+      profesional_rut: user.rut,
+      es_pad: esPad,
+      observaciones,
+      data_clinica: {
+        profesional_nombre: user.nombre,
+        proximo_medico_label: labelMed,
+        proximo_kine_label: labelKin,
+        proximo_espiro_label: labelEsp
+      }
+    });
+
+    if (res.success) {
+      setShowSuccessModal(true);
+    } else {
+      toast.error("Error al guardar: " + res.error);
+    }
+    setSaving(false);
+  };
+
+  // Efecto de Sugerencia de Citación (Basado en Norma Técnica)
+  useEffect(() => {
+    if (!nivelControl || !fechaAtencion) return;
+
+    const baseDate = new Date(fechaAtencion);
+    // Usamos UTC para evitar problemas de zona horaria al calcular
+    const currentMonth = baseDate.getUTCMonth();
+    const currentYear = baseDate.getUTCFullYear();
+
+    const applySuggestion = (monthsToAdd: number, setMes: any, setAnio: any) => {
+      let targetMonth = currentMonth + monthsToAdd;
+      let targetYear = currentYear;
+      
+      while (targetMonth > 11) {
+        targetMonth -= 12;
+        targetYear += 1;
+      }
+      
+      setMes(targetMonth.toString());
+      setAnio(targetYear.toString());
+    };
+
+    // Aplicar lógica según Nivel de Control
+    if (nivelControl === "NO CONTROLADO") {
+      applySuggestion(1, setMesCitaMed, setAnioCitaMed);
+      applySuggestion(1, setMesCitaKin, setAnioCitaKin);
+    } else if (nivelControl === "PARCIALMENTE CONTROLADO") {
+      applySuggestion(3, setMesCitaMed, setAnioCitaMed);
+      applySuggestion(3, setMesCitaKin, setAnioCitaKin);
+    } else if (nivelControl === "CONTROLADO") {
+      applySuggestion(6, setMesCitaMed, setAnioCitaMed);
+      applySuggestion(3, setMesCitaKin, setAnioCitaKin); // Kine suele ser más frecuente
+    }
+
+    // Espirometría siempre sugerida a 12 meses
+    applySuggestion(12, setMesCitaEsp, setAnioCitaEsp);
+
+  }, [nivelControl, fechaAtencion]);
+
+  return (
+    <div className="max-w-6xl mx-auto py-6 px-4">
+      {/* Header Institucional */}
+      <div className="flex items-center mb-8 pb-4 border-b border-slate-200">
+        <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 mr-4 shadow-sm">
+          <Wind size={26} />
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">Programa Respiratorio ERA/IRA</h1>
+          <p className="text-slate-500 text-sm">Registro Centralizado de Atenciones Integrales</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        {/* Lado Izquierdo: Buscador Estilo EMPAM */}
+        <div className="space-y-6">
+          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+            <h2 className="text-lg font-semibold text-slate-800 mb-4 flex items-center">
+              <Search className="mr-2 text-slate-400" size={18} /> Búsqueda en Padrón
+            </h2>
+            
+            <div className="flex gap-3">
+              <input 
+                type="text" 
+                placeholder="RUT (Ej: 12345678-9)"
+                className="flex-1 border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
+                maxLength={10}
+                value={rutInput}
+                onChange={(e) => setRutInput(formatRut(e.target.value))}
+                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+              />
+              <button 
+                onClick={handleSearch}
+                disabled={loadingSearch}
+                className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition shadow-sm disabled:opacity-50 shrink-0"
+              >
+                {loadingSearch ? "..." : "Buscar"}
+              </button>
+            </div>
+
+            {searchError && (
+              <div className="mt-4 bg-red-50 text-red-700 p-4 rounded-xl border border-red-100 animate-in slide-in-from-top-2 duration-300">
+                <div className="flex items-start">
+                  <AlertCircle className="mr-2 shrink-0 mt-0.5" size={16} />
+                  <div className="flex-1">
+                    <p className="text-xs font-black uppercase tracking-tight mb-2">{searchError}</p>
+                    {searchError === "Paciente no encontrado en el padrón interconectado." && (
+                      <button 
+                        onClick={() => setShowProvisorio(true)}
+                        className="flex items-center text-[10px] font-black uppercase tracking-wider bg-red-600 text-white px-3 py-1.5 rounded-md hover:bg-red-700 transition shadow-sm"
+                      >
+                        <UserPlus size={12} className="mr-1.5" /> Registrar de forma Provisoria
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Tarjeta de Paciente Estilo EMPAM */}
+          {paciente && (
+            <div className="bg-gradient-to-br from-blue-50 to-white p-6 rounded-xl border border-blue-100 shadow-sm relative overflow-hidden animate-in fade-in zoom-in-95 duration-300">
+               <div className="absolute top-0 right-0 w-24 h-24 bg-blue-100 rounded-full blur-2xl opacity-50 -mr-10 -mt-10"></div>
+               <h2 className="text-xs uppercase tracking-wide font-bold text-blue-600 mb-4">Identidad Verificada</h2>
+               
+               <div className="flex items-center mb-6">
+                 <div className="h-14 w-14 bg-white rounded-full border border-blue-200 flex items-center justify-center text-blue-500 mr-4 shadow-sm shrink-0">
+                   <UserCircle size={32} />
+                 </div>
+                 <div>
+                   <h3 className="font-bold text-slate-800 text-sm uppercase">{paciente.nombre_completo}</h3>
+                   <p className="text-slate-500 text-xs mt-1 font-mono">RUT: {paciente.rut}-{paciente.dv}</p>
+                 </div>
+               </div>
+
+               <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-white/60 p-3 rounded-lg border border-blue-50">
+                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Sector</p>
+                     <p className="text-xs font-bold text-slate-700">{paciente.sector}</p>
+                  </div>
+                  <div className="bg-white/60 p-3 rounded-lg border border-blue-50">
+                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Edad Actual</p>
+                     <p className="text-xs font-bold text-slate-700">{age} Años</p>
+                  </div>
+               </div>
+
+               {ultimaFicha && (
+                 <div className="mt-6 p-4 bg-white rounded-xl border border-blue-100 shadow-inner">
+                    <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest mb-1 flex items-center">
+                       <ClipboardList size={10} className="mr-1" /> Última Atención
+                    </p>
+                    <p className="text-[11px] font-bold text-slate-800 uppercase">{ultimaFicha.diagnostico}</p>
+                    <p className="text-[10px] font-medium text-slate-500 italic">{ultimaFicha.nivel_control}</p>
+                 </div>
+               )}
+            </div>
+          )}
+        </div>
+
+        {/* Lado Derecho: Formulario Estilo Institucional */}
+        <div className="lg:col-span-2">
+          <form onSubmit={handleSave} className={`space-y-6 transition-all duration-300 ${!paciente ? 'opacity-40 pointer-events-none' : ''}`}>
+            
+            {/* Sección I: Datos de Atención */}
+            <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm">
+               <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center border-b border-slate-100 pb-4 uppercase text-sm tracking-tight">
+                  <Calendar className="mr-2 text-blue-500" size={20} /> I. Cronología de la Atención
+               </h3>
+
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Fecha de Atención (Real)</label>
+                    <input 
+                      type="date" required value={fechaAtencion} max={fechaAtencion}
+                      onChange={(e) => setFechaAtencion(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Tipo de Atención</label>
+                    <select 
+                      value={tipoAtencion} onChange={e => setTipoAtencion(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none"
+                    >
+                       {LISTA_TIPO.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+               </div>
+            </div>
+
+            {/* II. Evaluación Clínica */}
+            <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm">
+               <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center border-b border-slate-100 pb-4 uppercase text-sm tracking-tight">
+                  <Heart className="mr-2 text-blue-500" size={20} /> II. Evaluación Clínica Respiratoria
+               </h3>
+
+               <div className="space-y-6">
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Seleccione Diagnóstico Principal</label>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                       {LISTA_DIAG.map(d => (
+                         <button
+                           key={d} type="button"
+                           onClick={() => setDiagnostico(d)}
+                           className={`px-3 py-2.5 rounded-lg text-center text-[10px] font-bold transition-all border leading-tight ${
+                             diagnostico === d 
+                             ? 'bg-blue-600 text-white border-blue-600 shadow-md scale-[1.02]' 
+                             : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-white hover:border-blue-300'
+                           }`}
+                         >
+                           {d}
+                         </button>
+                       ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Nivel de Control Actual</label>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                       {LISTA_CONTROL.map(c => (
+                         <button
+                           key={c} type="button"
+                           onClick={() => setNivelControl(c)}
+                           className={`px-3 py-2.5 rounded-lg text-center text-[10px] font-bold transition-all border leading-tight ${
+                             nivelControl === c 
+                             ? 'bg-blue-600 text-white border-blue-600 shadow-md scale-[1.02]' 
+                             : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-white hover:border-blue-300'
+                           }`}
+                         >
+                           {c}
+                         </button>
+                       ))}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center p-4 bg-slate-50 rounded-lg border border-slate-100 mt-2">
+                     <input 
+                       type="checkbox" id="es_pad" checked={esPad} onChange={e => setEsPad(e.target.checked)}
+                       className="h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 mr-3 cursor-pointer"
+                     />
+                     <label htmlFor="es_pad" className="text-xs font-bold text-slate-700 cursor-pointer uppercase tracking-tight">
+                        Estrategia PAD (Atención Domiciliaria)
+                     </label>
+                  </div>
+               </div>
+            </div>
+
+            {/* III. Citaciones */}
+            <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm">
+               <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center border-b border-slate-100 pb-4 uppercase text-sm tracking-tight">
+                  <Calendar className="mr-2 text-blue-500" size={20} /> III. Programación de Seguimiento
+               </h3>
+
+               <div className="grid grid-cols-1 gap-4">
+                  {[
+                    { label: 'Control Médico', icon: '🩺', mes: mesCitaMed, setMes: setMesCitaMed, anio: anioCitaMed, setAnio: setAnioCitaMed },
+                    { label: 'Control Kinesiólogo', icon: '🏃', mes: mesCitaKin, setMes: setMesCitaKin, anio: anioCitaKin, setAnio: setAnioCitaKin },
+                    { label: 'Espirometría', icon: '🌬️', mes: mesCitaEsp, setMes: setMesCitaEsp, anio: anioCitaEsp, setAnio: setAnioCitaEsp },
+                  ].map((item, idx) => (
+                    <div key={idx} className="flex items-center gap-4 p-3 bg-slate-50 rounded-lg border border-slate-100">
+                       <div className="w-40 flex items-center space-x-2">
+                          <span className="text-lg">{item.icon}</span>
+                          <span className="text-[10px] font-bold text-slate-600 uppercase">{item.label}</span>
+                       </div>
+                        <div className="flex-1 space-y-1">
+                          <div className="grid grid-cols-2 gap-2">
+                             <select 
+                               value={item.mes} onChange={e => item.setMes(e.target.value)}
+                               className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-100"
+                             >
+                                <option value="">MES...</option>
+                                {meses.map((m, i) => <option key={m} value={i}>{m}</option>)}
+                             </select>
+                             <select 
+                               value={item.anio} onChange={e => item.setAnio(e.target.value)}
+                               className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-100"
+                             >
+                                <option value="">AÑO...</option>
+                                {anios.map(a => <option key={a} value={a}>{a}</option>)}
+                             </select>
+                          </div>
+                          {item.mes && (
+                            <p className="text-[9px] font-black text-blue-500 uppercase tracking-tighter flex items-center px-1">
+                               <CheckCircle2 size={10} className="mr-1" /> Sugerido por norma
+                            </p>
+                          )}
+                        </div>
+                    </div>
+                  ))}
+               </div>
+            </div>
+
+            <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm">
+               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">IV. Observaciones Clínicas</label>
+               <textarea 
+                  value={observaciones} onChange={e => setObservaciones(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none min-h-[100px]"
+                  placeholder="Detalle hallazgos o planes de rescate..."
+               />
+            </div>
+
+            <button 
+              type="submit" disabled={saving}
+              className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:bg-blue-700 transition-all disabled:opacity-50"
+            >
+              {saving ? "PROCESANDO..." : "GUARDAR FICHA RESPIRATORIA"}
+            </button>
+
+          </form>
+        </div>
+      </div>
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full text-center shadow-2xl animate-in zoom-in-95 duration-300">
+            <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6">
+              <ShieldCheck size={48} />
+            </div>
+            <h3 className="text-2xl font-bold text-slate-900 mb-2">¡Registro Exitoso!</h3>
+            <p className="text-slate-500 mb-8">La atención ha sido registrada correctamente en el módulo respiratorio.</p>
+            
+            <div className="space-y-3">
+              <button 
+                onClick={() => {
+                  setShowSuccessModal(false);
+                  setPaciente(null);
+                  setRutInput("");
+                  setObservaciones("");
+                }}
+                className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition-all"
+              >
+                Ingresar Siguiente Paciente
+              </button>
+              <button 
+                onClick={() => router.push("/respiratorio")}
+                className="w-full bg-slate-100 text-slate-600 py-3 rounded-xl font-bold hover:bg-slate-200 transition-all"
+              >
+                Volver al Listado
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Modal Paciente Provisorio */}
+      {showProvisorio && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-slate-800">Nuevo Paciente Provisorio</h3>
+              <button onClick={() => setShowProvisorio(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+            </div>
+            
+            <form onSubmit={handleCreateProvisorio} className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Nombre Completo</label>
+                <input 
+                  type="text" required value={provNombre} onChange={e => setProvNombre(e.target.value)}
+                  className="w-full border border-slate-200 rounded-lg px-4 py-2 text-sm"
+                  placeholder="EJ: JUAN PEREZ SOTO"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Fecha de Nacimiento</label>
+                <input 
+                  type="date" required value={provFechaNac} onChange={e => setProvFechaNac(e.target.value)}
+                  className="w-full border border-slate-200 rounded-lg px-4 py-2 text-sm"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Sexo</label>
+                  <select 
+                    value={provSexo} onChange={e => setProvSexo(e.target.value)}
+                    className="w-full border border-slate-200 rounded-lg px-4 py-2 text-sm"
+                  >
+                    <option value="MASCULINO">MASCULINO</option>
+                    <option value="FEMENINO">FEMENINO</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Sector</label>
+                  <select 
+                    value={provSector} onChange={e => setProvSector(e.target.value)}
+                    className="w-full border border-slate-200 rounded-lg px-4 py-2 text-sm"
+                  >
+                    <option value="SECTOR 1">SECTOR 1</option>
+                    <option value="SECTOR 2">SECTOR 2</option>
+                    <option value="SECTOR 3">SECTOR 3</option>
+                    <option value="SECTOR 4">SECTOR 4</option>
+                    <option value="RURAL">RURAL</option>
+                  </select>
+                </div>
+              </div>
+              <button 
+                type="submit" disabled={creatingProv}
+                className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition disabled:opacity-50 mt-4"
+              >
+                {creatingProv ? "CREANDO..." : "CREAR PACIENTE"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

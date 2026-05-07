@@ -55,13 +55,18 @@ export async function initDatabase() {
       CREATE TABLE IF NOT EXISTS gia_respiratorio (
         id SERIAL PRIMARY KEY,
         rut_paciente TEXT REFERENCES gia_pacientes(rut),
+        fecha_atencion DATE NOT NULL DEFAULT CURRENT_DATE,
+        tipo_atencion TEXT, -- INGRESO, CONTROL, REINGRESO
         diagnostico TEXT,
         nivel_control TEXT,
         cita_medico DATE,
         cita_kine DATE,
         cita_espiro DATE,
         profesional_rut TEXT REFERENCES gia_usuarios(rut),
+        es_pad BOOLEAN DEFAULT FALSE,
         es_inasistente BOOLEAN DEFAULT FALSE,
+        observaciones TEXT,
+        data_clinica JSONB, -- Para labels de último control y otros datos extendidos
         motivo_egreso TEXT DEFAULT 'ACTIVO',
         fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
@@ -83,7 +88,7 @@ export async function initDatabase() {
     const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
     const adminRut = process.env.ADMIN_RUT || '12345678-5';
     const hashedAdminPassword = hashPassword(adminPassword);
-    
+
     await sql`
       INSERT INTO gia_usuarios (rut, nombre, profesion, rol, password)
       VALUES (${adminRut}, 'Administrador Maestro', 'Soporte TI', 'ADMINISTRADOR', ${hashedAdminPassword})
