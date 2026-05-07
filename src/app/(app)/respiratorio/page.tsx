@@ -4,6 +4,7 @@ import RespiratorioClientView from "./RespiratorioClientView";
 import { redirect } from "next/navigation";
 
 export const dynamic = 'force-dynamic';
+// Refresh deploy: 2026-05-07
 
 export default async function RespiratorioPage() {
   const user = await getCurrentUser();
