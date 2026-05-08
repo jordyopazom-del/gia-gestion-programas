@@ -44,6 +44,7 @@ export type EmpamSubmission = {
   resultado_efam: string;
   data_clinica: any; // Barthel, yesavage, etc
   motivo_egreso?: string;
+  es_pad?: boolean;
 };
 
 export async function saveEmpamRecord(data: EmpamSubmission) {
@@ -59,6 +60,11 @@ export async function saveEmpamRecord(data: EmpamSubmission) {
       INSERT INTO gia_empam (rut_paciente, fecha_atencion, resultado_efam, profesional_rut, data_clinica, motivo_egreso)
       VALUES (${data.rut_paciente}, ${data.fecha_atencion}, ${data.resultado_efam}, ${userRut}, ${data.data_clinica}, ${motivo})
     `;
+
+    if (data.es_pad !== undefined) {
+      await sql`UPDATE gia_pacientes SET es_pad = ${data.es_pad} WHERE rut = ${data.rut_paciente}`;
+    }
+
     revalidatePath("/empam");
     return { success: true };
   } catch (error: any) {

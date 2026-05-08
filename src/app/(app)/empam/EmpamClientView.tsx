@@ -365,7 +365,17 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
                       className="hover:bg-blue-50 cursor-pointer transition-colors group"
                     >
                       <td className="px-3 py-3 font-medium text-blue-600 group-hover:underline">{p.rut}-{p.dv}</td>
-                      <td className="px-3 py-3 uppercase truncate max-w-[150px]">{p.nombre_completo}</td>
+                      <td className="px-3 py-3 max-w-[200px]">
+                        <div className="flex items-center space-x-2">
+                          <span className="uppercase truncate">{p.nombre_completo}</span>
+                          {p.es_pad && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600 text-[9px] font-black tracking-widest shrink-0">
+                              <ShieldCheck size={10} className="mr-1 text-blue-600" />
+                              PAD
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-3 py-3 text-center">{age}</td>
                       <td className="px-6 py-5 text-sm text-slate-600 uppercase whitespace-nowrap">{p.sector}</td>
                       <td className="px-6 py-5 text-sm text-slate-500 whitespace-nowrap">{p.telefono || "—"}</td>

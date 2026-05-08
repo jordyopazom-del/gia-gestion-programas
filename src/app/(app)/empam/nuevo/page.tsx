@@ -41,6 +41,7 @@ export default function NuevoEmpam() {
   const [actFisica, setActFisica] = useState("NO");
   const [fuma, setFuma] = useState("NO");
   const [derivacion, setDerivacion] = useState("NO");
+  const [esPad, setEsPad] = useState(false);
   
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -68,10 +69,12 @@ export default function NuevoEmpam() {
       if (res.data) {
         setPaciente(res.data);
         setAge(res.age ?? null);
+        setEsPad(res.data.es_pad || false);
       }
     } else {
       setPaciente(res.data);
       setAge(res.age ?? null);
+      setEsPad(res.data.es_pad || false);
     }
     setLoadingSearch(false);
   };
@@ -88,6 +91,7 @@ export default function NuevoEmpam() {
       rut_paciente: paciente.rut,
       fecha_atencion: fechaAtencion,
       resultado_efam: resultadoEfam,
+      es_pad: esPad,
       data_clinica: {
         estado_nutricional: estadoNutricional,
         pertenencia_indigena: pertenenciaIndigena,
@@ -116,7 +120,7 @@ export default function NuevoEmpam() {
       setPresionArterial(""); setGlicemia(""); setColesterol("");
       setEstadoNutricional("NORMAL"); setPertenenciaIndigena("NO");
       setTipoControl("CONTROL EMPAM"); setRiesgoCaidas("NO");
-      setMaltrato("NO"); setActFisica("NO"); setFuma("NO"); setDerivacion("NO");
+      setMaltrato("NO"); setActFisica("NO"); setFuma("NO"); setDerivacion("NO"); setEsPad(false);
     }
     setSaving(false);
   };
@@ -389,6 +393,13 @@ export default function NuevoEmpam() {
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Sector Territorial</label>
                   <input type="text" readOnly value={paciente?.sector || ""} className="w-full bg-slate-100 border border-slate-200 rounded-md px-3 py-2 text-sm font-medium text-slate-600 uppercase cursor-not-allowed" />
                 </div>
+              </div>
+
+              <div className="mt-6 flex items-center space-x-3 bg-blue-50/50 p-4 rounded-xl border border-blue-100">
+                <input type="checkbox" id="es_pad" checked={esPad} onChange={e => setEsPad(e.target.checked)} className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                <label htmlFor="es_pad" className="text-xs font-bold text-slate-700 cursor-pointer uppercase tracking-tight flex items-center">
+                  <ShieldCheck size={16} className="mr-2 text-blue-600" /> ESTRATEGIA PAD (ATENCIÓN DOMICILIARIA)
+                </label>
               </div>
 
               {saveError && (
