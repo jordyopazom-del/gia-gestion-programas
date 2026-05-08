@@ -69,12 +69,12 @@ export default function NuevoEmpam() {
       if (res.data) {
         setPaciente(res.data);
         setAge(res.age ?? null);
-        setEsPad(res.data.es_pad || false);
+        setEsPad(res.data?.es_pad || false);
       }
     } else {
       setPaciente(res.data);
       setAge(res.age ?? null);
-      setEsPad(res.data.es_pad || false);
+      setEsPad(res.data?.es_pad || false);
     }
     setLoadingSearch(false);
   };

@@ -114,7 +114,7 @@ export default function NuevoRespiratorioClient({ user }: { user: UserProfile })
           setDiagnostico(res.ficha.diagnostico);
           setNivelControl(res.ficha.nivel_control);
         }
-        setEsPad(res.data.es_pad || (res.ficha?.es_pad) || false);
+        setEsPad(res.data?.es_pad || (res.ficha?.es_pad) || false);
       }
     } catch (e) {
       setSearchError("Error de conexión");
