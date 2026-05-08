@@ -141,6 +141,33 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
     XLSX.writeFile(workbook, `Sabana_Estadistica_EMPAM.xlsx`);
   };
 
+  const exportCampanaExcel = () => {
+    const vencidos = data.filter(p => getEmpamStatus(p.ultima_atencion, p.resultado_efam).status === "Vencido");
+    const dataset = vencidos.map(p => {
+      let age = "-";
+      if (p.fecha_nacimiento) {
+         const bd = new Date(p.fecha_nacimiento);
+         const today = new Date();
+         let a = today.getFullYear() - bd.getUTCFullYear();
+         if (today.getMonth() < bd.getUTCMonth() || (today.getMonth() === bd.getUTCMonth() && today.getDate() < bd.getUTCDate())) a--;
+         age = a.toString();
+      }
+      return {
+        "Estado": "Vencido",
+        "Rut": `${p.rut}-${p.dv}`,
+        "Nombre": p.nombre_completo,
+        "Edad": age,
+        "Sector": p.sector || "SIN SECTOR",
+        "Telefono": p.telefono || "-"
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(dataset);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Campana_Vencidos");
+    XLSX.writeFile(workbook, `Campana_Vencidos_EMPAM.xlsx`);
+  };
+
   const totalAM = data.length;
   const statusCounts = {
     vigentes: data.filter(p => getEmpamStatus(p.ultima_atencion, p.resultado_efam).status === "Vigente").length,
@@ -199,6 +226,10 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
             <button onClick={exportToExcel} className="flex items-center space-x-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100 hover:bg-emerald-100 transition shadow-sm font-bold text-sm">
                 <Download size={16} />
                 <span>Exportar a Excel</span>
+            </button>
+            <button onClick={exportCampanaExcel} className="flex items-center space-x-2 px-4 py-2 bg-amber-50 text-amber-700 rounded-xl border border-amber-100 hover:bg-amber-100 transition shadow-sm font-bold text-sm">
+                <Download size={16} />
+                <span>Exportar Campaña</span>
             </button>
         </div>
       </div>

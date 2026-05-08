@@ -179,6 +179,38 @@ export default function RespiratorioClientView({ data, user }: { data: any[], us
     toast.success("Excel generado correctamente");
   };
 
+  const exportCampanaExcel = () => {
+    const vencidos = data.filter(p => {
+      const kineStat = getVigenciaHibrida(p.last_kin, p.cita_kine, 120);
+      const mediStat = getVigenciaHibrida(p.last_med, p.cita_medico, 180);
+      return kineStat.label === 'Vencido' || mediStat.label === 'Vencido' || kineStat.label === 'Pendiente' || mediStat.label === 'Pendiente';
+    });
+
+    const dataset = vencidos.map(p => {
+      const age = calculateAge(p.fecha_nacimiento);
+      const kineStat = getVigenciaHibrida(p.last_kin, p.cita_kine, 120);
+      const mediStat = getVigenciaHibrida(p.last_med, p.cita_medico, 180);
+      const isKVencido = kineStat.label === 'Vencido' || kineStat.label === 'Pendiente';
+      const isMVencido = mediStat.label === 'Vencido' || mediStat.label === 'Pendiente';
+      
+      return {
+        "Vencido Médico": isMVencido ? "SÍ" : "NO",
+        "Vencido Kine": isKVencido ? "SÍ" : "NO",
+        "Rut": `${p.rut}-${p.dv}`,
+        "Nombre": p.nombre_completo,
+        "Edad": age || "-",
+        "Sector": p.sector || "SIN SECTOR",
+        "Telefono": p.telefono || "-"
+      };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(dataset);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Campana_Vencidos");
+    XLSX.writeFile(wb, `Campana_Vencidos_Respiratorio.xlsx`);
+    toast.success("Excel de campaña generado correctamente");
+  };
+
   const sectors = useMemo(() => ["Todos", ...Array.from(new Set(data.map(p => p.sector))).sort()], [data]);
   
   // Generar listas dinámicas para los filtros (Diagnóstico y Control) limpiando espacios
@@ -337,6 +369,14 @@ export default function RespiratorioClientView({ data, user }: { data: any[], us
           >
             <Download size={16} />
             <span>EXPORTAR EXCEL</span>
+          </button>
+          
+          <button 
+            onClick={exportCampanaExcel}
+            className="flex items-center justify-center space-x-2 bg-amber-50 border border-amber-100 text-amber-700 px-4 py-2.5 rounded-xl font-black hover:bg-amber-100 transition-all shadow-sm text-xs"
+          >
+            <Download size={16} />
+            <span>EXPORTAR CAMPAÑA</span>
           </button>
           
           <Link 
