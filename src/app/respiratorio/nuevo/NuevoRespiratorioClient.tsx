@@ -113,8 +113,8 @@ export default function NuevoRespiratorioClient({ user }: { user: UserProfile })
         if (res.ficha) {
           setDiagnostico(res.ficha.diagnostico);
           setNivelControl(res.ficha.nivel_control);
-          setEsPad(res.ficha.es_pad);
         }
+        setEsPad(res.data.es_pad || (res.ficha?.es_pad) || false);
       }
     } catch (e) {
       setSearchError("Error de conexión");
@@ -402,14 +402,22 @@ export default function NuevoRespiratorioClient({ user }: { user: UserProfile })
                     </div>
                   </div>
 
-                  <div className="flex items-center p-4 bg-slate-50 rounded-lg border border-slate-100 mt-2">
-                     <input 
-                       type="checkbox" id="es_pad" checked={esPad} onChange={e => setEsPad(e.target.checked)}
-                       className="h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 mr-3 cursor-pointer"
-                     />
-                     <label htmlFor="es_pad" className="text-xs font-bold text-slate-700 cursor-pointer uppercase tracking-tight">
-                        Estrategia PAD (Atención Domiciliaria)
-                     </label>
+                  <div className={`flex items-center justify-between p-4 rounded-lg border mt-2 ${paciente?.es_pad ? 'bg-blue-50/80 border-blue-200' : 'bg-slate-50 border-slate-100'}`}>
+                     <div className="flex items-center">
+                       <input 
+                         type="checkbox" id="es_pad" checked={esPad} onChange={e => setEsPad(e.target.checked)}
+                         disabled={paciente?.es_pad}
+                         className={`h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 mr-3 ${paciente?.es_pad ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}
+                       />
+                       <label htmlFor="es_pad" className={`text-xs font-bold uppercase tracking-tight flex items-center ${paciente?.es_pad ? 'text-slate-500 cursor-not-allowed' : 'text-slate-700 cursor-pointer'}`}>
+                          <ShieldCheck size={16} className={`mr-2 ${paciente?.es_pad ? 'text-slate-400' : 'text-blue-600'}`} /> ESTRATEGIA PAD (ATENCIÓN DOMICILIARIA)
+                       </label>
+                     </div>
+                     {paciente?.es_pad && (
+                       <span className="text-[10px] font-bold text-slate-400 bg-white px-2 py-1 rounded border border-slate-200">
+                         🔒 PROTEGIDO
+                       </span>
+                     )}
                   </div>
                </div>
             </div>
