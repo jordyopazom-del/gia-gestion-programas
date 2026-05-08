@@ -395,11 +395,25 @@ export default function NuevoEmpam() {
                 </div>
               </div>
 
-              <div className="mt-6 flex items-center space-x-3 bg-blue-50/50 p-4 rounded-xl border border-blue-100">
-                <input type="checkbox" id="es_pad" checked={esPad} onChange={e => setEsPad(e.target.checked)} className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
-                <label htmlFor="es_pad" className="text-xs font-bold text-slate-700 cursor-pointer uppercase tracking-tight flex items-center">
-                  <ShieldCheck size={16} className="mr-2 text-blue-600" /> ESTRATEGIA PAD (ATENCIÓN DOMICILIARIA)
-                </label>
+              <div className={`mt-6 flex items-center justify-between bg-blue-50/50 p-4 rounded-xl border ${paciente?.es_pad ? 'border-blue-200 bg-blue-50/80' : 'border-blue-100'}`}>
+                <div className="flex items-center space-x-3">
+                  <input 
+                    type="checkbox" 
+                    id="es_pad" 
+                    checked={esPad} 
+                    onChange={e => setEsPad(e.target.checked)} 
+                    disabled={paciente?.es_pad}
+                    className={`w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 ${paciente?.es_pad ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`} 
+                  />
+                  <label htmlFor="es_pad" className={`text-xs font-bold uppercase tracking-tight flex items-center ${paciente?.es_pad ? 'text-slate-500 cursor-not-allowed' : 'text-slate-700 cursor-pointer'}`}>
+                    <ShieldCheck size={16} className={`mr-2 ${paciente?.es_pad ? 'text-slate-400' : 'text-blue-600'}`} /> ESTRATEGIA PAD (ATENCIÓN DOMICILIARIA)
+                  </label>
+                </div>
+                {paciente?.es_pad && (
+                  <span className="text-[10px] font-bold text-slate-400 bg-white px-2 py-1 rounded border border-slate-200">
+                    🔒 PROTEGIDO
+                  </span>
+                )}
               </div>
 
               {saveError && (
