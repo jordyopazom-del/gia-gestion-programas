@@ -79,7 +79,7 @@ export async function getEmpamDashboardData() {
       )
       SELECT 
         p.rut, p.dv, p.nombre_completo, p.fecha_nacimiento, p.sector, p.telefono, p.direccion,
-        p.estado, p.motivo_egreso, p.fecha_egreso,
+        p.estado, p.motivo_egreso, p.fecha_egreso, p.es_pad,
         e.fecha_atencion as ultima_atencion,
         e.resultado_efam,
         e.profesional_rut,

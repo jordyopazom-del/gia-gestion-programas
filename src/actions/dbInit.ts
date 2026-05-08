@@ -36,6 +36,13 @@ export async function initDatabase() {
       )
     `;
 
+    // Asegurar que la columna es_pad exista (por si la tabla ya existía antes)
+    try {
+      await sql`ALTER TABLE gia_pacientes ADD COLUMN IF NOT EXISTS es_pad BOOLEAN DEFAULT FALSE`;
+    } catch (e) {
+      console.log("Columna es_pad ya existe o error al crearla");
+    }
+
     // 3. Tabla de Programa Adulto Mayor (EMPAM)
     await sql`
       CREATE TABLE IF NOT EXISTS gia_empam (

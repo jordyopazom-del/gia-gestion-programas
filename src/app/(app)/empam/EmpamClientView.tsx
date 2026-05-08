@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Search, MapPin, AlertTriangle, CheckCircle, Clock, Download, Activity, ClipboardList, X, User, Phone, Map, Calendar, Dumbbell } from "lucide-react";
+import { Search, MapPin, AlertTriangle, CheckCircle, Clock, Download, Activity, ClipboardList, X, User, Phone, Map, Calendar, Dumbbell, ShieldCheck } from "lucide-react";
 import * as XLSX from "xlsx";
 import { UserProfile } from "@/actions/userActions";
 
@@ -50,6 +50,7 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
   const [filterStatus, setFilterStatus] = useState("Todos");
   const [filterEfam, setFilterEfam] = useState("Todos");
   const [filterAma, setFilterAma] = useState("Todos");
+  const [onlyPad, setOnlyPad] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const [tab, setTab] = useState<'activos' | 'egresados'>('activos');
 
@@ -65,10 +66,11 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
       const matchStatus = filterStatus === "Todos" || statusObj.status === filterStatus;
       const matchEfam = filterEfam === "Todos" || p.resultado_efam === filterEfam;
       const matchAma = filterAma === "Todos" || p.data_clinica?.derivacion_medico === filterAma;
+      const matchPad = !onlyPad || p.es_pad;
       
-      return matchTab && matchRut && matchSector && matchStatus && matchEfam && matchAma;
+      return matchTab && matchRut && matchSector && matchStatus && matchEfam && matchAma && matchPad;
     });
-  }, [data, searchRut, filterSector, filterStatus, filterEfam, filterAma, tab]);
+  }, [data, searchRut, filterSector, filterStatus, filterEfam, filterAma, tab, onlyPad]);
 
   // Statistics for Dashboard
   const stats = useMemo(() => {
@@ -296,17 +298,31 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
             <div className="flex justify-between items-center mb-3">
                <span className="text-sm text-slate-600 font-medium block">Mostrando {filtered.length} adultos mayores según filtros seleccionados.</span>
                
-               <label className={`flex items-center space-x-2 cursor-pointer px-3 py-1.5 rounded-lg border transition-all ${filterAma === 'SI' ? 'bg-blue-50 border-blue-200 text-blue-700 shadow-sm' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
-                 <input 
-                   type="checkbox" 
-                   className="rounded text-blue-600 focus:ring-blue-500 border-slate-300"
-                   checked={filterAma === 'SI'}
-                   onChange={(e) => setFilterAma(e.target.checked ? 'SI' : 'Todos')}
-                 />
-                 <span className="text-xs font-bold uppercase tracking-wide flex items-center">
-                   <Dumbbell size={14} className="mr-1.5" /> Filtrar solo derivados a +AMA
-                 </span>
-               </label>
+               <div className="flex space-x-2">
+                 <label className={`flex items-center space-x-2 cursor-pointer px-3 py-1.5 rounded-lg border transition-all ${onlyPad ? 'bg-blue-50 border-blue-200 text-blue-700 shadow-sm' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
+                   <input 
+                     type="checkbox" 
+                     className="rounded text-blue-600 focus:ring-blue-500 border-slate-300"
+                     checked={onlyPad}
+                     onChange={(e) => setOnlyPad(e.target.checked)}
+                   />
+                   <span className="text-xs font-bold uppercase tracking-wide flex items-center">
+                     <ShieldCheck size={14} className="mr-1.5" /> Solo Pacientes PAD
+                   </span>
+                 </label>
+
+                 <label className={`flex items-center space-x-2 cursor-pointer px-3 py-1.5 rounded-lg border transition-all ${filterAma === 'SI' ? 'bg-blue-50 border-blue-200 text-blue-700 shadow-sm' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
+                   <input 
+                     type="checkbox" 
+                     className="rounded text-blue-600 focus:ring-blue-500 border-slate-300"
+                     checked={filterAma === 'SI'}
+                     onChange={(e) => setFilterAma(e.target.checked ? 'SI' : 'Todos')}
+                   />
+                   <span className="text-xs font-bold uppercase tracking-wide flex items-center">
+                     <Dumbbell size={14} className="mr-1.5" /> Filtrar solo derivados a +AMA
+                   </span>
+                 </label>
+               </div>
             </div>
             <table className="w-full text-left text-xs whitespace-nowrap text-slate-600">
               <thead className="bg-slate-50 border-y border-slate-200 font-medium text-slate-500">
