@@ -673,9 +673,9 @@ export default function RespiratorioClientView({ data, user }: { data: any[], us
             <tbody className="divide-y divide-slate-50">
               {filtered.map((p) => {
                 const age = calculateAge(p.fecha_nacimiento);
-                const kineStat = getVigenciaHibrida(p.ultima_atencion_global, p.cita_kine, 120);
-                const espiStat = getVigenciaHibrida(null, p.cita_espiro, 365);
-                const mediStat = getVigenciaHibrida(null, p.cita_medico, 180);
+                const kineStat = getVigenciaHibrida(p.last_kin, p.cita_kine, 120);
+                const espiStat = getVigenciaHibrida(p.last_esp, p.cita_espiro, 365);
+                const mediStat = getVigenciaHibrida(p.last_med, p.cita_medico, 180);
 
                 // Asegurar que dataCli sea un objeto (por si viene como string JSON desde la DB)
                 let dataCli: any = {};
