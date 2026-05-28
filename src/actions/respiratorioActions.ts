@@ -120,14 +120,31 @@ export async function guardarAtencionRespiratoria(data: any) {
   }
 }
 
-export async function updateDiagnosticoControl(id: number, diagnostico: string, nivelControl: string, dataClinica?: any) {
+export async function updateDiagnosticoControl(id: number, diagnostico: string, nivelControl: string, dataClinica?: any, observaciones?: string) {
   try {
-    if (dataClinica !== undefined) {
+    if (dataClinica !== undefined && observaciones !== undefined) {
+      await sql`
+        UPDATE gia_respiratorio 
+        SET diagnostico = ${diagnostico.toUpperCase()}, 
+            nivel_control = ${nivelControl.toUpperCase()},
+            data_clinica = ${JSON.stringify(dataClinica)},
+            observaciones = ${observaciones}
+        WHERE id = ${id}
+      `;
+    } else if (dataClinica !== undefined) {
       await sql`
         UPDATE gia_respiratorio 
         SET diagnostico = ${diagnostico.toUpperCase()}, 
             nivel_control = ${nivelControl.toUpperCase()},
             data_clinica = ${JSON.stringify(dataClinica)}
+        WHERE id = ${id}
+      `;
+    } else if (observaciones !== undefined) {
+      await sql`
+        UPDATE gia_respiratorio 
+        SET diagnostico = ${diagnostico.toUpperCase()}, 
+            nivel_control = ${nivelControl.toUpperCase()},
+            observaciones = ${observaciones}
         WHERE id = ${id}
       `;
     } else {

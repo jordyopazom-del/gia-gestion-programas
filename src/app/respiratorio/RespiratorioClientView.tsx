@@ -199,6 +199,7 @@ export default function RespiratorioClientView({ data, user }: { data: any[], us
   const [editSecueladoTbc, setEditSecueladoTbc] = useState(false);
   const [editOtraRespiratoriaDetalle, setEditOtraRespiratoriaDetalle] = useState("");
   const [editPacienteDataCli, setEditPacienteDataCli] = useState<any>({});
+  const [editObservaciones, setEditObservaciones] = useState("");
   const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   const handleSaveEdit = async () => {
@@ -217,11 +218,12 @@ export default function RespiratorioClientView({ data, user }: { data: any[], us
       editFichaId,
       editDiag,
       editCtrl,
-      updatedDataClinica
+      updatedDataClinica,
+      editObservaciones
     );
 
     if (res.success) {
-      toast.success("Diagnóstico y caracterización actualizados correctamente");
+      toast.success("Datos y observaciones actualizados correctamente");
       setShowEditModal(false);
       setEditFichaId(null);
       router.refresh();
@@ -793,11 +795,20 @@ export default function RespiratorioClientView({ data, user }: { data: any[], us
                       </div>
                       
                       {p.observaciones && (
-                        <div className="flex items-start gap-1.5 p-2 bg-amber-50/50 border border-amber-100/50 rounded-lg max-w-xs">
+                        <div 
+                          className="relative group flex items-start gap-1.5 p-2 bg-amber-50/50 border border-amber-100/50 rounded-lg max-w-xs cursor-help select-none"
+                          title={p.observaciones}
+                        >
                            <Activity size={10} className="text-amber-500 mt-0.5 shrink-0" />
                            <p className="text-[9px] font-medium text-amber-800 line-clamp-2 leading-tight italic">
                              "{p.observaciones}"
                            </p>
+                           {/* Tooltip Premium */}
+                           <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block z-50 w-72 bg-slate-900 text-white text-[10px] p-3 rounded-xl shadow-2xl border border-slate-800 animate-in fade-in slide-in-from-bottom-2 duration-150">
+                             <div className="font-black text-amber-400 mb-1 tracking-widest text-[9px] uppercase">Observación Completa:</div>
+                             <p className="font-mono leading-relaxed whitespace-pre-wrap text-slate-200">"{p.observaciones}"</p>
+                             <div className="absolute top-full left-4 border-4 border-transparent border-t-slate-900"></div>
+                           </div>
                         </div>
                       )}
                     </td>
@@ -899,6 +910,7 @@ export default function RespiratorioClientView({ data, user }: { data: any[], us
                                     setEditSecueladoTbc(!!dCli.secuelado_tbc);
                                     setEditOtraRespiratoriaDetalle(dCli.otra_respiratoria_detalle || "");
                                     setEditPacienteDataCli(dCli);
+                                    setEditObservaciones(p.observaciones || "");
                                     setShowEditModal(true);
                                   }}
                                   className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
@@ -1268,6 +1280,19 @@ export default function RespiratorioClientView({ data, user }: { data: any[], us
                   />
                   <span className="text-xs font-bold text-slate-700 uppercase">Secuelado TBC</span>
                 </label>
+              </div>
+
+              {/* Observaciones */}
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Observaciones Clínicas / Justificación</label>
+                <textarea
+                  value={editObservaciones}
+                  onChange={(e) => setEditObservaciones(e.target.value)}
+                  placeholder="Escriba observaciones clínicas relevantes del paciente..."
+                  rows={3}
+                  maxLength={500}
+                  className="w-full border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold bg-white text-slate-800 focus:ring-2 focus:ring-blue-500 font-mono"
+                />
               </div>
 
               {/* Acciones */}
