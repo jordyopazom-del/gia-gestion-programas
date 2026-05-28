@@ -102,17 +102,33 @@ const formatDate = (dateString: string | null) => {
 
 const MESES_LIST = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"];
 
-const formatMesAnio = (dateString: string | null | undefined, fallbackLabel?: string) => {
-  if (dateString) {
+const formatProximoControlLabel = (fechaProxima: string | null | undefined, fechaUltimo: string | null | undefined, diasLimite: number, fallbackLabel?: string) => {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+
+  // 1. Si hay una cita agendada y es a futuro, la respetamos ciegamente.
+  if (fechaProxima) {
     try {
-      const d = new Date(dateString);
-      if (!isNaN(d.getTime())) {
-        return `${MESES_LIST[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+      const cita = new Date(fechaProxima);
+      cita.setHours(0, 0, 0, 0);
+      if (!isNaN(cita.getTime()) && cita >= now) {
+        return `${MESES_LIST[cita.getUTCMonth()]} ${cita.getUTCFullYear()}`;
       }
-    } catch (e) {
-      // Ignorar
-    }
+    } catch (e) {}
   }
+
+  // 2. Si la cita ya pasó (es obsoleta) o no hay cita, proyectamos automáticamente la fecha según norma clínica
+  if (fechaUltimo) {
+    try {
+      const ultimo = new Date(fechaUltimo);
+      if (!isNaN(ultimo.getTime())) {
+        const proximoCalculado = new Date(ultimo.getTime() + diasLimite * 24 * 60 * 60 * 1000);
+        return `${MESES_LIST[proximoCalculado.getUTCMonth()]} ${proximoCalculado.getUTCFullYear()} (Auto)`;
+      }
+    } catch (e) {}
+  }
+
+  // 3. Fallback (si no hay cita válida ni última atención registrada)
   if (fallbackLabel) {
     if (fallbackLabel.includes("T") || fallbackLabel.includes("-") || fallbackLabel.includes("/")) {
       try {
@@ -124,6 +140,7 @@ const formatMesAnio = (dateString: string | null | undefined, fallbackLabel?: st
     }
     return fallbackLabel.toUpperCase();
   }
+  
   return '-';
 };
 
@@ -827,7 +844,9 @@ export default function RespiratorioClientView({ data, user }: { data: any[], us
                         <div className="flex items-center justify-between text-[10px]">
                           <span className="font-bold text-slate-500 uppercase flex items-center gap-1">🩺 Med</span>
                           <div className="flex items-center space-x-1.5">
-                            <span className="font-mono text-slate-700 font-bold">{formatMesAnio(p.cita_medico, dataCli.proximo_medico_label)}</span>
+                            <span className="font-mono text-slate-700 font-bold" title="Fecha proyectada por IAAPS o Agendada">
+                              {formatProximoControlLabel(p.cita_medico, p.last_med, 180, dataCli.proximo_medico_label)}
+                            </span>
                             <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${mediStat.color}`}>
                               {mediStat.label}
                             </span>
@@ -837,7 +856,9 @@ export default function RespiratorioClientView({ data, user }: { data: any[], us
                         <div className="flex items-center justify-between text-[10px] border-t border-slate-100 pt-1.5">
                           <span className="font-bold text-slate-500 uppercase flex items-center gap-1">🧘‍♂️ Kin</span>
                           <div className="flex items-center space-x-1.5">
-                            <span className="font-mono text-slate-700 font-bold">{formatMesAnio(p.cita_kine, dataCli.proximo_kine_label)}</span>
+                            <span className="font-mono text-slate-700 font-bold" title="Fecha proyectada por IAAPS o Agendada">
+                              {formatProximoControlLabel(p.cita_kine, p.last_kin, 120, dataCli.proximo_kine_label)}
+                            </span>
                             <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${kineStat.color}`}>
                               {kineStat.label}
                             </span>
@@ -847,7 +868,9 @@ export default function RespiratorioClientView({ data, user }: { data: any[], us
                         <div className="flex items-center justify-between text-[10px] border-t border-slate-100 pt-1.5">
                           <span className="font-bold text-slate-500 uppercase flex items-center gap-1">🌬️ Esp</span>
                           <div className="flex items-center space-x-1.5">
-                            <span className="font-mono text-slate-700 font-bold">{formatMesAnio(p.cita_espiro, dataCli.proximo_espiro_label)}</span>
+                            <span className="font-mono text-slate-700 font-bold" title="Fecha proyectada por IAAPS o Agendada">
+                              {formatProximoControlLabel(p.cita_espiro, p.last_esp, 365, dataCli.proximo_espiro_label)}
+                            </span>
                             <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${espiStat.color}`}>
                               {espiStat.label}
                             </span>
