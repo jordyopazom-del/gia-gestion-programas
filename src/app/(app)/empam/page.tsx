@@ -3,13 +3,19 @@ import EmpamClientView from "./EmpamClientView";
 import { Activity, Plus } from "lucide-react";
 import Link from "next/link";
 import { getCurrentUser } from "@/actions/userActions";
+import { redirect } from "next/navigation";
 export const dynamic = 'force-dynamic';
 
 export default async function EmpamDashboardPage() {
-  const data = await getEmpamDashboardData();
   const user = await getCurrentUser();
+  if (!user) redirect("/login");
 
-  const canCreate = user?.rol !== "ADMINISTRATIVO";
+  const hasAccess = user.rol === "ADMINISTRADOR" || user.accesos?.includes("empam");
+  if (!hasAccess) redirect("/dashboard");
+
+  const data = await getEmpamDashboardData();
+
+  const canCreate = user.rol !== "ADMINISTRATIVO";
 
   return (
     <div>

@@ -12,9 +12,17 @@ export async function initDatabase() {
         nombre TEXT NOT NULL,
         profesion TEXT,
         rol TEXT DEFAULT 'CLINICO',
-        password TEXT NOT NULL
+        password TEXT NOT NULL,
+        accesos TEXT[] DEFAULT ARRAY[]::TEXT[]
       )
     `;
+
+    // Asegurar que la columna accesos exista (por si la tabla ya existía antes)
+    try {
+      await sql`ALTER TABLE gia_usuarios ADD COLUMN IF NOT EXISTS accesos TEXT[] DEFAULT ARRAY[]::TEXT[]`;
+    } catch (e) {
+      console.log("Columna accesos ya existe o error al crearla");
+    }
 
     // 2. Tabla del Padrón Maestro de Pacientes
     await sql`

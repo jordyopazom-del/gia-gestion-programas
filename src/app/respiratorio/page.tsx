@@ -10,6 +10,9 @@ export default async function RespiratorioPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
+  const hasAccess = user.rol === "ADMINISTRADOR" || user.accesos?.includes("respiratorio");
+  if (!hasAccess) redirect("/dashboard");
+
   const data = await getRespiratorioData();
 
   return <RespiratorioClientView data={data} user={user} />;

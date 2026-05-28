@@ -13,6 +13,7 @@ export type UserProfile = {
   email?: string;
   profesion: string;
   rol: UserRole;
+  accesos?: string[];
 };
 
 export async function getCurrentUser() {
@@ -22,7 +23,7 @@ export async function getCurrentUser() {
   if (!rut) return null;
 
   try {
-    const result = await sql`SELECT rut, nombre, email, profesion, rol FROM gia_usuarios WHERE rut = ${rut}`;
+    const result = await sql`SELECT rut, nombre, email, profesion, rol, accesos FROM gia_usuarios WHERE rut = ${rut}`;
     return result[0] as UserProfile;
   } catch (error) {
     console.error("Error obteniendo usuario actual:", error);
@@ -37,7 +38,7 @@ export async function listarUsuarios() {
   }
 
   try {
-    const result = await sql`SELECT rut, nombre, email, profesion, rol FROM gia_usuarios ORDER BY nombre ASC`;
+    const result = await sql`SELECT rut, nombre, email, profesion, rol, accesos FROM gia_usuarios ORDER BY nombre ASC`;
     return { success: true, data: result as unknown as UserProfile[] };
   } catch (error) {
     return { error: "Error de base de datos" };
@@ -53,15 +54,16 @@ export async function crearUsuario(data: UserProfile & { password?: string }) {
   try {
     const hashedPassword = hashPassword(data.password || "cesfam123");
     await sql`
-      INSERT INTO gia_usuarios (rut, nombre, email, profesion, rol, password, debe_cambiar_password)
-      VALUES (${data.rut}, ${data.nombre}, ${data.email || ''}, ${data.profesion}, ${data.rol}, ${hashedPassword}, TRUE)
+      INSERT INTO gia_usuarios (rut, nombre, email, profesion, rol, password, debe_cambiar_password, accesos)
+      VALUES (${data.rut}, ${data.nombre}, ${data.email || ''}, ${data.profesion}, ${data.rol}, ${hashedPassword}, TRUE, ${data.accesos || []})
       ON CONFLICT (rut) DO UPDATE SET
         nombre = EXCLUDED.nombre,
         email = EXCLUDED.email,
         profesion = EXCLUDED.profesion,
         rol = EXCLUDED.rol,
         password = EXCLUDED.password,
-        debe_cambiar_password = TRUE
+        debe_cambiar_password = TRUE,
+        accesos = EXCLUDED.accesos
     `;
     revalidatePath("/admin/usuarios");
     return { success: true };
@@ -137,7 +139,7 @@ export async function procesarSolicitud(id: number, accion: 'APROBAR' | 'RECHAZA
       const defaultPass = hashPassword("cesfam123");
 
       await sql.begin(async (sql) => {
-        await sql`INSERT INTO gia_usuarios (rut, nombre, email, profesion, rol, password, debe_cambiar_password) VALUES (${rut}, ${nombre}, ${email}, ${profesion}, ${rol || 'CLINICO'}, ${defaultPass}, TRUE)`;
+        await sql`INSERT INTO gia_usuarios (rut, nombre, email, profesion, rol, password, debe_cambiar_password, accesos) VALUES (${rut}, ${nombre}, ${email}, ${profesion}, ${rol || 'CLINICO'}, ${defaultPass}, TRUE, ARRAY[]::TEXT[])`;
         await sql`UPDATE gia_solicitudes_acceso SET estado = 'APROBADO' WHERE id = ${id}`;
       });
     }

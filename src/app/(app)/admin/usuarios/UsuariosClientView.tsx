@@ -23,6 +23,9 @@ export default function UsuariosClientView({
   const [showAprobado, setShowAprobado] = useState<any>(null);
   const [selectedRol, setSelectedRol] = useState<UserRole>("CLINICO");
 
+  // Estado para granularidad de accesos
+  const [formAccesos, setFormAccesos] = useState<string[]>([]);
+
   const [formData, setFormData] = useState({
     rut: "",
     nombre: "",
@@ -41,6 +44,7 @@ export default function UsuariosClientView({
       rol: u.rol,
       password: "" 
     });
+    setFormAccesos(u.accesos || []);
     setIsEditing(true);
     setShowModal(true);
   };
@@ -54,8 +58,17 @@ export default function UsuariosClientView({
       rol: "CLINICO",
       password: ""
     });
+    setFormAccesos([]);
     setIsEditing(false);
     setShowModal(true);
+  };
+
+  const handleAccesoToggle = (key: string, checked: boolean) => {
+    if (checked) {
+      setFormAccesos([...formAccesos, key]);
+    } else {
+      setFormAccesos(formAccesos.filter(item => item !== key));
+    }
   };
 
   const formatRut = (value: string) => {
@@ -84,7 +97,8 @@ export default function UsuariosClientView({
     const normalizedData = {
       ...formData,
       nombre: formData.nombre.toUpperCase().trim(),
-      profesion: normalizeText(formData.profesion)
+      profesion: normalizeText(formData.profesion),
+      accesos: formAccesos
     };
 
     const res = await crearUsuario(normalizedData);
@@ -176,6 +190,7 @@ export default function UsuariosClientView({
                   <th className="px-6 py-4">Nombre Completo</th>
                   <th className="px-6 py-4">Profesión / Cargo</th>
                   <th className="px-6 py-4">Rol en Sistema</th>
+                  <th className="px-6 py-4">Módulos Habilitados</th>
                   <th className="px-6 py-4 text-center">Acciones</th>
                 </tr>
               </thead>
@@ -199,6 +214,29 @@ export default function UsuariosClientView({
                       <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${rolesConfig[u.rol].color}`}>
                         {rolesConfig[u.rol].label}
                       </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      {u.rol === "ADMINISTRADOR" ? (
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider bg-slate-100 px-2 py-0.5 rounded border border-slate-200">Acceso Maestro (Todo)</span>
+                      ) : (
+                        <div className="flex flex-wrap gap-1">
+                          {(!u.accesos || u.accesos.length === 0) && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-50 border border-slate-100 text-slate-400 font-bold uppercase">Sin Módulos</span>
+                          )}
+                          {u.accesos?.includes("respiratorio") && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-100 font-bold uppercase">Respi</span>
+                          )}
+                          {u.accesos?.includes("empam") && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-600 border border-emerald-100 font-bold uppercase">EMPAM</span>
+                          )}
+                          {u.accesos?.includes("mujer") && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-pink-50 text-pink-600 border border-pink-100 font-bold uppercase">Mujer</span>
+                          )}
+                          {u.accesos?.includes("oportunidad") && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-50 text-purple-600 border border-purple-100 font-bold uppercase">Oport.</span>
+                          )}
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-center">
                       <div className="flex justify-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -444,6 +482,52 @@ export default function UsuariosClientView({
                   className="w-full bg-slate-50 border-slate-100 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-purple-200 outline-none"
                 />
               </div>
+
+              {formData.rol !== "ADMINISTRADOR" && (
+                <div className="space-y-2 bg-slate-50 p-4 rounded-xl border border-slate-100/80 animate-in fade-in slide-in-from-top-1 duration-150">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase flex items-center tracking-widest mb-2 select-none">
+                    <ShieldCheck size={12} className="mr-1 text-purple-600" /> Módulos Habilitados
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="flex items-center space-x-2 text-xs font-bold text-slate-700 cursor-pointer select-none">
+                      <input 
+                        type="checkbox"
+                        checked={formAccesos.includes("respiratorio")}
+                        onChange={(e) => handleAccesoToggle("respiratorio", e.target.checked)}
+                        className="rounded border-slate-300 text-purple-600 focus:ring-purple-500 h-4 w-4"
+                      />
+                      <span>Prog. Respiratorio</span>
+                    </label>
+                    <label className="flex items-center space-x-2 text-xs font-bold text-slate-700 cursor-pointer select-none">
+                      <input 
+                        type="checkbox"
+                        checked={formAccesos.includes("empam")}
+                        onChange={(e) => handleAccesoToggle("empam", e.target.checked)}
+                        className="rounded border-slate-300 text-purple-600 focus:ring-purple-500 h-4 w-4"
+                      />
+                      <span>Adulto Mayor (EMPAM)</span>
+                    </label>
+                    <label className="flex items-center space-x-2 text-xs font-bold text-slate-700 cursor-pointer select-none">
+                      <input 
+                        type="checkbox"
+                        checked={formAccesos.includes("mujer")}
+                        onChange={(e) => handleAccesoToggle("mujer", e.target.checked)}
+                        className="rounded border-slate-300 text-purple-600 focus:ring-purple-500 h-4 w-4"
+                      />
+                      <span>Prog. de la Mujer</span>
+                    </label>
+                    <label className="flex items-center space-x-2 text-xs font-bold text-slate-700 cursor-pointer select-none">
+                      <input 
+                        type="checkbox"
+                        checked={formAccesos.includes("oportunidad")}
+                        onChange={(e) => handleAccesoToggle("oportunidad", e.target.checked)}
+                        className="rounded border-slate-300 text-purple-600 focus:ring-purple-500 h-4 w-4"
+                      />
+                      <span>Oport. de Atención</span>
+                    </label>
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-slate-400 uppercase flex items-center tracking-widest">

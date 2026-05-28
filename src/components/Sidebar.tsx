@@ -17,12 +17,12 @@ import { useRouter } from "next/navigation";
 import { UserProfile } from "@/actions/userActions";
 
 const navigation = [
-  { name: "Dashboard Central", href: "/dashboard", icon: LayoutDashboard, roles: ["ADMINISTRADOR", "ADMINISTRATIVO", "REFERENTE", "CLINICO"] },
-  { name: "Población y Directorio", href: "/directorio", icon: Users, roles: ["ADMINISTRADOR", "ADMINISTRATIVO", "REFERENTE", "CLINICO"] },
-  { name: "Oportunidad de Atención", href: "/oportunidad", icon: Target, roles: ["ADMINISTRADOR", "REFERENTE"] },
-  { name: "Programa de la Mujer", href: "/mujer", icon: HeartPulse, roles: ["ADMINISTRADOR"] },
-  { name: "Programa Adulto Mayor", href: "/empam", icon: Activity, roles: ["ADMINISTRADOR", "REFERENTE", "CLINICO"] },
-  { name: "Programa Respiratorio", href: "/respiratorio", icon: Stethoscope, roles: ["ADMINISTRADOR"] },
+  { key: "dashboard", name: "Dashboard Central", href: "/dashboard", icon: LayoutDashboard, roles: ["ADMINISTRADOR", "ADMINISTRATIVO", "REFERENTE", "CLINICO"], public: true },
+  { key: "directorio", name: "Población y Directorio", href: "/directorio", icon: Users, roles: ["ADMINISTRADOR", "ADMINISTRATIVO", "REFERENTE", "CLINICO"], public: true },
+  { key: "oportunidad", name: "Oportunidad de Atención", href: "/oportunidad", icon: Target, roles: ["ADMINISTRADOR", "REFERENTE", "CLINICO", "ADMINISTRATIVO"] },
+  { key: "mujer", name: "Programa de la Mujer", href: "/mujer", icon: HeartPulse, roles: ["ADMINISTRADOR", "REFERENTE", "CLINICO", "ADMINISTRATIVO"] },
+  { key: "empam", name: "Programa Adulto Mayor", href: "/empam", icon: Activity, roles: ["ADMINISTRADOR", "REFERENTE", "CLINICO", "ADMINISTRATIVO"] },
+  { key: "respiratorio", name: "Programa Respiratorio", href: "/respiratorio", icon: Stethoscope, roles: ["ADMINISTRADOR", "REFERENTE", "CLINICO", "ADMINISTRATIVO"] },
 ];
 
 export default function Sidebar({ user }: { user: UserProfile }) {
@@ -34,7 +34,20 @@ export default function Sidebar({ user }: { user: UserProfile }) {
     router.push("/login");
   };
 
-  const filteredNav = navigation.filter(item => item.roles.includes(user.rol));
+  const filteredNav = navigation.filter(item => {
+    // 1. Validar si el rol tiene permitido este módulo de forma general
+    const roleAllowed = item.roles.includes(user.rol);
+    if (!roleAllowed) return false;
+
+    // 2. Si es un módulo público general, se muestra
+    if (item.public) return true;
+
+    // 3. Administrador Maestro tiene acceso automático a todo
+    if (user.rol === "ADMINISTRADOR") return true;
+
+    // 4. Validación granular según los accesos activos del usuario
+    return user.accesos?.includes(item.key);
+  });
 
   return (
     <div className="flex h-screen w-64 flex-col border-r border-slate-200 bg-white no-print">
