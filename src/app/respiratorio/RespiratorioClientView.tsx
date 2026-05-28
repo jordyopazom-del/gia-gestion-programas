@@ -100,6 +100,26 @@ const formatDate = (dateString: string | null) => {
   }
 };
 
+const LISTA_DIAG = [
+  "ASMA LEVE",
+  "ASMA MODERADA",
+  "ASMA SEVERA",
+  "EPOC TIPO A",
+  "EPOC TIPO B",
+  "SBOR",
+  "OXIGENO DEPENDIENTE",
+  "AVNI",
+  "FIBROSIS QUISTICA",
+  "OTRAS RESPIRATORIAS"
+];
+
+const LISTA_CONTROL = [
+  "CONTROLADO",
+  "PARCIALMENTE CONTROLADO",
+  "NO CONTROLADO",
+  "SIN EVALUAR"
+];
+
 export default function RespiratorioClientView({ data, user }: { data: any[], user: UserProfile }) {
   const router = useRouter();
   const [searchRut, setSearchRut] = useState("");
@@ -120,6 +140,52 @@ export default function RespiratorioClientView({ data, user }: { data: any[], us
   const [obsEgreso, setObsEgreso] = useState("");
 
   const [isEgresando, setIsEgresando] = useState(false);
+  
+  // Estados para optimizar UX/UI (espacio y descargas)
+  const [showExportDropdown, setShowExportDropdown] = useState(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+
+  // Estados para Modal de Edición Rápida (Correcciones Administrativas)
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editFichaId, setEditFichaId] = useState<number | null>(null);
+  const [editDiag, setEditDiag] = useState("");
+  const [editCtrl, setEditCtrl] = useState("");
+  const [editMigrante, setEditMigrante] = useState(false);
+  const [editPuebloOriginario, setEditPuebloOriginario] = useState(false);
+  const [editSecueladoTbc, setEditSecueladoTbc] = useState(false);
+  const [editOtraRespiratoriaDetalle, setEditOtraRespiratoriaDetalle] = useState("");
+  const [editPacienteDataCli, setEditPacienteDataCli] = useState<any>({});
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+
+  const handleSaveEdit = async () => {
+    if (!editFichaId) return;
+    setIsSavingEdit(true);
+
+    const updatedDataClinica = {
+      ...editPacienteDataCli,
+      es_migrante: editMigrante,
+      pueblo_originario: editPuebloOriginario,
+      secuelado_tbc: editSecueladoTbc,
+      otra_respiratoria_detalle: editDiag === "OTRAS RESPIRATORIAS" ? editOtraRespiratoriaDetalle.toUpperCase().trim() : ""
+    };
+
+    const res = await updateDiagnosticoControl(
+      editFichaId,
+      editDiag,
+      editCtrl,
+      updatedDataClinica
+    );
+
+    if (res.success) {
+      toast.success("Diagnóstico y caracterización actualizados correctamente");
+      setShowEditModal(false);
+      setEditFichaId(null);
+      router.refresh();
+    } else {
+      toast.error("Error al actualizar: " + res.error);
+    }
+    setIsSavingEdit(false);
+  };
 
   const canManage = user.rol === "ADMINISTRADOR" || user.rol === "REFERENTE";
 
@@ -153,14 +219,43 @@ export default function RespiratorioClientView({ data, user }: { data: any[], us
       const mStat = getVigenciaHibrida(null, p.cita_medico, 180);
       const eStat = getVigenciaHibrida(null, p.cita_espiro, 365);
 
+      let dataCli: any = {};
+      try {
+        dataCli = typeof p.data_clinica === 'string' ? JSON.parse(p.data_clinica) : (p.data_clinica || {});
+      } catch (e) {
+        dataCli = {};
+      }
+
+      const getSurveyScore = () => {
+        const diagUpper = (p.diagnostico || "").toUpperCase();
+        const isEq5dDiag = diagUpper.includes("ASMA") || 
+                           diagUpper === "OXIGENO DEPENDIENTE" || 
+                           diagUpper === "AVNI" || 
+                           diagUpper === "FIBROSIS QUISTICA" || 
+                           diagUpper === "OTRAS RESPIRATORIAS";
+        if (isEq5dDiag) {
+          return dataCli.eq5d_score !== undefined && dataCli.eq5d_score !== null ? `EQ-5D: ${dataCli.eq5d_score}` : "SIN REGISTRO";
+        } else if (diagUpper.includes("EPOC")) {
+          return dataCli.cat_score !== undefined && dataCli.cat_score !== null ? `CAT: ${dataCli.cat_score}` : "SIN REGISTRO";
+        }
+        return "NO APLICA";
+      };
+
       return {
         "RUT": `${p.rut}-${p.dv}`,
         "NOMBRE COMPLETO": p.nombre_completo,
         "EDAD": age,
         "SECTOR": p.sector,
-        "DIAGNÓSTICO": p.diagnostico || "SIN REGISTRO",
+        "DIAGNÓSTICO": p.diagnostico === "OTRAS RESPIRATORIAS" && dataCli.otra_respiratoria_detalle
+          ? `OTRAS RESPIRATORIAS (${dataCli.otra_respiratoria_detalle})`
+          : (p.diagnostico || "SIN REGISTRO"),
         "NIVEL DE CONTROL": p.nivel_control || "SIN EVALUAR",
         "ESTRATEGIA PAD": p.es_pad ? "SÍ" : "NO",
+        "MIGRANTE": dataCli.es_migrante ? "SÍ" : "NO",
+        "PUEBLO ORIGINARIO": dataCli.pueblo_originario ? "SÍ" : "NO",
+        "SECUELADO TBC": dataCli.secuelado_tbc ? "SÍ" : "NO",
+        "PUNTAJE ENCUESTA": getSurveyScore(),
+        "FECHA ENCUESTA": formatDate(dataCli.fecha_encuesta),
         "ÚLT. CONTROL MÉDICO": formatDate(p.last_med),
         "ÚLT. CONTROL KINE": formatDate(p.last_kin),
         "ÚLT. ESPIROMETRÍA": formatDate(p.last_esp),
@@ -363,21 +458,43 @@ export default function RespiratorioClientView({ data, user }: { data: any[], us
             {view === 'lista' ? "ANÁLISIS ESTADÍSTICO" : "VOLVER AL LISTADO"}
           </button>
           
-          <button 
-            onClick={downloadExcel}
-            className="flex items-center justify-center space-x-2 bg-emerald-50 border border-emerald-100 text-emerald-700 px-4 py-2.5 rounded-xl font-black hover:bg-emerald-100 transition-all shadow-sm text-xs"
-          >
-            <Download size={16} />
-            <span>EXPORTAR EXCEL</span>
-          </button>
-          
-          <button 
-            onClick={exportCampanaExcel}
-            className="flex items-center justify-center space-x-2 bg-amber-50 border border-amber-100 text-amber-700 px-4 py-2.5 rounded-xl font-black hover:bg-amber-100 transition-all shadow-sm text-xs"
-          >
-            <Download size={16} />
-            <span>EXPORTAR CAMPAÑA</span>
-          </button>
+          <div className="relative">
+            <button 
+              onClick={() => setShowExportDropdown(!showExportDropdown)}
+              className="flex items-center justify-center space-x-2 bg-emerald-50 border border-emerald-100 text-emerald-700 px-4 py-2.5 rounded-xl font-black hover:bg-emerald-100 transition-all shadow-sm text-xs"
+            >
+              <Download size={16} />
+              <span>EXPORTAR REPORTE</span>
+              <span className="text-[10px] ml-1">▼</span>
+            </button>
+            {showExportDropdown && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setShowExportDropdown(false)}></div>
+                <div className="absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-lg z-20 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-100">
+                  <button 
+                    onClick={() => {
+                      downloadExcel();
+                      setShowExportDropdown(false);
+                    }}
+                    className="w-full text-left px-4 py-3 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors border-b border-slate-100 flex items-center space-x-2"
+                  >
+                    <span>📊</span>
+                    <span>Padrón Completo</span>
+                  </button>
+                  <button 
+                    onClick={() => {
+                      exportCampanaExcel();
+                      setShowExportDropdown(false);
+                    }}
+                    className="w-full text-left px-4 py-3 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors flex items-center space-x-2"
+                  >
+                    <span>🎯</span>
+                    <span>Campaña Vencidos</span>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
           
           <Link 
             href="/respiratorio/nuevo"
@@ -407,72 +524,87 @@ export default function RespiratorioClientView({ data, user }: { data: any[], us
               </div>
               <div className="md:col-span-3">
                 <select 
-                  value={filterProg} 
-                  onChange={(e) => setFilterProg(e.target.value)}
+                  value={filterDiag} 
+                  onChange={(e) => setFilterDiag(e.target.value)}
                   className="w-full px-3 py-2.5 bg-slate-50 border-none rounded-xl text-xs font-bold text-slate-600 focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="Todos">PROGRAMAS (TODOS)</option>
-                  <option value="IRA">IRA (INFANTIL)</option>
-                  <option value="ERA">ERA (ADULTO)</option>
-                </select>
-              </div>
-              <div className="md:col-span-2">
-                <select 
-                  value={filterSector} 
-                  onChange={(e) => setFilterSector(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-slate-50 border-none rounded-xl text-xs font-bold text-slate-600 focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="Todos">SECTORES (TODOS)</option>
-                  {sectors.filter(s => s !== 'Todos').map(s => <option key={s} value={s}>{s}</option>)}
+                  <option value="Todos">DIAGNÓSTICO (TODOS)</option>
+                  {uniqueDiagnostics.map(d => <option key={d} value={d}>{d}</option>)}
                 </select>
               </div>
               <div className="md:col-span-3">
                 <select 
-                  value={filterVigencia} 
-                  onChange={(e) => setFilterVigencia(e.target.value)}
+                  value={filterCtrl} 
+                  onChange={(e) => setFilterCtrl(e.target.value)}
                   className="w-full px-3 py-2.5 bg-slate-50 border-none rounded-xl text-xs font-bold text-slate-600 focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="Todos">VIGENCIAS (TODAS)</option>
-                  <option value="Vigente">VIGENTES</option>
-                  <option value="Vencido">VENCIDOS</option>
-                  <option value="Por Vencer">POR VENCER</option>
+                  <option value="Todos">NIVEL DE CONTROL (TODOS)</option>
+                  {uniqueControls.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
+              </div>
+              <div className="md:col-span-2">
+                <button
+                  onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                  className={`w-full py-2.5 rounded-xl text-xs font-black flex items-center justify-center space-x-1.5 transition-all ${
+                    showAdvancedFilters 
+                      ? 'bg-slate-200 text-slate-800' 
+                      : 'bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100'
+                  }`}
+                >
+                  <Filter size={14} />
+                  <span>MÁS FILTROS {showAdvancedFilters ? '▲' : '▼'}</span>
+                </button>
               </div>
             </div>
 
-            <div className="flex gap-4 border-t border-slate-50 pt-4">
-              <div className="flex-1">
-                  <select 
-                    value={filterDiag} 
-                    onChange={(e) => setFilterDiag(e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-slate-100 rounded-lg text-[10px] font-bold text-slate-500"
-                  >
-                    <option value="Todos">DIAGNÓSTICO (TODOS)</option>
-                    {uniqueDiagnostics.map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
+            {showAdvancedFilters && (
+              <div className="flex gap-4 border-t border-slate-100 pt-4 animate-in fade-in slide-in-from-top-1 duration-150">
+                <div className="flex-1">
+                    <select 
+                      value={filterProg} 
+                      onChange={(e) => setFilterProg(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-slate-50 border-none rounded-xl text-xs font-bold text-slate-600 focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="Todos">PROGRAMAS (TODOS)</option>
+                      <option value="IRA">IRA (INFANTIL)</option>
+                      <option value="ERA">ERA (ADULTO)</option>
+                    </select>
+                </div>
+                <div className="flex-1">
+                    <select 
+                      value={filterSector} 
+                      onChange={(e) => setFilterSector(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-slate-50 border-none rounded-xl text-xs font-bold text-slate-600 focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="Todos">SECTORES (TODOS)</option>
+                      {sectors.filter(s => s !== 'Todos').map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                </div>
+                <div className="flex-1">
+                    <select 
+                      value={filterVigencia} 
+                      onChange={(e) => setFilterVigencia(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-slate-50 border-none rounded-xl text-xs font-bold text-slate-600 focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="Todos">VIGENCIAS (TODAS)</option>
+                      <option value="Vigente">VIGENTES</option>
+                      <option value="Vencido">VENCIDOS</option>
+                      <option value="Por Vencer">POR VENCER</option>
+                    </select>
+                </div>
+                <button 
+                  onClick={() => {
+                    setSearchRut(""); setFilterSector("Todos"); setFilterProg("Todos");
+                    setFilterDiag("Todos"); setFilterCtrl("Todos"); setFilterVigencia("Todos");
+                    setOnlyPad(false);
+                  }}
+                  className="px-4 py-2 text-[10px] font-black text-slate-400 hover:text-red-500 transition-colors flex items-center gap-1"
+                >
+                  <RotateCcw size={12} />
+                  LIMPIAR FILTROS
+                </button>
               </div>
-              <div className="flex-1">
-                  <select 
-                    value={filterCtrl} 
-                    onChange={(e) => setFilterCtrl(e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-slate-100 rounded-lg text-[10px] font-bold text-slate-500"
-                  >
-                    <option value="Todos">NIVEL DE CONTROL (TODOS)</option>
-                    {uniqueControls.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-              </div>
-              <button 
-                onClick={() => {
-                  setSearchRut(""); setFilterSector("Todos"); setFilterProg("Todos");
-                  setFilterDiag("Todos"); setFilterCtrl("Todos"); setFilterVigencia("Todos");
-                  setOnlyPad(false);
-                }}
-                className="px-4 py-2 text-[10px] font-black text-slate-400 hover:text-red-500 transition-colors flex items-center gap-1"
-              >
-                <RotateCcw size={12} />
-                LIMPIAR FILTROS
-              </button>
-            </div>
+            )}
           </div>
 
           <div className="flex justify-between items-center px-6 py-2 bg-slate-50/50 rounded-xl border border-slate-100">
@@ -526,15 +658,85 @@ export default function RespiratorioClientView({ data, user }: { data: any[], us
                   dataCli = {};
                 }
 
+                const renderSurveyBadge = () => {
+                  const diagUpper = (p.diagnostico || "").toUpperCase();
+                  const isEq5dDiag = diagUpper.includes("ASMA") || 
+                                     diagUpper === "OXIGENO DEPENDIENTE" || 
+                                     diagUpper === "AVNI" || 
+                                     diagUpper === "FIBROSIS QUISTICA" || 
+                                     diagUpper === "OTRAS RESPIRATORIAS";
+                  const isEpoc = diagUpper.includes("EPOC");
+
+                  if (!isEq5dDiag && !isEpoc) return null;
+
+                  const fechaEnc = dataCli.fecha_encuesta;
+                  const hasSurvey = isEq5dDiag 
+                    ? dataCli.eq5d_score !== undefined && dataCli.eq5d_score !== null 
+                    : (dataCli.cat_score !== undefined && dataCli.cat_score !== null);
+
+                  if (!hasSurvey || !fechaEnc) {
+                    return (
+                      <span className="text-[8px] px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-400 font-bold uppercase w-fit mt-1">
+                        {isEq5dDiag ? "EQ-5D Pendiente" : "CAT Pendiente"}
+                      </span>
+                    );
+                  }
+
+                  const fEnc = new Date(fechaEnc);
+                  const now = new Date();
+                  now.setHours(0,0,0,0);
+                  fEnc.setHours(0,0,0,0);
+                  const diffTime = now.getTime() - fEnc.getTime();
+                  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                  const isVencido = diffDays > 365;
+
+                  if (isVencido) {
+                    return (
+                      <span className="text-[8px] px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-600 font-bold uppercase w-fit mt-1 flex items-center gap-1" title={`Última aplicación: ${formatDate(fechaEnc)}`}>
+                        <span>⚠️</span> {isEq5dDiag ? "EQ-5D" : "CAT"} Vencido
+                      </span>
+                    );
+                  }
+
+                  if (isEq5dDiag) {
+                    return (
+                      <span className="text-[8px] px-1.5 py-0.5 rounded bg-emerald-50 border border-emerald-100 text-emerald-600 font-bold uppercase w-fit mt-1" title={`Aplicado el ${formatDate(fechaEnc)}`}>
+                        EQ-5D: {dataCli.eq5d_score}
+                      </span>
+                    );
+                  } else {
+                    return (
+                      <span className="text-[8px] px-1.5 py-0.5 rounded bg-blue-50 border border-blue-100 text-blue-600 font-bold uppercase w-fit mt-1" title={`Aplicado el ${formatDate(fechaEnc)}`}>
+                        CAT: {dataCli.cat_score}
+                      </span>
+                    );
+                  }
+                };
+
                 return (
                   <tr key={p.rut} className="hover:bg-slate-50/50 transition-colors group">
                     <td className="px-6 py-4 min-w-[250px]">
-                      <div className="flex items-center space-x-2 mb-0.5">
-                        <p className="text-sm font-bold text-slate-800 uppercase leading-none">{p.nombre_completo}</p>
+                      <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
+                        <p className="text-sm font-bold text-slate-800 uppercase leading-none mr-1">{p.nombre_completo}</p>
                         {p.es_pad && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600 text-[9px] font-black tracking-widest">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600 text-[9px] font-black tracking-widest leading-none">
                             <ShieldCheck size={10} className="mr-1 text-blue-600" />
                             PAD
+                          </span>
+                        )}
+                        {dataCli.es_migrante && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600 text-[8px] font-black tracking-widest leading-none" title="Paciente Migrante">
+                            MIG
+                          </span>
+                        )}
+                        {dataCli.pueblo_originario && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600 text-[8px] font-black tracking-widest leading-none" title="Pueblo Originario">
+                            PO
+                          </span>
+                        )}
+                        {dataCli.secuelado_tbc && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-red-50 border border-red-100 text-red-600 text-[8px] font-black tracking-widest leading-none" title="Secuelado TBC">
+                            TBC
                           </span>
                         )}
                       </div>
@@ -556,14 +758,25 @@ export default function RespiratorioClientView({ data, user }: { data: any[], us
                       )}
                     </td>
                     <td className="px-6 py-4">
-                        <div className="flex flex-col">
-                           <p className="text-[10px] font-black text-blue-600 uppercase mb-1">{p.diagnostico || 'Pendiente'}</p>
-                           <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase border w-fit ${
-                             p.nivel_control === 'CONTROLADO' ? 'border-emerald-100 text-emerald-600 bg-emerald-50' : 'border-slate-100 text-slate-500 bg-slate-50'
-                           }`}>
-                             {p.nivel_control || 'Sin Evaluar'}
-                           </span>
-                        </div>
+                         <div className="flex flex-col gap-1">
+                            <p className="text-[10px] font-black text-blue-600 uppercase mb-0.5">
+                              {p.diagnostico === 'OTRAS RESPIRATORIAS' && dataCli.otra_respiratoria_detalle 
+                                ? 'OTRAS RESPIRATORIAS' 
+                                : (p.diagnostico || 'Pendiente')
+                              }
+                            </p>
+                            {p.diagnostico === 'OTRAS RESPIRATORIAS' && dataCli.otra_respiratoria_detalle && (
+                              <span className="text-[9px] font-bold text-slate-500 italic uppercase leading-none mb-0.5">
+                                ({dataCli.otra_respiratoria_detalle})
+                              </span>
+                            )}
+                            <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase border w-fit ${
+                              p.nivel_control === 'CONTROLADO' ? 'border-emerald-100 text-emerald-600 bg-emerald-50' : 'border-slate-100 text-slate-500 bg-slate-50'
+                            }`}>
+                              {p.nivel_control || 'Sin Evaluar'}
+                            </span>
+                            {renderSurveyBadge()}
+                         </div>
                     </td>
                     <td className="px-6 py-4">
                        <div className="flex flex-col space-y-1 min-w-[140px]">
@@ -582,47 +795,78 @@ export default function RespiratorioClientView({ data, user }: { data: any[], us
                        </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex justify-center space-x-3">
-                         {/* MÉDICO */}
-                         <div className="text-center min-w-[110px] p-2.5 rounded-2xl bg-white border border-slate-200 shadow-sm transition-all hover:border-blue-200 hover:shadow-md">
-                            <p className="text-[9px] font-black text-slate-400 uppercase mb-1.5 flex items-center justify-center">🩺 Médico</p>
-                            <p className="text-[11px] font-black text-slate-800 uppercase leading-none mb-1.5">{dataCli.proximo_medico_label || '-'}</p>
-                            <span className={`inline-block px-2 py-0.5 rounded-lg text-[9px] font-black uppercase border ${mediStat.color}`}>
-                               {mediStat.label}
+                      <div className="flex flex-col space-y-1.5 min-w-[160px] bg-slate-50/50 p-2.5 rounded-xl border border-slate-100/50 mx-auto">
+                        {/* MÉDICO */}
+                        <div className="flex items-center justify-between text-[10px]">
+                          <span className="font-bold text-slate-500 uppercase flex items-center gap-1">🩺 Med</span>
+                          <div className="flex items-center space-x-1.5">
+                            <span className="font-mono text-slate-700 font-bold">{dataCli.proximo_medico_label || '-'}</span>
+                            <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${mediStat.color}`}>
+                              {mediStat.label}
                             </span>
-                         </div>
-                         {/* KINE */}
-                         <div className="text-center min-w-[110px] p-2.5 rounded-2xl bg-white border border-slate-200 shadow-sm transition-all hover:border-blue-200 hover:shadow-md">
-                            <p className="text-[9px] font-black text-slate-400 uppercase mb-1.5 flex items-center justify-center">🧘‍♂️ Kine</p>
-                            <p className="text-[11px] font-black text-slate-800 uppercase leading-none mb-1.5">{dataCli.proximo_kine_label || '-'}</p>
-                            <span className={`inline-block px-2 py-0.5 rounded-lg text-[9px] font-black uppercase border ${kineStat.color}`}>
-                               {kineStat.label}
+                          </div>
+                        </div>
+                        {/* KINE */}
+                        <div className="flex items-center justify-between text-[10px] border-t border-slate-100 pt-1.5">
+                          <span className="font-bold text-slate-500 uppercase flex items-center gap-1">🧘‍♂️ Kin</span>
+                          <div className="flex items-center space-x-1.5">
+                            <span className="font-mono text-slate-700 font-bold">{dataCli.proximo_kine_label || '-'}</span>
+                            <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${kineStat.color}`}>
+                              {kineStat.label}
                             </span>
-                         </div>
-                         {/* ESPIRO */}
-                         <div className="text-center min-w-[110px] p-2.5 rounded-2xl bg-white border border-slate-200 shadow-sm transition-all hover:border-blue-200 hover:shadow-md">
-                            <p className="text-[9px] font-black text-slate-400 uppercase mb-1.5 flex items-center justify-center">🌬️ Espiro</p>
-                            <p className="text-[11px] font-black text-slate-800 uppercase leading-none mb-1.5">{dataCli.proximo_espiro_label || '-'}</p>
-                            <span className={`inline-block px-2 py-0.5 rounded-lg text-[9px] font-black uppercase border ${espiStat.color}`}>
-                               {espiStat.label}
+                          </div>
+                        </div>
+                        {/* ESPIRO */}
+                        <div className="flex items-center justify-between text-[10px] border-t border-slate-100 pt-1.5">
+                          <span className="font-bold text-slate-500 uppercase flex items-center gap-1">🌬️ Esp</span>
+                          <div className="flex items-center space-x-1.5">
+                            <span className="font-mono text-slate-700 font-bold">{dataCli.proximo_espiro_label || '-'}</span>
+                            <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${espiStat.color}`}>
+                              {espiStat.label}
                             </span>
-                         </div>
+                          </div>
+                        </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end space-x-2">
                           {activeTab === 'activos' ? (
                             canManage && (
-                              <button 
-                                onClick={() => {
-                                  setSelectedPaciente(p);
-                                  setShowEgresoModal(true);
-                                }}
-                                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all group/egreso"
-                                title="Gestionar Egreso"
-                              >
-                                <LogOut size={18} className="group-hover/egreso:scale-110 transition-transform" />
-                              </button>
+                              <div className="flex items-center space-x-2">
+                                <button 
+                                  onClick={() => {
+                                    let dCli: any = {};
+                                    try {
+                                      dCli = typeof p.data_clinica === 'string' ? JSON.parse(p.data_clinica) : (p.data_clinica || {});
+                                    } catch (e) {
+                                      dCli = {};
+                                    }
+                                    setEditFichaId(p.ficha_id);
+                                    setEditDiag(p.diagnostico || "");
+                                    setEditCtrl(p.nivel_control || "");
+                                    setEditMigrante(!!dCli.es_migrante);
+                                    setEditPuebloOriginario(!!dCli.pueblo_originario);
+                                    setEditSecueladoTbc(!!dCli.secuelado_tbc);
+                                    setEditOtraRespiratoriaDetalle(dCli.otra_respiratoria_detalle || "");
+                                    setEditPacienteDataCli(dCli);
+                                    setShowEditModal(true);
+                                  }}
+                                  className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                                  title="Editar Diagnóstico / Caracterización"
+                                >
+                                  <Edit2 size={16} />
+                                </button>
+                                <button 
+                                  onClick={() => {
+                                    setSelectedPaciente(p);
+                                    setShowEgresoModal(true);
+                                  }}
+                                  className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all group/egreso"
+                                  title="Gestionar Egreso"
+                                >
+                                  <LogOut size={18} className="group-hover/egreso:scale-110 transition-transform" />
+                                </button>
+                              </div>
                             )
                           ) : (
                              <div className="text-right">
@@ -864,6 +1108,136 @@ export default function RespiratorioClientView({ data, user }: { data: any[], us
                   className="flex-1 bg-red-600 text-white py-3 rounded-xl font-bold hover:bg-red-700 transition disabled:opacity-50 flex items-center justify-center space-x-2"
                 >
                   {isEgresando ? "Procesando..." : <><LogOut size={18} /> <span>Confirmar Egreso</span></>}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Edición Rápida */}
+      {showEditModal && editFichaId && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[32px] p-8 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h3 className="text-xl font-bold text-slate-800">Corrección Administrativa</h3>
+                <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Editar Datos de la Última Ficha</p>
+              </div>
+              <button 
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditFichaId(null);
+                }} 
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-5">
+              {/* Diagnóstico */}
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Diagnóstico Principal</label>
+                <select
+                  value={editDiag}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setEditDiag(val);
+                    if (val !== "OTRAS RESPIRATORIAS") {
+                      setEditOtraRespiratoriaDetalle("");
+                    }
+                  }}
+                  className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold bg-white text-slate-800 focus:ring-2 focus:ring-blue-500"
+                >
+                  {LISTA_DIAG.map((d) => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Detalle si es OTRAS RESPIRATORIAS */}
+              {editDiag === "OTRAS RESPIRATORIAS" && (
+                <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+                  <label className="block text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1.5">Detalle de Otra Enfermedad</label>
+                  <input
+                    type="text"
+                    value={editOtraRespiratoriaDetalle}
+                    onChange={(e) => setEditOtraRespiratoriaDetalle(e.target.value)}
+                    maxLength={100}
+                    placeholder="Ej. Oxigenoterapia domiciliaria, etc."
+                    className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-blue-500 uppercase font-mono"
+                  />
+                </div>
+              )}
+
+              {/* Nivel de Control */}
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Nivel de Control</label>
+                <select
+                  value={editCtrl}
+                  onChange={(e) => setEditCtrl(e.target.value)}
+                  className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold bg-white text-slate-800 focus:ring-2 focus:ring-blue-500"
+                >
+                  {LISTA_CONTROL.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Caracterización Sociodemográfica / Flags */}
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Caracterización Especial</label>
+                
+                <label className="flex items-center space-x-3 cursor-pointer py-1 select-none">
+                  <input
+                    type="checkbox"
+                    checked={editMigrante}
+                    onChange={(e) => setEditMigrante(e.target.checked)}
+                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-4 w-4"
+                  />
+                  <span className="text-xs font-bold text-slate-700 uppercase">Paciente Migrante</span>
+                </label>
+
+                <label className="flex items-center space-x-3 cursor-pointer py-1 select-none">
+                  <input
+                    type="checkbox"
+                    checked={editPuebloOriginario}
+                    onChange={(e) => setEditPuebloOriginario(e.target.checked)}
+                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-4 w-4"
+                  />
+                  <span className="text-xs font-bold text-slate-700 uppercase">Pueblo Originario</span>
+                </label>
+
+                <label className="flex items-center space-x-3 cursor-pointer py-1 select-none">
+                  <input
+                    type="checkbox"
+                    checked={editSecueladoTbc}
+                    onChange={(e) => setEditSecueladoTbc(e.target.checked)}
+                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-4 w-4"
+                  />
+                  <span className="text-xs font-bold text-slate-700 uppercase">Secuelado TBC</span>
+                </label>
+              </div>
+
+              {/* Acciones */}
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setEditFichaId(null);
+                  }}
+                  className="flex-1 bg-slate-100 text-slate-600 py-3 rounded-xl font-bold hover:bg-slate-200 transition"
+                  disabled={isSavingEdit}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleSaveEdit}
+                  disabled={isSavingEdit || (editDiag === "OTRAS RESPIRATORIAS" && !editOtraRespiratoriaDetalle.trim())}
+                  className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition disabled:opacity-50 flex items-center justify-center space-x-2"
+                >
+                  {isSavingEdit ? "Guardando..." : <><Check size={18} /> <span>Guardar Cambios</span></>}
                 </button>
               </div>
             </div>

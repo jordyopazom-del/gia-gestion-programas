@@ -91,6 +91,19 @@ export async function initDatabase() {
       )
     `;
 
+    // 6. Tabla de Programa de la Mujer - PAP
+    await sql`
+      CREATE TABLE IF NOT EXISTS gia_mujer_pap (
+        id SERIAL PRIMARY KEY,
+        rut_paciente TEXT REFERENCES gia_pacientes(rut),
+        fecha_pap DATE NOT NULL,
+        resultado TEXT DEFAULT 'PENDIENTE',
+        profesional_rut TEXT REFERENCES gia_usuarios(rut),
+        observaciones TEXT,
+        fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
+
     // 5. Crear el usuario Maestro (Si no existe)
     const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
     const adminRut = process.env.ADMIN_RUT || '12345678-5';

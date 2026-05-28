@@ -9,7 +9,8 @@ import {
   Target,
   LogOut,
   Activity,
-  Shield
+  Shield,
+  HeartPulse
 } from "lucide-react";
 import { logoutAction } from "@/actions/authActions";
 import { useRouter } from "next/navigation";
@@ -19,8 +20,9 @@ const navigation = [
   { name: "Dashboard Central", href: "/dashboard", icon: LayoutDashboard, roles: ["ADMINISTRADOR", "ADMINISTRATIVO", "REFERENTE", "CLINICO"] },
   { name: "Población y Directorio", href: "/directorio", icon: Users, roles: ["ADMINISTRADOR", "ADMINISTRATIVO", "REFERENTE", "CLINICO"] },
   { name: "Oportunidad de Atención", href: "/oportunidad", icon: Target, roles: ["ADMINISTRADOR", "REFERENTE"] },
+  { name: "Programa de la Mujer", href: "/mujer", icon: HeartPulse, roles: ["ADMINISTRADOR"] },
   { name: "Programa Adulto Mayor", href: "/empam", icon: Activity, roles: ["ADMINISTRADOR", "REFERENTE", "CLINICO"] },
-  { name: "Programa Respiratorio", href: "/respiratorio", icon: Stethoscope, roles: ["ADMINISTRADOR", "REFERENTE", "CLINICO"] },
+  { name: "Programa Respiratorio", href: "/respiratorio", icon: Stethoscope, roles: ["ADMINISTRADOR"] },
 ];
 
 export default function Sidebar({ user }: { user: UserProfile }) {

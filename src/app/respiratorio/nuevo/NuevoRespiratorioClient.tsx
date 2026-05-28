@@ -25,7 +25,7 @@ import { crearPacienteProvisorio } from "@/actions/pacientesActions";
 import { UserProfile } from "@/actions/userActions";
 import { toast } from "react-hot-toast";
 
-const LISTA_DIAG = ["ASMA LEVE", "ASMA MODERADA", "ASMA SEVERA", "EPOC TIPO A", "EPOC TIPO B", "SBOR", "OTRAS RESPIRATORIAS"];
+const LISTA_DIAG = ["ASMA LEVE", "ASMA MODERADA", "ASMA SEVERA", "EPOC TIPO A", "EPOC TIPO B", "SBOR", "OXIGENO DEPENDIENTE", "AVNI", "FIBROSIS QUISTICA", "OTRAS RESPIRATORIAS"];
 const LISTA_CONTROL = ["CONTROLADO", "PARCIALMENTE CONTROLADO", "NO CONTROLADO", "SIN EVALUAR"];
 const LISTA_TIPO = ["CONTROL MÉDICO", "CONTROL KINESIOLÓGICO", "ESPIROMETRÍA", "INGRESO ERA/IRA", "REINGRESO"];
 
@@ -56,13 +56,25 @@ export default function NuevoRespiratorioClient({ user }: { user: UserProfile })
   });
   
   const meses = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"];
-  const anios = [new Date().getFullYear() - 1, new Date().getFullYear(), new Date().getFullYear() + 1];
+  const currentYear = new Date().getFullYear();
+  const anios = Array.from({ length: 7 }, (_, i) => currentYear - 1 + i);
 
   const [diagnostico, setDiagnostico] = useState(LISTA_DIAG[0]);
   const [nivelControl, setNivelControl] = useState(LISTA_CONTROL[0]);
   const [tipoAtencion, setTipoAtencion] = useState(LISTA_TIPO[0]);
   const [esPad, setEsPad] = useState(false);
   const [observaciones, setObservaciones] = useState("");
+  const [esMigrante, setEsMigrante] = useState(false);
+  const [esPuebloOriginario, setEsPuebloOriginario] = useState(false);
+  const [esSecueladoTbc, setEsSecueladoTbc] = useState(false);
+  const [otraRespiratoriaDetalle, setOtraRespiratoriaDetalle] = useState("");
+  const [eq5dScore, setEq5dScore] = useState<string>("");
+  const [catScore, setCatScore] = useState<string>("");
+  const [fechaEncuesta, setFechaEncuesta] = useState(() => {
+    const d = new Date();
+    const offset = d.getTimezoneOffset() * 60000;
+    return new Date(d.getTime() - offset).toISOString().slice(0, 10);
+  });
 
   const [mesCitaMed, setMesCitaMed] = useState("");
   const [anioCitaMed, setAnioCitaMed] = useState("");
@@ -113,6 +125,29 @@ export default function NuevoRespiratorioClient({ user }: { user: UserProfile })
         if (res.ficha) {
           setDiagnostico(res.ficha.diagnostico);
           setNivelControl(res.ficha.nivel_control);
+          
+          let prevCli: any = {};
+          try {
+            prevCli = typeof res.ficha.data_clinica === 'string' 
+              ? JSON.parse(res.ficha.data_clinica) 
+              : (res.ficha.data_clinica || {});
+          } catch(e) {}
+          
+          setEq5dScore(prevCli.eq5d_score?.toString() || "");
+          setCatScore(prevCli.cat_score?.toString() || "");
+          setFechaEncuesta(prevCli.fecha_encuesta || new Date().toISOString().slice(0, 10));
+          setEsMigrante(!!prevCli.es_migrante);
+          setEsPuebloOriginario(!!prevCli.pueblo_originario);
+          setEsSecueladoTbc(!!prevCli.secuelado_tbc);
+          setOtraRespiratoriaDetalle(prevCli.otra_respiratoria_detalle || "");
+        } else {
+          setEq5dScore("");
+          setCatScore("");
+          setFechaEncuesta(new Date().toISOString().slice(0, 10));
+          setEsMigrante(false);
+          setEsPuebloOriginario(false);
+          setEsSecueladoTbc(false);
+          setOtraRespiratoriaDetalle("");
         }
         setEsPad(res.data?.es_pad || (res.ficha?.es_pad) || false);
       }
@@ -174,7 +209,14 @@ export default function NuevoRespiratorioClient({ user }: { user: UserProfile })
         profesional_nombre: user.nombre,
         proximo_medico_label: labelMed,
         proximo_kine_label: labelKin,
-        proximo_espiro_label: labelEsp
+        proximo_espiro_label: labelEsp,
+        eq5d_score: (diagnostico.includes("ASMA") || diagnostico === "OXIGENO DEPENDIENTE" || diagnostico === "AVNI" || diagnostico === "FIBROSIS QUISTICA" || diagnostico === "OTRAS RESPIRATORIAS") && eq5dScore ? parseInt(eq5dScore) : null,
+        cat_score: diagnostico.includes("EPOC") && catScore ? parseInt(catScore) : null,
+        fecha_encuesta: ((diagnostico.includes("ASMA") || diagnostico === "OXIGENO DEPENDIENTE" || diagnostico === "AVNI" || diagnostico === "FIBROSIS QUISTICA" || diagnostico === "OTRAS RESPIRATORIAS") && eq5dScore) || (diagnostico.includes("EPOC") && catScore) ? fechaEncuesta : null,
+        es_migrante: esMigrante,
+        pueblo_originario: esPuebloOriginario,
+        secuelado_tbc: esSecueladoTbc,
+        otra_respiratoria_detalle: diagnostico === "OTRAS RESPIRATORIAS" && otraRespiratoriaDetalle ? otraRespiratoriaDetalle.toUpperCase().trim() : null
       }
     });
 
@@ -186,44 +228,7 @@ export default function NuevoRespiratorioClient({ user }: { user: UserProfile })
     setSaving(false);
   };
 
-  // Efecto de Sugerencia de Citación (Basado en Norma Técnica)
-  useEffect(() => {
-    if (!nivelControl || !fechaAtencion) return;
 
-    const baseDate = new Date(fechaAtencion);
-    // Usamos UTC para evitar problemas de zona horaria al calcular
-    const currentMonth = baseDate.getUTCMonth();
-    const currentYear = baseDate.getUTCFullYear();
-
-    const applySuggestion = (monthsToAdd: number, setMes: any, setAnio: any) => {
-      let targetMonth = currentMonth + monthsToAdd;
-      let targetYear = currentYear;
-      
-      while (targetMonth > 11) {
-        targetMonth -= 12;
-        targetYear += 1;
-      }
-      
-      setMes(targetMonth.toString());
-      setAnio(targetYear.toString());
-    };
-
-    // Aplicar lógica según Nivel de Control
-    if (nivelControl === "NO CONTROLADO") {
-      applySuggestion(1, setMesCitaMed, setAnioCitaMed);
-      applySuggestion(1, setMesCitaKin, setAnioCitaKin);
-    } else if (nivelControl === "PARCIALMENTE CONTROLADO") {
-      applySuggestion(3, setMesCitaMed, setAnioCitaMed);
-      applySuggestion(3, setMesCitaKin, setAnioCitaKin);
-    } else if (nivelControl === "CONTROLADO") {
-      applySuggestion(6, setMesCitaMed, setAnioCitaMed);
-      applySuggestion(3, setMesCitaKin, setAnioCitaKin); // Kine suele ser más frecuente
-    }
-
-    // Espirometría siempre sugerida a 12 meses
-    applySuggestion(12, setMesCitaEsp, setAnioCitaEsp);
-
-  }, [nivelControl, fechaAtencion]);
 
   return (
     <div className="max-w-6xl mx-auto py-6 px-4">
@@ -381,6 +386,19 @@ export default function NuevoRespiratorioClient({ user }: { user: UserProfile })
                          </button>
                        ))}
                     </div>
+
+                    {diagnostico === "OTRAS RESPIRATORIAS" && (
+                      <div className="mt-3 animate-in slide-in-from-top-2 duration-200">
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Especifique Diagnóstico "Otras Respiratorias"</label>
+                        <input 
+                          type="text" required
+                          value={otraRespiratoriaDetalle}
+                          onChange={e => setOtraRespiratoriaDetalle(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-blue-100 outline-none placeholder-slate-400"
+                          placeholder="Ej: Fibrosis Pulmonar, Secuela de Neumonía, etc."
+                        />
+                      </div>
+                    )}
                   </div>
 
                   <div>
@@ -402,22 +420,138 @@ export default function NuevoRespiratorioClient({ user }: { user: UserProfile })
                     </div>
                   </div>
 
-                  <div className={`flex items-center justify-between p-4 rounded-lg border mt-2 ${paciente?.es_pad ? 'bg-blue-50/80 border-blue-200' : 'bg-slate-50 border-slate-100'}`}>
-                     <div className="flex items-center">
-                       <input 
-                         type="checkbox" id="es_pad" checked={esPad} onChange={e => setEsPad(e.target.checked)}
-                         disabled={paciente?.es_pad}
-                         className={`h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 mr-3 ${paciente?.es_pad ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}
-                       />
-                       <label htmlFor="es_pad" className={`text-xs font-bold uppercase tracking-tight flex items-center ${paciente?.es_pad ? 'text-slate-500 cursor-not-allowed' : 'text-slate-700 cursor-pointer'}`}>
-                          <ShieldCheck size={16} className={`mr-2 ${paciente?.es_pad ? 'text-slate-400' : 'text-blue-600'}`} /> ESTRATEGIA PAD (ATENCIÓN DOMICILIARIA)
-                       </label>
+                  {/* Campos Dinámicos para Encuestas Opcionales */}
+                  {(diagnostico.includes("ASMA") || diagnostico === "OXIGENO DEPENDIENTE" || diagnostico === "AVNI" || diagnostico === "FIBROSIS QUISTICA" || diagnostico === "OTRAS RESPIRATORIAS") && (
+                    <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl space-y-4 animate-in slide-in-from-top-2 duration-200">
+                      <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-tight flex items-center">
+                           📋 Encuesta de Calidad de Vida (EQ-5D)
+                        </h4>
+                        <span className="text-[10px] text-slate-400 font-bold uppercase">Opcional / Anual</span>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Puntaje EQ-VAS (0 - 100)</label>
+                          <input 
+                            type="number" min={0} max={100}
+                            value={eq5dScore} onChange={e => {
+                              const val = e.target.value;
+                              if (val === "" || (parseInt(val) >= 0 && parseInt(val) <= 100)) {
+                                setEq5dScore(val);
+                              }
+                            }}
+                            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-blue-100 outline-none"
+                            placeholder="Ej: 80"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Fecha de Aplicación</label>
+                          <input 
+                            type="date"
+                            value={fechaEncuesta} onChange={e => setFechaEncuesta(e.target.value)}
+                            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold focus:ring-2 focus:ring-blue-100 outline-none"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="p-2.5 rounded-lg bg-blue-50 border border-blue-100 text-[10px] font-medium text-blue-800 flex items-center gap-1.5">
+                         <span>💡</span>
+                         <span>
+                           {age !== null && age < 18 
+                             ? "Se sugiere aplicar la versión infantil EQ-5D-Y (Youth) según la edad del paciente." 
+                             : "Se sugiere aplicar la versión estándar EQ-5D para adultos según la edad del paciente."
+                           }
+                         </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {diagnostico.includes("EPOC") && (
+                    <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl space-y-4 animate-in slide-in-from-top-2 duration-200">
+                      <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-tight flex items-center">
+                           📋 Encuesta de Calidad de Vida en EPOC (CAT)
+                        </h4>
+                        <span className="text-[10px] text-slate-400 font-bold uppercase">Opcional / Anual</span>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Puntaje CAT (0 - 40)</label>
+                          <input 
+                            type="number" min={0} max={40}
+                            value={catScore} onChange={e => {
+                              const val = e.target.value;
+                              if (val === "" || (parseInt(val) >= 0 && parseInt(val) <= 40)) {
+                                setCatScore(val);
+                              }
+                            }}
+                            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-blue-100 outline-none"
+                            placeholder="Puntaje total (síntomas)..."
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Fecha de Aplicación</label>
+                          <input 
+                            type="date"
+                            value={fechaEncuesta} onChange={e => setFechaEncuesta(e.target.value)}
+                            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold focus:ring-2 focus:ring-blue-100 outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                     {/* Estrategia PAD */}
+                     <div className={`flex items-center justify-between p-4 rounded-xl border ${paciente?.es_pad ? 'bg-blue-50/80 border-blue-200' : 'bg-slate-50 border-slate-100'}`}>
+                        <div className="flex items-center">
+                          <input 
+                            type="checkbox" id="es_pad" checked={esPad} onChange={e => setEsPad(e.target.checked)}
+                            disabled={paciente?.es_pad}
+                            className={`h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 mr-3 ${paciente?.es_pad ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}
+                          />
+                          <label htmlFor="es_pad" className={`text-xs font-bold uppercase tracking-tight flex items-center ${paciente?.es_pad ? 'text-slate-500 cursor-not-allowed' : 'text-slate-700 cursor-pointer'}`}>
+                             <ShieldCheck size={16} className={`mr-2 ${paciente?.es_pad ? 'text-slate-400' : 'text-blue-600'}`} /> ESTRATEGIA PAD (DOMICILIO)
+                          </label>
+                        </div>
+                        {paciente?.es_pad && (
+                          <span className="text-[9px] font-bold text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-200">
+                            🔒 PROTEGIDO
+                          </span>
+                        )}
                      </div>
-                     {paciente?.es_pad && (
-                       <span className="text-[10px] font-bold text-slate-400 bg-white px-2 py-1 rounded border border-slate-200">
-                         🔒 PROTEGIDO
-                       </span>
-                     )}
+
+                     {/* Caracterización Especial */}
+                     <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl space-y-3">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 pb-1.5 mb-2">
+                           Caracterización Especial
+                        </label>
+                        <div className="flex flex-wrap gap-x-4 gap-y-2">
+                           <label className="flex items-center space-x-2 text-xs font-bold text-slate-600 cursor-pointer">
+                              <input 
+                                 type="checkbox" checked={esMigrante} onChange={e => setEsMigrante(e.target.checked)}
+                                 className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                              />
+                              <span>MIGRANTE</span>
+                           </label>
+                           <label className="flex items-center space-x-2 text-xs font-bold text-slate-600 cursor-pointer">
+                              <input 
+                                 type="checkbox" checked={esPuebloOriginario} onChange={e => setEsPuebloOriginario(e.target.checked)}
+                                 className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                              />
+                              <span>P. ORIGINARIO</span>
+                           </label>
+                           <label className="flex items-center space-x-2 text-xs font-bold text-slate-600 cursor-pointer">
+                              <input 
+                                 type="checkbox" checked={esSecueladoTbc} onChange={e => setEsSecueladoTbc(e.target.checked)}
+                                 className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                              />
+                              <span>SECUELADO TBC</span>
+                           </label>
+                        </div>
+                     </div>
                   </div>
                </div>
             </div>
@@ -456,11 +590,6 @@ export default function NuevoRespiratorioClient({ user }: { user: UserProfile })
                                 {anios.map(a => <option key={a} value={a}>{a}</option>)}
                              </select>
                           </div>
-                          {item.mes && (
-                            <p className="text-[9px] font-black text-blue-500 uppercase tracking-tighter flex items-center px-1">
-                               <CheckCircle2 size={10} className="mr-1" /> Sugerido por norma
-                            </p>
-                          )}
                         </div>
                     </div>
                   ))}
@@ -504,6 +633,13 @@ export default function NuevoRespiratorioClient({ user }: { user: UserProfile })
                   setPaciente(null);
                   setRutInput("");
                   setObservaciones("");
+                  setEq5dScore("");
+                  setCatScore("");
+                  setFechaEncuesta(new Date().toISOString().slice(0, 10));
+                  setEsMigrante(false);
+                  setEsPuebloOriginario(false);
+                  setEsSecueladoTbc(false);
+                  setOtraRespiratoriaDetalle("");
                 }}
                 className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition-all"
               >

@@ -120,14 +120,24 @@ export async function guardarAtencionRespiratoria(data: any) {
   }
 }
 
-export async function updateDiagnosticoControl(id: number, diagnostico: string, nivelControl: string) {
+export async function updateDiagnosticoControl(id: number, diagnostico: string, nivelControl: string, dataClinica?: any) {
   try {
-    await sql`
-      UPDATE gia_respiratorio 
-      SET diagnostico = ${diagnostico.toUpperCase()}, 
-          nivel_control = ${nivelControl.toUpperCase()}
-      WHERE id = ${id}
-    `;
+    if (dataClinica !== undefined) {
+      await sql`
+        UPDATE gia_respiratorio 
+        SET diagnostico = ${diagnostico.toUpperCase()}, 
+            nivel_control = ${nivelControl.toUpperCase()},
+            data_clinica = ${JSON.stringify(dataClinica)}
+        WHERE id = ${id}
+      `;
+    } else {
+      await sql`
+        UPDATE gia_respiratorio 
+        SET diagnostico = ${diagnostico.toUpperCase()}, 
+            nivel_control = ${nivelControl.toUpperCase()}
+        WHERE id = ${id}
+      `;
+    }
     revalidatePath("/respiratorio");
     return { success: true };
   } catch (error: any) {
