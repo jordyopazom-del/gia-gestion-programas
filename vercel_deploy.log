@@ -1,0 +1,29 @@
+Retrieving project…
+Deploying jordys-projects-3c9248f6/gia-gestion-programas
+Uploading [--------------------] (0.0B/79B)
+Uploading [====================] (79.0B/79B)
+Inspect: https://vercel.com/jordys-projects-3c9248f6/gia-gestion-programas/HqvdVK4HnE628r7g74eLeen5xmby [3s]
+Production: https://gia-gestion-programas-4uvm5qcyo-jordys-projects-3c9248f6.vercel.app [3s]
+https://gia-gestion-programas-4uvm5qcyo-jordys-projects-3c9248f6.vercel.appBuilding...
+Building...
+Building: Running build in Washington, D.C., USA (East) – iad1
+Building: Build machine configuration: 2 cores, 8 GB
+Building: Retrieving list of deployment files...
+Building: Downloading 117 deployment files...
+Building: Restored build cache from previous deployment (8URQbj1o2uATtNWJuUbqLbMdnEu2)
+Building: Running "vercel build"
+Building: Vercel CLI 53.2.0
+Building: Installing dependencies...
+Building: up to date in 1s
+Building: 149 packages are looking for funding
+Building: run `npm fund` for details
+Building: Detected Next.js version: 16.2.4
+Building: Running "npm run build"
+Building: > gia-gestion-programas@0.1.0 build
+Building: > next build
+Building: Applying modifyConfig from Vercel
+Building: ▲ Next.js 16.2.4 (Turbopack)
+Building: Creating an optimized production build ...
+Building: ✓ Compiled successfully in 12.3s
+Building: Running TypeScript ...
+Error: Command "npm run build" exited with 1

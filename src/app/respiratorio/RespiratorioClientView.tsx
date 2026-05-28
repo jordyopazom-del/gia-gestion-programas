@@ -100,6 +100,33 @@ const formatDate = (dateString: string | null) => {
   }
 };
 
+const MESES_LIST = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"];
+
+const formatMesAnio = (dateString: string | null | undefined, fallbackLabel?: string) => {
+  if (dateString) {
+    try {
+      const d = new Date(dateString);
+      if (!isNaN(d.getTime())) {
+        return `${MESES_LIST[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+      }
+    } catch (e) {
+      // Ignorar
+    }
+  }
+  if (fallbackLabel) {
+    if (fallbackLabel.includes("T") || fallbackLabel.includes("-") || fallbackLabel.includes("/")) {
+      try {
+        const d = new Date(fallbackLabel);
+        if (!isNaN(d.getTime())) {
+          return `${MESES_LIST[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+        }
+      } catch(e) {}
+    }
+    return fallbackLabel.toUpperCase();
+  }
+  return '-';
+};
+
 const LISTA_DIAG = [
   "ASMA LEVE",
   "ASMA MODERADA",
@@ -800,7 +827,7 @@ export default function RespiratorioClientView({ data, user }: { data: any[], us
                         <div className="flex items-center justify-between text-[10px]">
                           <span className="font-bold text-slate-500 uppercase flex items-center gap-1">🩺 Med</span>
                           <div className="flex items-center space-x-1.5">
-                            <span className="font-mono text-slate-700 font-bold">{dataCli.proximo_medico_label || '-'}</span>
+                            <span className="font-mono text-slate-700 font-bold">{formatMesAnio(p.cita_medico, dataCli.proximo_medico_label)}</span>
                             <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${mediStat.color}`}>
                               {mediStat.label}
                             </span>
@@ -810,7 +837,7 @@ export default function RespiratorioClientView({ data, user }: { data: any[], us
                         <div className="flex items-center justify-between text-[10px] border-t border-slate-100 pt-1.5">
                           <span className="font-bold text-slate-500 uppercase flex items-center gap-1">🧘‍♂️ Kin</span>
                           <div className="flex items-center space-x-1.5">
-                            <span className="font-mono text-slate-700 font-bold">{dataCli.proximo_kine_label || '-'}</span>
+                            <span className="font-mono text-slate-700 font-bold">{formatMesAnio(p.cita_kine, dataCli.proximo_kine_label)}</span>
                             <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${kineStat.color}`}>
                               {kineStat.label}
                             </span>
@@ -820,7 +847,7 @@ export default function RespiratorioClientView({ data, user }: { data: any[], us
                         <div className="flex items-center justify-between text-[10px] border-t border-slate-100 pt-1.5">
                           <span className="font-bold text-slate-500 uppercase flex items-center gap-1">🌬️ Esp</span>
                           <div className="flex items-center space-x-1.5">
-                            <span className="font-mono text-slate-700 font-bold">{dataCli.proximo_espiro_label || '-'}</span>
+                            <span className="font-mono text-slate-700 font-bold">{formatMesAnio(p.cita_espiro, dataCli.proximo_espiro_label)}</span>
                             <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${espiStat.color}`}>
                               {espiStat.label}
                             </span>
