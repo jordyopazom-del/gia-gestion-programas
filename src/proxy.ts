@@ -2,12 +2,12 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { decrypt } from "@/lib/auth";
 
-export function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const tokenCookie = request.cookies.get("gia_auth_token");
   const token = tokenCookie?.value;
   
-  // Validar si el token es descifrable y contiene un RUT válido
-  const rut = token ? decrypt(token) : null;
+  // Validar si el token es descifrable y contiene un RUT válido (de forma asíncrona)
+  const rut = token ? await decrypt(token) : null;
   const hasValidSession = !!rut;
   
   const pathname = request.nextUrl.pathname;

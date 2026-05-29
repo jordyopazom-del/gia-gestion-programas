@@ -41,7 +41,7 @@ export async function loginAction(rut: string, pass: string) {
     }
 
     const cookieStore = await cookies();
-    const encryptedRut = encrypt(rutStandar);
+    const encryptedRut = await encrypt(rutStandar);
 
     cookieStore.set("gia_auth_token", encryptedRut, {
       httpOnly: true,
