@@ -1,21 +1,25 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { decrypt } from "@/lib/auth";
 
-export function proxy(request: NextRequest) {
-  const token = request.cookies.get("gia_auth_token");
-  const pathname = request.nextUrl.pathname;
+export function middleware(request: NextRequest) {
+  const tokenCookie = request.cookies.get("gia_auth_token");
+  const token = tokenCookie?.value;
   
+  // Validar si el token es descifrable y contiene un RUT válido
+  const rut = token ? decrypt(token) : null;
+  const hasValidSession = !!rut;
+  
+  const pathname = request.nextUrl.pathname;
   const isAuthPage = pathname === "/login";
-  // Si quisiéramos rutas públicas:
-  // const isPublicPage = pathname.startsWith("/public");
 
-  // Si no hay token y no está en login, redirigir a login
-  if (!token && !isAuthPage) {
+  // Si no hay sesión válida y no está en login, redirigir a login
+  if (!hasValidSession && !isAuthPage) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // Si hay token y trata de ir a login o a la raíz vacía, mandar al dashboard
-  if (token && (isAuthPage || pathname === "/")) {
+  // Si hay sesión válida y trata de ir a login o a la raíz vacía, mandar al dashboard
+  if (hasValidSession && (isAuthPage || pathname === "/")) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 

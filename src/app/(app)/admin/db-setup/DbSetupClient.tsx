@@ -4,7 +4,7 @@ import { useState } from "react";
 import { initDatabase } from "@/actions/dbInit";
 import { Database, CheckCircle, XCircle } from "lucide-react";
 
-export default function DbSetupPage() {
+export default function DbSetupClient() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ success?: boolean; message?: string; error?: string } | null>(null);
 
@@ -43,7 +43,7 @@ export default function DbSetupPage() {
         <button
           onClick={handleInit}
           disabled={loading}
-          className="w-full rounded-lg bg-blue-600 px-4 py-3 font-medium text-white transition-colors hover:bg-blue-700 disabled:bg-blue-300"
+          className="w-full rounded-lg bg-blue-600 px-4 py-3 font-medium text-white transition-colors hover:bg-blue-700 disabled:bg-blue-300 cursor-pointer"
         >
           {loading ? "Ejecutando Scripts SQL..." : "Ejecutar Inyección Estructural GIA"}
         </button>

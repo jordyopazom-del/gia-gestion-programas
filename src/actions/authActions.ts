@@ -3,6 +3,7 @@
 import { cookies } from "next/headers";
 import { sql } from "@/lib/db";
 import { hashPassword, verifyPassword } from "@/lib/password";
+import { encrypt, getSession } from "@/lib/auth";
 
 export async function loginAction(rut: string, pass: string) {
   try {
@@ -40,8 +41,9 @@ export async function loginAction(rut: string, pass: string) {
     }
 
     const cookieStore = await cookies();
+    const encryptedRut = encrypt(rutStandar);
 
-    cookieStore.set("gia_auth_token", rutStandar, {
+    cookieStore.set("gia_auth_token", encryptedRut, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       maxAge: 60 * 60 * 8, // 8 horas de turno
@@ -58,11 +60,11 @@ export async function loginAction(rut: string, pass: string) {
 
 export async function cambiarPasswordAction(nuevaPass: string, pregunta: string, respuesta: string) {
   try {
-    const cookieStore = await cookies();
-    const rut = cookieStore.get("gia_auth_token")?.value;
+    const session = await getSession();
+    const rut = session?.rut;
     
     if (!rut) {
-      console.error("[cambiarPassword] Cookie gia_auth_token no encontrada");
+      console.error("[cambiarPassword] Cookie/Sesión gia_auth_token no encontrada o inválida");
       return { error: "Sesión no válida. Vuelve a iniciar sesión." };
     }
 

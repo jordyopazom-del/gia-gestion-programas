@@ -33,8 +33,8 @@ export function verifyPassword(password: string, storedHash: string): boolean {
       return crypto.timingSafeEqual(keyBuffer, derivedKey);
     }
 
-    // Contraseñas en texto plano (solo para migración inicial)
-    return password === storedHash;
+    // Si no coincide con ningún hash seguro, la contraseña no es válida
+    return false;
   } catch (e) {
     return false;
   }

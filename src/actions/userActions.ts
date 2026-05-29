@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { sql } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { hashPassword } from "@/lib/password";
+import { getSession } from "@/lib/auth";
 
 export type UserRole = "ADMINISTRADOR" | "ADMINISTRATIVO" | "REFERENTE" | "CLINICO";
 
@@ -17,8 +18,8 @@ export type UserProfile = {
 };
 
 export async function getCurrentUser() {
-  const cookieStore = await cookies();
-  const rut = cookieStore.get("gia_auth_token")?.value;
+  const session = await getSession();
+  const rut = session?.rut;
 
   if (!rut) return null;
 

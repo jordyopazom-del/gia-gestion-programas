@@ -2,10 +2,31 @@
 
 import { sql } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
+import { getCurrentUser } from "@/actions/userActions";
 
 export async function initDatabase() {
   try {
-    // 1. Tabla de Usuarios (Profesionales Clínicos)
+    // Validar si la base de datos ya está inicializada (si existe la tabla gia_usuarios con registros)
+    let totalUsuarios = 0;
+    try {
+      const res = await sql`SELECT COUNT(*)::int as count FROM gia_usuarios`;
+      totalUsuarios = res[0].count;
+    } catch (err: any) {
+      // Si la tabla no existe (error 42P01 o text match), se asume que no hay usuarios creados
+      if (err.message?.includes("does not exist") || err.code === "42P01") {
+        totalUsuarios = 0;
+      } else {
+        throw err;
+      }
+    }
+
+    if (totalUsuarios > 0) {
+      // Si ya existen usuarios creados, requerir privilegios de ADMINISTRADOR de forma obligatoria
+      const currentUser = await getCurrentUser();
+      if (!currentUser || currentUser.rol !== "ADMINISTRADOR") {
+        return { success: false, error: "No autorizado. Se requieren privilegios de Administrador para re-ejecutar la inyección base." };
+      }
+    }
     await sql`
       CREATE TABLE IF NOT EXISTS gia_usuarios (
         rut TEXT PRIMARY KEY,
