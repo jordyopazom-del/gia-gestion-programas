@@ -261,9 +261,9 @@ export default function RespiratorioClientView({ data, user }: { data: any[], us
   const downloadExcel = () => {
     const excelData = filtered.map(p => {
       const age = calculateAge(p.fecha_nacimiento);
-      const kStat = getVigenciaHibrida(p.ultima_atencion_global, p.cita_kine, 120);
-      const mStat = getVigenciaHibrida(null, p.cita_medico, 180);
-      const eStat = getVigenciaHibrida(null, p.cita_espiro, 365);
+      const kStat = getVigenciaHibrida(p.last_kin, p.cita_kine, 120);
+      const mStat = getVigenciaHibrida(p.last_med, p.cita_medico, 180);
+      const eStat = getVigenciaHibrida(p.last_esp, p.cita_espiro, 365);
 
       let dataCli: any = {};
       try {
