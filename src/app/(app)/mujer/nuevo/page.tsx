@@ -141,6 +141,7 @@ export default function NuevoPap() {
                     type="date"
                     value={fechaPap}
                     onChange={(e) => setFechaPap(e.target.value)}
+                    max={new Date().toISOString().split("T")[0]}
                     className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none transition-all font-medium"
                     required
                   />
@@ -166,6 +167,7 @@ export default function NuevoPap() {
               <textarea
                 value={observaciones}
                 onChange={(e) => setObservaciones(e.target.value)}
+                maxLength={2000}
                 className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none transition-all font-medium h-24"
                 placeholder="Ingrese observaciones clínicas relevantes..."
               />

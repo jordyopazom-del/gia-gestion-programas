@@ -185,6 +185,7 @@ export default function LoginPage() {
               value={rut}
               onChange={(e) => setRut(formatRut(e.target.value))}
               placeholder="12345678-9"
+              maxLength={10}
               required
               className="w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all font-mono"
             />
@@ -206,6 +207,7 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
+              maxLength={50}
               required
               className="w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
             />
@@ -264,6 +266,7 @@ export default function LoginPage() {
                     value={newPass.p1}
                     onChange={(e) => setNewPass({...newPass, p1: e.target.value})}
                     placeholder="Mínimo 6 carac."
+                    maxLength={50}
                     className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-3 text-xs focus:ring-2 focus:ring-blue-200 outline-none transition-all"
                   />
                 </div>
@@ -277,6 +280,7 @@ export default function LoginPage() {
                     value={newPass.p2}
                     onChange={(e) => setNewPass({...newPass, p2: e.target.value})}
                     placeholder="Idéntica"
+                    maxLength={50}
                     className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-3 text-xs focus:ring-2 focus:ring-blue-200 outline-none transition-all"
                   />
                 </div>
@@ -311,6 +315,7 @@ export default function LoginPage() {
                   value={newPass.respuesta}
                   onChange={(e) => setNewPass({...newPass, respuesta: e.target.value})}
                   placeholder="Escribe la respuesta aquí"
+                  maxLength={100}
                   className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-3 text-xs focus:ring-2 focus:ring-blue-200 outline-none uppercase"
                 />
                 <p className="text-[9px] text-slate-400 italic mt-1">* Recuerda esta respuesta, es la única forma de recuperar tu clave sin ayuda del Admin.</p>
@@ -365,6 +370,7 @@ export default function LoginPage() {
                       value={forgotData.rut}
                       onChange={(e) => setForgotData({...forgotData, rut: formatRut(e.target.value)})}
                       placeholder="12345678-9"
+                      maxLength={10}
                       className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-200 outline-none font-mono"
                     />
                   </div>
@@ -391,6 +397,7 @@ export default function LoginPage() {
                       value={forgotData.respuesta}
                       onChange={(e) => setForgotData({...forgotData, respuesta: e.target.value})}
                       placeholder="Respuesta secreta"
+                      maxLength={100}
                       className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-200 outline-none uppercase"
                     />
                   </div>
@@ -403,6 +410,7 @@ export default function LoginPage() {
                         type="password"
                         value={forgotData.p1}
                         onChange={(e) => setForgotData({...forgotData, p1: e.target.value})}
+                        maxLength={50}
                         className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-200 outline-none"
                       />
                     </div>
@@ -413,6 +421,7 @@ export default function LoginPage() {
                         type="password"
                         value={forgotData.p2}
                         onChange={(e) => setForgotData({...forgotData, p2: e.target.value})}
+                        maxLength={50}
                         className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-200 outline-none"
                       />
                     </div>
@@ -475,6 +484,7 @@ export default function LoginPage() {
                       value={solicitudData.rut}
                       onChange={(e) => setSolicitudData({...solicitudData, rut: formatRut(e.target.value)})}
                       placeholder="12345678-9"
+                      maxLength={10}
                       className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-200 transition-all outline-none font-mono"
                     />
                   </div>
@@ -489,6 +499,7 @@ export default function LoginPage() {
                       value={solicitudData.nombre}
                       onChange={(e) => setSolicitudData({...solicitudData, nombre: e.target.value.toUpperCase()})}
                       placeholder="JUAN PEREZ"
+                      maxLength={100}
                       className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-200 outline-none uppercase"
                     />
                   </div>
@@ -503,6 +514,7 @@ export default function LoginPage() {
                       value={solicitudData.email}
                       onChange={(e) => setSolicitudData({...solicitudData, email: e.target.value})}
                       placeholder="ejemplo@redsalud.gob.cl"
+                      maxLength={100}
                       className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-200 outline-none"
                     />
                   </div>
@@ -517,6 +529,7 @@ export default function LoginPage() {
                       value={solicitudData.profesion}
                       onChange={(e) => setSolicitudData({...solicitudData, profesion: e.target.value.toUpperCase()})}
                       placeholder="MEDICO, ENFERMERO, ETC."
+                      maxLength={100}
                       className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-200 outline-none uppercase"
                     />
                   </div>

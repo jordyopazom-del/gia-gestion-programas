@@ -452,6 +452,7 @@ export default function UsuariosClientView({
                   value={formData.nombre}
                   onChange={(e) => setFormData({...formData, nombre: e.target.value.toUpperCase()})}
                   placeholder="JUAN PEREZ"
+                  maxLength={100}
                   className="w-full bg-slate-50 border-slate-100 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-purple-200 outline-none uppercase"
                 />
               </div>
@@ -466,6 +467,7 @@ export default function UsuariosClientView({
                   value={formData.profesion}
                   onChange={(e) => setFormData({...formData, profesion: e.target.value.toUpperCase()})}
                   placeholder="MEDICO"
+                  maxLength={100}
                   className="w-full bg-slate-50 border-slate-100 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-purple-200 outline-none uppercase"
                 />
               </div>
@@ -479,6 +481,7 @@ export default function UsuariosClientView({
                   value={formData.email}
                   onChange={(e) => setFormData({...formData, email: e.target.value.toLowerCase()})}
                   placeholder="ejemplo@redsalud.gob.cl"
+                  maxLength={100}
                   className="w-full bg-slate-50 border-slate-100 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-purple-200 outline-none"
                 />
               </div>
@@ -539,6 +542,7 @@ export default function UsuariosClientView({
                   value={formData.password}
                   onChange={(e) => setFormData({...formData, password: e.target.value})}
                   placeholder={isEditing ? "Dejar en blanco para no cambiar" : "********"}
+                  maxLength={50}
                   className="w-full bg-slate-100 border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-purple-200 outline-none"
                 />
               </div>

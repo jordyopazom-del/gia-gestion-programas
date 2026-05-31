@@ -53,10 +53,20 @@ export async function crearUsuario(data: UserProfile & { password?: string }) {
   }
 
   try {
+    const cleanRut = data.rut.replace(/[^0-9kK]/g, "");
+    if (cleanRut.length < 2) return { error: "RUT inválido" };
+    const cuerpo = cleanRut.slice(0, -1);
+    const dv = cleanRut.slice(-1).toUpperCase();
+    const rutStandar = `${cuerpo}-${dv}`;
+
+    const cleanNombre = data.nombre.toUpperCase().trim();
+    const cleanEmail = (data.email || '').toLowerCase().trim();
+    const cleanProfesion = data.profesion.toUpperCase().trim();
+
     const hashedPassword = hashPassword(data.password || "cesfam123");
     await sql`
       INSERT INTO gia_usuarios (rut, nombre, email, profesion, rol, password, debe_cambiar_password, accesos)
-      VALUES (${data.rut}, ${data.nombre}, ${data.email || ''}, ${data.profesion}, ${data.rol}, ${hashedPassword}, TRUE, ${data.accesos || []})
+      VALUES (${rutStandar}, ${cleanNombre}, ${cleanEmail}, ${cleanProfesion}, ${data.rol}, ${hashedPassword}, TRUE, ${data.accesos || []})
       ON CONFLICT (rut) DO UPDATE SET
         nombre = EXCLUDED.nombre,
         email = EXCLUDED.email,
@@ -92,15 +102,25 @@ export async function eliminarUsuario(rut: string) {
 // SOLICITUDES DE ACCESO
 export async function solicitarAcceso(data: { rut: string, nombre: string, email: string, profesion: string }) {
   try {
+    const cleanRut = data.rut.replace(/[^0-9kK]/g, "");
+    if (cleanRut.length < 2) return { error: "RUT inválido" };
+    const cuerpo = cleanRut.slice(0, -1);
+    const dv = cleanRut.slice(-1).toUpperCase();
+    const rutStandar = `${cuerpo}-${dv}`;
+
+    const cleanNombre = data.nombre.toUpperCase().trim();
+    const cleanEmail = data.email.toLowerCase().trim();
+    const cleanProfesion = data.profesion.toUpperCase().trim();
+
     // Verificar si ya existe el usuario o la solicitud
-    const existe = await sql`SELECT 1 FROM gia_usuarios WHERE rut = ${data.rut} UNION SELECT 1 FROM gia_solicitudes_acceso WHERE rut = ${data.rut}`;
+    const existe = await sql`SELECT 1 FROM gia_usuarios WHERE rut = ${rutStandar} UNION SELECT 1 FROM gia_solicitudes_acceso WHERE rut = ${rutStandar}`;
     if (existe.length > 0) {
       return { error: "Ya existe un usuario o una solicitud pendiente para este RUT" };
     }
 
     await sql`
       INSERT INTO gia_solicitudes_acceso (rut, nombre, email, profesion)
-      VALUES (${data.rut}, ${data.nombre}, ${data.email.toLowerCase().trim()}, ${data.profesion})
+      VALUES (${rutStandar}, ${cleanNombre}, ${cleanEmail}, ${cleanProfesion})
     `;
     return { success: true };
   } catch (error) {
