@@ -53,7 +53,7 @@ export default function NuevoEmpam() {
   const [provNombre, setProvNombre] = useState("");
   const [provFechaNac, setProvFechaNac] = useState("");
   const [provSexo, setProvSexo] = useState("MASCULINO");
-  const [provSector, setProvSector] = useState("ARQUILHUE");
+  const [provSector, setProvSector] = useState("SECTOR 1");
   const [creatingProv, setCreatingProv] = useState(false);
 
   const handleSearch = async () => {
@@ -518,6 +518,8 @@ export default function NuevoEmpam() {
                     <option value="LONCOPAN">LONCOPAN</option>
                     <option value="MAIHUE">MAIHUE</option>
                     <option value="NONTUELA">NONTUELA</option>
+                    <option value="SECTOR 1">SECTOR 1</option>
+                    <option value="SECTOR 2">SECTOR 2</option>
                   </select>
                 </div>
               </div>
