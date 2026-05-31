@@ -73,9 +73,13 @@ export async function egresarPaciente(rut: string, motivo: string) {
 
 export async function crearPacienteProvisorio(data: { rut: string, dv: string, nombre: string, fecha_nacimiento: string, sexo: string, sector: string }) {
   try {
+    const cleanRut = data.rut.replace(/[^0-9]/g, "");
+    const cleanDv = data.dv.replace(/[^0-9kK]/g, "").toUpperCase();
+    const cleanNombre = data.nombre.toUpperCase().trim();
+
     await sql`
       INSERT INTO gia_pacientes (rut, dv, nombre_completo, fecha_nacimiento, sexo, sector, estado_registro)
-      VALUES (${data.rut}, ${data.dv}, ${data.nombre.toUpperCase()}, ${data.fecha_nacimiento}, ${data.sexo}, ${data.sector}, 'PROVISORIO')
+      VALUES (${cleanRut}, ${cleanDv}, ${cleanNombre}, ${data.fecha_nacimiento}, ${data.sexo}, ${data.sector}, 'PROVISORIO')
       ON CONFLICT (rut) DO UPDATE SET
         nombre_completo = EXCLUDED.nombre_completo,
         estado_registro = 'PROVISORIO'
@@ -90,17 +94,23 @@ export async function crearPacienteProvisorio(data: { rut: string, dv: string, n
 
 export async function validarPaciente(oldRut: string, newRut: string, dv: string, nombre: string, fecha_nacimiento: string, sexo: string, sector: string, telefono: string) {
   try {
+    const cleanOldRut = oldRut.replace(/[^0-9]/g, "");
+    const cleanNewRut = newRut.replace(/[^0-9]/g, "");
+    const cleanDv = dv.replace(/[^0-9kK]/g, "").toUpperCase();
+    const cleanNombre = nombre.toUpperCase().trim();
+    const cleanTelefono = telefono.replace(/[^0-9+]/g, "").trim();
+
     await sql`
       UPDATE gia_pacientes 
-      SET rut = ${newRut},
-          dv = ${dv},
-          nombre_completo = ${nombre.toUpperCase()},
+      SET rut = ${cleanNewRut},
+          dv = ${cleanDv},
+          nombre_completo = ${cleanNombre},
           fecha_nacimiento = ${fecha_nacimiento},
           estado_registro = 'OFICIAL', 
           sector = ${sector},
-          telefono = ${telefono},
+          telefono = ${cleanTelefono},
           fecha_actualizacion = CURRENT_TIMESTAMP 
-      WHERE rut = ${oldRut}
+      WHERE rut = ${cleanOldRut}
     `;
     revalidatePath("/directorio");
     revalidatePath("/empam");
@@ -113,9 +123,15 @@ export async function validarPaciente(oldRut: string, newRut: string, dv: string
 
 export async function upsertPaciente(data: PacienteData) {
   try {
+    const cleanRut = data.rut.replace(/[^0-9]/g, "");
+    const cleanDv = data.dv.replace(/[^0-9kK]/g, "").toUpperCase();
+    const cleanNombre = data.nombre_completo.toUpperCase().trim();
+    const cleanTelefono = data.telefono.replace(/[^0-9+]/g, "").trim();
+    const cleanDireccion = data.direccion.toUpperCase().trim();
+
     await sql`
       INSERT INTO gia_pacientes (rut, dv, nombre_completo, fecha_nacimiento, sexo, sector, telefono, direccion, es_pad, estado_registro)
-      VALUES (${data.rut}, ${data.dv}, ${data.nombre_completo.toUpperCase()}, ${data.fecha_nacimiento}, ${data.sexo}, ${data.sector}, ${data.telefono}, ${data.direccion}, ${data.es_pad}, 'OFICIAL')
+      VALUES (${cleanRut}, ${cleanDv}, ${cleanNombre}, ${data.fecha_nacimiento}, ${data.sexo}, ${data.sector}, ${cleanTelefono}, ${cleanDireccion}, ${data.es_pad}, 'OFICIAL')
       ON CONFLICT (rut) DO UPDATE SET
         nombre_completo = EXCLUDED.nombre_completo,
         fecha_nacimiento = EXCLUDED.fecha_nacimiento,

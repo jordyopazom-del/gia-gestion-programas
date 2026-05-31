@@ -345,7 +345,7 @@ export default function NuevoRespiratorioClient({ user }: { user: UserProfile })
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Fecha de Atención (Real)</label>
                     <input 
-                      type="date" required value={fechaAtencion} max={fechaAtencion}
+                      type="date" required value={fechaAtencion} max={new Date().toISOString().split("T")[0]}
                       onChange={(e) => setFechaAtencion(e.target.value)}
                       className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none"
                     />
@@ -393,8 +393,9 @@ export default function NuevoRespiratorioClient({ user }: { user: UserProfile })
                         <input 
                           type="text" required
                           value={otraRespiratoriaDetalle}
-                          onChange={e => setOtraRespiratoriaDetalle(e.target.value)}
-                          className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-blue-100 outline-none placeholder-slate-400"
+                          onChange={e => setOtraRespiratoriaDetalle(e.target.value.slice(0, 100))}
+                          maxLength={100}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-blue-100 outline-none placeholder-slate-400 uppercase"
                           placeholder="Ej: Fibrosis Pulmonar, Secuela de Neumonía, etc."
                         />
                       </div>
@@ -597,9 +598,10 @@ export default function NuevoRespiratorioClient({ user }: { user: UserProfile })
             </div>
 
             <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm">
-               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">IV. Observaciones Clínicas</label>
+               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">IV. Observaciones Clínicas (Máx. 2000 caracteres)</label>
                <textarea 
-                  value={observaciones} onChange={e => setObservaciones(e.target.value)}
+                  value={observaciones} onChange={e => setObservaciones(e.target.value.slice(0, 2000))}
+                  maxLength={2000}
                   className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none min-h-[100px]"
                   placeholder="Detalle hallazgos o planes de rescate..."
                />
@@ -668,8 +670,9 @@ export default function NuevoRespiratorioClient({ user }: { user: UserProfile })
               <div>
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Nombre Completo</label>
                 <input 
-                  type="text" required value={provNombre} onChange={e => setProvNombre(e.target.value)}
-                  className="w-full border border-slate-200 rounded-lg px-4 py-2 text-sm"
+                  type="text" required value={provNombre} onChange={e => setProvNombre(e.target.value.slice(0, 100))}
+                  maxLength={100}
+                  className="w-full border border-slate-200 rounded-lg px-4 py-2 text-sm uppercase"
                   placeholder="EJ: JUAN PEREZ SOTO"
                 />
               </div>
@@ -677,6 +680,7 @@ export default function NuevoRespiratorioClient({ user }: { user: UserProfile })
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Fecha de Nacimiento</label>
                 <input 
                   type="date" required value={provFechaNac} onChange={e => setProvFechaNac(e.target.value)}
+                  max={new Date().toISOString().split("T")[0]}
                   className="w-full border border-slate-200 rounded-lg px-4 py-2 text-sm"
                 />
               </div>

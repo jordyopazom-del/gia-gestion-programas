@@ -459,19 +459,23 @@ export default function DirectorioClientView({ pacientes, user }: { pacientes: a
                     
                     <div className="flex space-x-2">
                         <div className="flex-1">
-                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">RUT</label>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">RUT (sin puntos)</label>
                             <input 
                                 type="text" required value={formData.rut} 
-                                onChange={e => setFormData({...formData, rut: e.target.value})}
-                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                onChange={e => setFormData({...formData, rut: e.target.value.replace(/[^0-9]/g, "")})}
+                                maxLength={8}
+                                placeholder="Ej: 12345678"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none font-mono"
                             />
                         </div>
                         <div className="w-16">
                             <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">DV</label>
                             <input 
                                 type="text" required value={formData.dv} 
-                                onChange={e => setFormData({...formData, dv: e.target.value})}
-                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                onChange={e => setFormData({...formData, dv: e.target.value.replace(/[^0-9kK]/g, "").toUpperCase()})}
+                                maxLength={1}
+                                placeholder="K"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none font-mono text-center"
                             />
                         </div>
                     </div>
@@ -480,7 +484,9 @@ export default function DirectorioClientView({ pacientes, user }: { pacientes: a
                         <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Nombre Completo</label>
                         <input 
                             type="text" required value={formData.nombre_completo} 
-                            onChange={e => setFormData({...formData, nombre_completo: e.target.value})}
+                            onChange={e => setFormData({...formData, nombre_completo: e.target.value.slice(0, 100)})}
+                            maxLength={100}
+                            placeholder="EJ: JUAN PEREZ SOTO"
                             className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none uppercase"
                         />
                     </div>
@@ -495,6 +501,7 @@ export default function DirectorioClientView({ pacientes, user }: { pacientes: a
                         <input 
                             type="date" required value={formData.fecha_nacimiento || ""} 
                             onChange={e => setFormData({...formData, fecha_nacimiento: e.target.value})}
+                            max={new Date().toISOString().split("T")[0]}
                             className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                     </div>
@@ -541,9 +548,10 @@ export default function DirectorioClientView({ pacientes, user }: { pacientes: a
                         <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Teléfono</label>
                         <input 
                             type="text" value={formData.telefono} 
-                            onChange={e => setFormData({...formData, telefono: e.target.value})}
+                            onChange={e => setFormData({...formData, telefono: e.target.value.replace(/[^0-9+]/g, "")})}
+                            maxLength={12}
                             className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                            placeholder="+569..."
+                            placeholder="Ej: +56912345678"
                         />
                     </div>
 
@@ -551,7 +559,8 @@ export default function DirectorioClientView({ pacientes, user }: { pacientes: a
                         <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Dirección</label>
                         <input 
                             type="text" value={formData.direccion} 
-                            onChange={e => setFormData({...formData, direccion: e.target.value})}
+                            onChange={e => setFormData({...formData, direccion: e.target.value.slice(0, 150)})}
+                            maxLength={150}
                             className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none uppercase"
                             placeholder="Ej: CALLE FAKE 123"
                         />

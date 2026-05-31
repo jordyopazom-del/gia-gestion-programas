@@ -285,7 +285,7 @@ export default function NuevoEmpam() {
                     type="date" 
                     required 
                     value={fechaAtencion} 
-                    max={fechaAtencion} 
+                    max={new Date().toISOString().split("T")[0]} 
                     onChange={e => setFechaAtencion(e.target.value)} 
                     className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
                   />
@@ -330,8 +330,15 @@ export default function NuevoEmpam() {
                 </div>
                 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">P/A ≥ 140/90 (Valor)</label>
-                  <input type="text" placeholder="Ej: 150/95 o dejar blanco" value={presionArterial} onChange={e => setPresionArterial(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500" />
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">P/A (Valor, ej: 120/80)</label>
+                  <input 
+                    type="text" 
+                    placeholder="Ej: 120/80 o dejar blanco" 
+                    value={presionArterial} 
+                    onChange={e => setPresionArterial(e.target.value.replace(/[^0-9/]/g, "").slice(0, 7))} 
+                    maxLength={7}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 font-mono" 
+                  />
                 </div>
 
                 <div>
@@ -469,17 +476,18 @@ export default function NuevoEmpam() {
                 <div>
                   <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Nombre Completo</label>
                   <input 
-                    type="text" required value={provNombre} onChange={e => setProvNombre(e.target.value.toUpperCase())}
+                    type="text" required value={provNombre} onChange={e => setProvNombre(e.target.value.slice(0, 100).toUpperCase())}
+                    maxLength={100}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none uppercase font-medium"
                     placeholder="EJ: JUAN PEREZ SOTO"
                   />
                 </div>
-
+ 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Fecha Nacimiento</label>
                     <input 
-                      type="date" required value={provFechaNac} max={fechaAtencion} onChange={e => setProvFechaNac(e.target.value)}
+                      type="date" required value={provFechaNac} max={new Date().toISOString().split("T")[0]} onChange={e => setProvFechaNac(e.target.value)}
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
