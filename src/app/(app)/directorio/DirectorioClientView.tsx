@@ -539,8 +539,6 @@ export default function DirectorioClientView({ pacientes, user }: { pacientes: a
                             <option value="LONCOPAN">LONCOPAN</option>
                             <option value="MAIHUE">MAIHUE</option>
                             <option value="NONTUELA">NONTUELA</option>
-                            <option value="SECTOR 1">SECTOR 1</option>
-                            <option value="SECTOR 2">SECTOR 2</option>
                         </select>
                     </div>
 

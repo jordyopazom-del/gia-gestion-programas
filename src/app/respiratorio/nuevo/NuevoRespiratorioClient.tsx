@@ -45,7 +45,7 @@ export default function NuevoRespiratorioClient({ user }: { user: UserProfile })
   const [provNombre, setProvNombre] = useState("");
   const [provFechaNac, setProvFechaNac] = useState("");
   const [provSexo, setProvSexo] = useState("MASCULINO");
-  const [provSector, setProvSector] = useState("SECTOR 1");
+  const [provSector, setProvSector] = useState("ARQUILHUE");
   const [creatingProv, setCreatingProv] = useState(false);
 
   // Estados del Formulario
@@ -701,11 +701,15 @@ export default function NuevoRespiratorioClient({ user }: { user: UserProfile })
                     value={provSector} onChange={e => setProvSector(e.target.value)}
                     className="w-full border border-slate-200 rounded-lg px-4 py-2 text-sm"
                   >
-                    <option value="SECTOR 1">SECTOR 1</option>
-                    <option value="SECTOR 2">SECTOR 2</option>
-                    <option value="SECTOR 3">SECTOR 3</option>
-                    <option value="SECTOR 4">SECTOR 4</option>
-                    <option value="RURAL">RURAL</option>
+                    <option value="ARQUILHUE">ARQUILHUE</option>
+                    <option value="EMR CHABRANCO">EMR CHABRANCO</option>
+                    <option value="EMR CURRIÑE">EMR CURRIÑE</option>
+                    <option value="EMR HUEINAHUE">EMR HUEINAHUE</option>
+                    <option value="ISLA HUAPI">ISLA HUAPI</option>
+                    <option value="LLIFEN">LLIFEN</option>
+                    <option value="LONCOPAN">LONCOPAN</option>
+                    <option value="MAIHUE">MAIHUE</option>
+                    <option value="NONTUELA">NONTUELA</option>
                   </select>
                 </div>
               </div>
