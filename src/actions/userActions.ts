@@ -42,8 +42,9 @@ export async function listarUsuarios() {
     const result = await sql`
       SELECT rut, nombre, email, profesion, rol, accesos 
       FROM gia_usuarios 
-      WHERE nombre != 'MIGRACIÓN SISTEMA' 
-        AND nombre != 'Administrador Maestro'
+      WHERE UPPER(nombre) != 'MIGRACION SISTEMA' 
+        AND UPPER(nombre) != 'MIGRACIÓN SISTEMA'
+        AND UPPER(nombre) != 'ADMINISTRADOR MAESTRO'
       ORDER BY nombre ASC
     `;
     return { success: true, data: result as unknown as UserProfile[] };
