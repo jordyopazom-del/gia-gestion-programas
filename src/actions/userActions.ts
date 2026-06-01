@@ -171,6 +171,17 @@ export async function procesarSolicitud(id: number, accion: 'APROBAR' | 'RECHAZA
   }
 }
 
+function cleanName(name: string | null | undefined): string {
+  if (!name) return "SIN REGISTRO";
+  return name
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // remove tildes
+    .replace(/\s+/g, " ")            // remove multiple spaces
+    .replace(/\s*\(MIGRADO\)\s*/gi, "") // remove (Migrado) suffix if any
+    .trim();
+}
+
 export async function obtenerProfesionalesMigrados() {
   const currentUser = await getCurrentUser();
   if (!currentUser || currentUser.rol !== "ADMINISTRADOR") {
@@ -179,35 +190,63 @@ export async function obtenerProfesionalesMigrados() {
 
   try {
     const result = await sql`
-      SELECT DISTINCT 
+      SELECT 
         data_clinica->>'profesional_original' as profesional_original, 
         COUNT(*)::int as cantidad
       FROM gia_empam
       WHERE data_clinica->>'profesional_original' IS NOT NULL
         AND profesional_rut IN (SELECT rut FROM gia_usuarios WHERE nombre = 'MIGRACIÓN SISTEMA')
       GROUP BY data_clinica->>'profesional_original'
-      ORDER BY cantidad DESC
     `;
-    return { success: true, data: result };
+
+    const aggregated: Record<string, number> = {};
+    result.forEach((row: any) => {
+      const clean = cleanName(row.profesional_original);
+      aggregated[clean] = (aggregated[clean] || 0) + row.cantidad;
+    });
+
+    const data = Object.entries(aggregated).map(([profesional_original, cantidad]) => ({
+      profesional_original,
+      cantidad
+    })).sort((a, b) => b.cantidad - a.cantidad);
+
+    return { success: true, data };
   } catch (error) {
     console.error("Error obteniendo profesionales migrados:", error);
     return { error: "Error de base de datos" };
   }
 }
 
-export async function vincularProfesionalMigrado(nombreOriginal: string, nuevoRut: string) {
+export async function vincularProfesionalMigrado(nombreOriginalClean: string, nuevoRut: string) {
   const currentUser = await getCurrentUser();
   if (!currentUser || currentUser.rol !== "ADMINISTRADOR") {
     return { error: "No autorizado" };
   }
 
   try {
+    const result = await sql`
+      SELECT DISTINCT data_clinica->>'profesional_original' as raw_name
+      FROM gia_empam
+      WHERE data_clinica->>'profesional_original' IS NOT NULL
+        AND profesional_rut IN (SELECT rut FROM gia_usuarios WHERE nombre = 'MIGRACIÓN SISTEMA')
+    `;
+
+    const targetClean = cleanName(nombreOriginalClean);
+    const matchingRawNames = result
+      .map((row: any) => row.raw_name)
+      .filter((raw: string) => cleanName(raw) === targetClean);
+
+    if (matchingRawNames.length === 0) {
+      return { success: true };
+    }
+
     await sql`
       UPDATE gia_empam
       SET profesional_rut = ${nuevoRut}
-      WHERE data_clinica->>'profesional_original' = ${nombreOriginal}
+      WHERE data_clinica->>'profesional_original' IN (${matchingRawNames})
         AND profesional_rut IN (SELECT rut FROM gia_usuarios WHERE nombre = 'MIGRACIÓN SISTEMA')
     `;
+
     revalidatePath("/admin/usuarios");
     revalidatePath("/empam");
     return { success: true };

@@ -100,9 +100,20 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
         sectorStats[sec].vigentes++;
       }
 
+      const cleanOriginal = (name: string | null | undefined): string => {
+        if (!name) return "SIN REGISTRO";
+        return name
+          .toUpperCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/\s+/g, " ")
+          .replace(/\s*\(MIGRADO\)\s*/gi, "")
+          .trim();
+      };
+
       const isMigrado = !!p.data_clinica?.profesional_original;
       const profName = (p.profesional_nombre === 'MIGRACIÓN SISTEMA' && p.data_clinica?.profesional_original) 
-        ? `${p.data_clinica.profesional_original} (Migrado)` 
+        ? `${cleanOriginal(p.data_clinica.profesional_original)} (Migrado)` 
         : (p.profesional_nombre || "SIN REGISTRO");
 
       if (!professionalStats[profName]) {
