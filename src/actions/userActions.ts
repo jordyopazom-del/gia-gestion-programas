@@ -170,3 +170,49 @@ export async function procesarSolicitud(id: number, accion: 'APROBAR' | 'RECHAZA
     return { error: "Error al procesar solicitud" };
   }
 }
+
+export async function obtenerProfesionalesMigrados() {
+  const currentUser = await getCurrentUser();
+  if (!currentUser || currentUser.rol !== "ADMINISTRADOR") {
+    return { error: "No autorizado" };
+  }
+
+  try {
+    const result = await sql`
+      SELECT DISTINCT 
+        data_clinica->>'profesional_original' as profesional_original, 
+        COUNT(*)::int as cantidad
+      FROM gia_empam
+      WHERE data_clinica->>'profesional_original' IS NOT NULL
+        AND profesional_rut IN (SELECT rut FROM gia_usuarios WHERE nombre = 'MIGRACIÓN SISTEMA')
+      GROUP BY data_clinica->>'profesional_original'
+      ORDER BY cantidad DESC
+    `;
+    return { success: true, data: result };
+  } catch (error) {
+    console.error("Error obteniendo profesionales migrados:", error);
+    return { error: "Error de base de datos" };
+  }
+}
+
+export async function vincularProfesionalMigrado(nombreOriginal: string, nuevoRut: string) {
+  const currentUser = await getCurrentUser();
+  if (!currentUser || currentUser.rol !== "ADMINISTRADOR") {
+    return { error: "No autorizado" };
+  }
+
+  try {
+    await sql`
+      UPDATE gia_empam
+      SET profesional_rut = ${nuevoRut}
+      WHERE data_clinica->>'profesional_original' = ${nombreOriginal}
+        AND profesional_rut IN (SELECT rut FROM gia_usuarios WHERE nombre = 'MIGRACIÓN SISTEMA')
+    `;
+    revalidatePath("/admin/usuarios");
+    revalidatePath("/empam");
+    return { success: true };
+  } catch (error) {
+    console.error("Error al vincular profesional:", error);
+    return { error: "Error de base de datos" };
+  }
+}

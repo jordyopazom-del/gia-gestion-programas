@@ -81,7 +81,7 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
     const efamCounts: Record<string, number> = {};
     const nutriCounts: Record<string, number> = {};
     const sectorStats: Record<string, { total: number, vigentes: number }> = {};
-    const professionalCounts: Record<string, number> = {};
+    const professionalStats: Record<string, { total: number, migrados: number, nuevos: number }> = {};
     let amaCount = 0;
 
     data.forEach(p => {
@@ -100,13 +100,23 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
         sectorStats[sec].vigentes++;
       }
 
+      const isMigrado = !!p.data_clinica?.profesional_original;
       const profName = (p.profesional_nombre === 'MIGRACIÓN SISTEMA' && p.data_clinica?.profesional_original) 
         ? `${p.data_clinica.profesional_original} (Migrado)` 
         : (p.profesional_nombre || "SIN REGISTRO");
-      professionalCounts[profName] = (professionalCounts[profName] || 0) + 1;
+
+      if (!professionalStats[profName]) {
+        professionalStats[profName] = { total: 0, migrados: 0, nuevos: 0 };
+      }
+      professionalStats[profName].total++;
+      if (isMigrado) {
+        professionalStats[profName].migrados++;
+      } else {
+        professionalStats[profName].nuevos++;
+      }
     });
 
-    return { efamCounts, nutriCounts, sectorStats, total, amaCount, professionalCounts };
+    return { efamCounts, nutriCounts, sectorStats, total, amaCount, professionalStats };
   }, [data]);
 
   const exportToExcel = () => {
@@ -547,16 +557,26 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
                 Registros por Profesional
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {Object.entries(stats.professionalCounts).sort((a,b) => b[1] - a[1]).map(([prof, count]) => {
-                  const percentage = stats.total > 0 ? ((count / stats.total) * 100).toFixed(1) : "0.0";
+                {Object.entries(stats.professionalStats).sort((a,b) => b[1].total - a[1].total).map(([prof, pStats]) => {
+                  const percentage = stats.total > 0 ? ((pStats.total / stats.total) * 100).toFixed(1) : "0.0";
                   return (
                     <div key={prof} className="p-4 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between group hover:bg-teal-50 hover:border-teal-100 transition-colors shadow-sm">
                       <div className="flex flex-col truncate pr-4">
                         <span className="text-xs font-black text-slate-600 uppercase truncate group-hover:text-teal-700" title={prof}>{prof}</span>
-                        <span className="text-[10px] text-slate-400 mt-1">{percentage}% del total</span>
+                        <div className="flex items-center space-x-1.5 mt-1 select-none">
+                          <span className="text-[10px] text-slate-400">{percentage}% del total</span>
+                          {(pStats.migrados > 0 || pStats.nuevos > 0) && (
+                            <span className="text-[9px] text-slate-300">•</span>
+                          )}
+                          <span className="text-[9px] text-slate-400 font-medium">
+                            {pStats.nuevos > 0 && `${pStats.nuevos} nuevos`}
+                            {pStats.nuevos > 0 && pStats.migrados > 0 && ' / '}
+                            {pStats.migrados > 0 && `${pStats.migrados} migrados`}
+                          </span>
+                        </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <span className="text-2xl font-light text-slate-800 group-hover:text-teal-600">{count}</span>
+                        <span className="text-2xl font-light text-slate-800 group-hover:text-teal-600">{pStats.total}</span>
                         <p className="text-[9px] font-bold text-slate-400 uppercase">Registros</p>
                       </div>
                     </div>
