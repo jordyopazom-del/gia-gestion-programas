@@ -32,6 +32,10 @@ export async function loginAction(rut: string, pass: string) {
         return { error: "Credenciales incorrectas" };
       }
 
+      if (user.rol === "INACTIVO") {
+        return { error: "Acceso desactivado. Contacte al Administrador." };
+      }
+
       isAuthenticated = verifyPassword(pass, user.password);
       mustChange = user.debe_cambiar_password || false;
     }

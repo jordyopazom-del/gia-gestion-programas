@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { hashPassword } from "@/lib/password";
 import { getSession } from "@/lib/auth";
 
-export type UserRole = "ADMINISTRADOR" | "ADMINISTRATIVO" | "REFERENTE" | "CLINICO";
+export type UserRole = "ADMINISTRADOR" | "ADMINISTRATIVO" | "REFERENTE" | "CLINICO" | "INACTIVO";
 
 export type UserProfile = {
   rut: string;
@@ -101,8 +101,26 @@ export async function eliminarUsuario(rut: string) {
     await sql`DELETE FROM gia_usuarios WHERE rut = ${rut}`;
     revalidatePath("/admin/usuarios");
     return { success: true };
-  } catch (error) {
+  } catch (error: any) {
+    if (error.code === "23503") {
+      return { error: "REFERENCED_ERROR" };
+    }
     return { error: "Error al eliminar" };
+  }
+}
+
+export async function desactivarUsuario(rut: string) {
+  const currentUser = await getCurrentUser();
+  if (!currentUser || currentUser.rol !== "ADMINISTRADOR") {
+    return { error: "No autorizado" };
+  }
+
+  try {
+    await sql`UPDATE gia_usuarios SET rol = 'INACTIVO' WHERE rut = ${rut}`;
+    revalidatePath("/admin/usuarios");
+    return { success: true };
+  } catch (error) {
+    return { error: "Error al desactivar el acceso" };
   }
 }
 

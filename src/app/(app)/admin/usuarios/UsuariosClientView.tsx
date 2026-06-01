@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { UserProfile, UserRole, crearUsuario, eliminarUsuario, procesarSolicitud, vincularProfesionalMigrado } from "@/actions/userActions";
+import { UserProfile, UserRole, crearUsuario, eliminarUsuario, procesarSolicitud, vincularProfesionalMigrado, desactivarUsuario } from "@/actions/userActions";
 import { UserPlus, Trash2, Key, ShieldCheck, User, Briefcase, Contact, X, AlertCircle, Edit2, CheckCircle, XCircle, Clock, Link, Check } from "lucide-react";
 
 export default function UsuariosClientView({ 
@@ -120,6 +120,20 @@ export default function UsuariosClientView({
     const res = await eliminarUsuario(rut);
     if (res.success) {
       window.location.reload();
+    } else if (res.error === "REFERENCED_ERROR") {
+      if (confirm("Este funcionario tiene registros clínicos guardados. No es posible eliminarlo físicamente para resguardar la legalidad de los datos.\n\n¿Desea DESACTIVAR su cuenta en su lugar? (Esto bloqueará su acceso pero mantendrá sus firmas en el historial).")) {
+        setLoading(true);
+        const descRes = await desactivarUsuario(rut);
+        setLoading(false);
+        if (descRes.success) {
+          alert("Acceso desactivado con éxito.");
+          window.location.reload();
+        } else {
+          alert(descRes.error || "Ocurrió un error al desactivar.");
+        }
+      }
+    } else {
+      alert(res.error || "Ocurrió un error al eliminar.");
     }
   };
 
@@ -166,7 +180,8 @@ export default function UsuariosClientView({
     ADMINISTRADOR: { color: "bg-purple-100 text-purple-700 border-purple-200", label: "Jefe de SOME" },
     ADMINISTRATIVO: { color: "bg-blue-100 text-blue-700 border-blue-200", label: "Administrativo Percápita" },
     REFERENTE: { color: "bg-emerald-100 text-emerald-700 border-emerald-200", label: "Referente Técnico" },
-    CLINICO: { color: "bg-slate-100 text-slate-700 border-slate-200", label: "Profesional Clínico" }
+    CLINICO: { color: "bg-slate-100 text-slate-700 border-slate-200", label: "Profesional Clínico" },
+    INACTIVO: { color: "bg-red-50 text-red-600 border-red-100", label: "Acceso Bloqueado" }
   };
 
   return (
@@ -557,6 +572,7 @@ export default function UsuariosClientView({
                     <option value="ADMINISTRATIVO">Administrativo Percápita</option>
                     <option value="REFERENTE">Referente Técnico</option>
                     <option value="CLINICO">Profesional Clínico</option>
+                    <option value="INACTIVO">Acceso Bloqueado / Desactivado</option>
                   </select>
                 </div>
               </div>
