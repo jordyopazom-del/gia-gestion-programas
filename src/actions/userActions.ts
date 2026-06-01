@@ -173,13 +173,22 @@ export async function procesarSolicitud(id: number, accion: 'APROBAR' | 'RECHAZA
 
 function cleanName(name: string | null | undefined): string {
   if (!name) return "SIN REGISTRO";
-  return name
+  const clean = name
     .toUpperCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "") // remove tildes
     .replace(/\s+/g, " ")            // remove multiple spaces
     .replace(/\s*\(MIGRADO\)\s*/gi, "") // remove (Migrado) suffix if any
     .trim();
+
+  // Mapeos específicos manuales del CESFAM
+  const equivalencias: Record<string, string> = {
+    "ANA M TORRES": "ANA MARIA TORRES VIDAL",
+    "ANA MARIA TORRES": "ANA MARIA TORRES VIDAL",
+    "DANIELAULLOA": "DANIELA ULLOA",
+  };
+
+  return equivalencias[clean] || clean;
 }
 
 export async function obtenerProfesionalesMigrados() {

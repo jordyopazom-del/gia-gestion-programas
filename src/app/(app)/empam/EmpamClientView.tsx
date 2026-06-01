@@ -102,13 +102,21 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
 
       const cleanOriginal = (name: string | null | undefined): string => {
         if (!name) return "SIN REGISTRO";
-        return name
+        const clean = name
           .toUpperCase()
           .normalize("NFD")
           .replace(/[\u0300-\u036f]/g, "")
           .replace(/\s+/g, " ")
           .replace(/\s*\(MIGRADO\)\s*/gi, "")
           .trim();
+
+        const equivalencias: Record<string, string> = {
+          "ANA M TORRES": "ANA MARIA TORRES VIDAL",
+          "ANA MARIA TORRES": "ANA MARIA TORRES VIDAL",
+          "DANIELAULLOA": "DANIELA ULLOA",
+        };
+
+        return equivalencias[clean] || clean;
       };
 
       const isMigrado = !!p.data_clinica?.profesional_original;
