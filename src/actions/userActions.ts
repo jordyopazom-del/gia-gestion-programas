@@ -39,7 +39,13 @@ export async function listarUsuarios() {
   }
 
   try {
-    const result = await sql`SELECT rut, nombre, email, profesion, rol, accesos FROM gia_usuarios ORDER BY nombre ASC`;
+    const result = await sql`
+      SELECT rut, nombre, email, profesion, rol, accesos 
+      FROM gia_usuarios 
+      WHERE nombre != 'MIGRACIÓN SISTEMA' 
+        AND nombre != 'Administrador Maestro'
+      ORDER BY nombre ASC
+    `;
     return { success: true, data: result as unknown as UserProfile[] };
   } catch (error) {
     return { error: "Error de base de datos" };
@@ -196,6 +202,56 @@ export async function obtenerProfesionalesMigrados() {
   const currentUser = await getCurrentUser();
   if (!currentUser || currentUser.rol !== "ADMINISTRADOR") {
     return { error: "No autorizado" };
+  }
+
+  // Traspaso automático de registros de Maria Jesus Ortiz a Jordy (currentUser)
+  try {
+    const adminRut = currentUser.rut;
+
+    const mariaUser = await sql`
+      SELECT rut FROM gia_usuarios 
+      WHERE nombre ILIKE '%MARIA JESUS ORTIZ%' OR nombre ILIKE '%MARIA J. ORTIZ%' OR nombre ILIKE '%MARIA J Ortiz%'
+      LIMIT 1
+    `;
+    
+    if (mariaUser.length > 0) {
+      const mariaRut = mariaUser[0].rut;
+      
+      await sql`
+        UPDATE gia_empam
+        SET 
+          profesional_rut = ${adminRut},
+          data_clinica = jsonb_set(COALESCE(data_clinica, '{}'::jsonb), '{profesional_original}', '"MARIA JESUS ORTIZ"'::jsonb)
+        WHERE profesional_rut = ${mariaRut}
+      `;
+      
+      await sql`
+        UPDATE gia_respiratorio
+        SET 
+          profesional_rut = ${adminRut},
+          data_clinica = jsonb_set(COALESCE(data_clinica, '{}'::jsonb), '{profesional_original}', '"MARIA JESUS ORTIZ"'::jsonb)
+        WHERE profesional_rut = ${mariaRut}
+      `;
+      
+      await sql`
+        UPDATE gia_mujer_pap
+        SET 
+          profesional_rut = ${adminRut},
+          observaciones = COALESCE(observaciones, '') || ' (Migrado de Maria Jesus Ortiz)'
+        WHERE profesional_rut = ${mariaRut}
+      `;
+    }
+
+    await sql`
+      UPDATE gia_empam
+      SET profesional_rut = ${adminRut}
+      WHERE (
+        data_clinica->>'profesional_original' ILIKE '%MARIA JESUS ORTIZ%' 
+        OR data_clinica->>'profesional_original' ILIKE '%MARIA J%ORTIZ%'
+      ) AND profesional_rut IN (SELECT rut FROM gia_usuarios WHERE nombre = 'MIGRACIÓN SISTEMA')
+    `;
+  } catch (e) {
+    console.error("Error en la migración de Maria Jesus Ortiz:", e);
   }
 
   try {
