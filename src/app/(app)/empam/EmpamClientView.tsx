@@ -114,6 +114,7 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
           "ANA M TORRES": "ANA MARIA TORRES VIDAL",
           "ANA MARIA TORRES": "ANA MARIA TORRES VIDAL",
           "DANIELAULLOA": "DANIELA ULLOA",
+          "KLGA VICTORIA FUENTEALBA": "VICTORIA FUENTEALBA",
         };
 
         return equivalencias[clean] || clean;

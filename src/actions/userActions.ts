@@ -186,6 +186,7 @@ function cleanName(name: string | null | undefined): string {
     "ANA M TORRES": "ANA MARIA TORRES VIDAL",
     "ANA MARIA TORRES": "ANA MARIA TORRES VIDAL",
     "DANIELAULLOA": "DANIELA ULLOA",
+    "KLGA VICTORIA FUENTEALBA": "VICTORIA FUENTEALBA",
   };
 
   return equivalencias[clean] || clean;
