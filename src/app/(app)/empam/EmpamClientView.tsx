@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Search, MapPin, AlertTriangle, CheckCircle, Clock, Download, Activity, ClipboardList, X, User, Phone, Map, Calendar, Dumbbell, ShieldCheck } from "lucide-react";
+import { Search, MapPin, AlertTriangle, CheckCircle, Clock, Download, Activity, ClipboardList, X, User, Phone, Map, Calendar, Dumbbell, ShieldCheck, Stethoscope } from "lucide-react";
 import * as XLSX from "xlsx";
 import { UserProfile } from "@/actions/userActions";
 
@@ -54,7 +54,10 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const [tab, setTab] = useState<'activos' | 'egresados'>('activos');
 
-  const sectors = useMemo(() => ["Todos", ...Array.from(new Set(data.map(p => p.sector))).sort()], [data]);
+  const sectors = useMemo(() => {
+    const s = new Set(data.map(p => p.sector).filter(sec => sec && sec.toUpperCase() !== "SECTOR GENERAL"));
+    return ["Todos", ...Array.from(s)].sort();
+  }, [data]);
 
   const filtered = useMemo(() => {
     return data.filter(p => {
@@ -78,6 +81,7 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
     const efamCounts: Record<string, number> = {};
     const nutriCounts: Record<string, number> = {};
     const sectorStats: Record<string, { total: number, vigentes: number }> = {};
+    const professionalCounts: Record<string, number> = {};
     let amaCount = 0;
 
     data.forEach(p => {
@@ -95,9 +99,14 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
       if (getEmpamStatus(p.ultima_atencion, p.resultado_efam).status === "Vigente") {
         sectorStats[sec].vigentes++;
       }
+
+      const profName = (p.profesional_nombre === 'MIGRACIÓN SISTEMA' && p.data_clinica?.profesional_original) 
+        ? `${p.data_clinica.profesional_original} (Migrado)` 
+        : (p.profesional_nombre || "SIN REGISTRO");
+      professionalCounts[profName] = (professionalCounts[profName] || 0) + 1;
     });
 
-    return { efamCounts, nutriCounts, sectorStats, total, amaCount };
+    return { efamCounts, nutriCounts, sectorStats, total, amaCount, professionalCounts };
   }, [data]);
 
   const exportToExcel = () => {
@@ -528,6 +537,31 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
               <div className="text-right">
                 <p className="text-5xl font-black text-white">{stats.amaCount.toLocaleString("es-CL")}</p>
                 <p className="text-xs font-bold text-blue-200 uppercase tracking-widest mt-1">Pacientes Derivados</p>
+              </div>
+            </div>
+
+            {/* Rendimiento por Profesional */}
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm lg:col-span-2">
+              <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center">
+                <span className="bg-teal-100 text-teal-600 p-1.5 rounded-lg mr-2"><Stethoscope size={20} /></span>
+                Registros por Profesional
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {Object.entries(stats.professionalCounts).sort((a,b) => b[1] - a[1]).map(([prof, count]) => {
+                  const percentage = stats.total > 0 ? ((count / stats.total) * 100).toFixed(1) : "0.0";
+                  return (
+                    <div key={prof} className="p-4 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between group hover:bg-teal-50 hover:border-teal-100 transition-colors shadow-sm">
+                      <div className="flex flex-col truncate pr-4">
+                        <span className="text-xs font-black text-slate-600 uppercase truncate group-hover:text-teal-700" title={prof}>{prof}</span>
+                        <span className="text-[10px] text-slate-400 mt-1">{percentage}% del total</span>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="text-2xl font-light text-slate-800 group-hover:text-teal-600">{count}</span>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase">Registros</p>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
