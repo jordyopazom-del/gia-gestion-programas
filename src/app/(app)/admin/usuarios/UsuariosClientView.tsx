@@ -1,26 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import { UserProfile, UserRole, crearUsuario, eliminarUsuario, procesarSolicitud, vincularProfesionalMigrado, desactivarUsuario } from "@/actions/userActions";
-import { UserPlus, Trash2, Key, ShieldCheck, User, Briefcase, Contact, X, AlertCircle, Edit2, CheckCircle, XCircle, Clock, Link, Check } from "lucide-react";
+import { UserProfile, UserRole, crearUsuario, eliminarUsuario, procesarSolicitud, desactivarUsuario } from "@/actions/userActions";
+import { UserPlus, Trash2, Key, ShieldCheck, User, Briefcase, Contact, X, AlertCircle, Edit2, CheckCircle, XCircle, Clock } from "lucide-react";
 
 export default function UsuariosClientView({ 
   usuarios: initialUsuarios, 
-  solicitudes: initialSolicitudes,
-  migrados: initialMigrados = []
+  solicitudes: initialSolicitudes 
 }: { 
   usuarios: UserProfile[], 
-  solicitudes: any[],
-  migrados?: any[]
+  solicitudes: any[] 
 }) {
   const [usuarios, setUsuarios] = useState(initialUsuarios);
   const [solicitudes, setSolicitudes] = useState(initialSolicitudes);
-  const [migrados, setMigrados] = useState(initialMigrados);
-  const [activeTab, setActiveTab] = useState<'usuarios' | 'solicitudes' | 'migrados'>(initialSolicitudes.length > 0 ? 'solicitudes' : 'usuarios');
+  const [activeTab, setActiveTab] = useState<'usuarios' | 'solicitudes'>(initialSolicitudes.length > 0 ? 'solicitudes' : 'usuarios');
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [mappings, setMappings] = useState<Record<string, string>>({});
   
   // Estado para procesar aprobación
   const [isAprobar, setIsAprobar] = useState<any>(null);
@@ -156,26 +152,6 @@ export default function UsuariosClientView({
     }
   };
 
-  const handleVincular = async (nombreOriginal: string, nuevoRut: string) => {
-    if (!nuevoRut) {
-      alert("Seleccione un funcionario real para vincular.");
-      return;
-    }
-    const realUser = usuarios.find(u => u.rut === nuevoRut);
-    if (!confirm(`¿Está seguro de traspasar todos los registros de "${nombreOriginal}" a "${realUser?.nombre}"? Esta acción actualizará los registros en la base de datos de forma permanente.`)) return;
-
-    setLoading(true);
-    const res = await vincularProfesionalMigrado(nombreOriginal, nuevoRut);
-    setLoading(false);
-
-    if (res.success) {
-      setMigrados(migrados.filter(m => m.profesional_original !== nombreOriginal));
-      alert("Registros vinculados con éxito.");
-    } else {
-      alert(res.error || "Ocurrió un error al vincular.");
-    }
-  };
-
   const rolesConfig: Record<UserRole, { color: string; label: string }> = {
     ADMINISTRADOR: { color: "bg-purple-100 text-purple-700 border-purple-200", label: "Jefe de SOME" },
     ADMINISTRATIVO: { color: "bg-blue-100 text-blue-700 border-blue-200", label: "Administrativo Percápita" },
@@ -202,17 +178,6 @@ export default function UsuariosClientView({
           {solicitudes.length > 0 && (
             <span className="ml-2 h-5 w-5 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center animate-pulse">
               {solicitudes.length}
-            </span>
-          )}
-        </button>
-        <button 
-          onClick={() => setActiveTab('migrados')}
-          className={`px-8 py-4 text-sm font-bold transition-all flex items-center ${activeTab === 'migrados' ? 'text-teal-600 border-b-2 border-teal-600 bg-teal-50/30' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'}`}
-        >
-          Vincular Históricos
-          {migrados.length > 0 && (
-            <span className="ml-2 h-5 w-5 rounded-full bg-teal-500 text-white text-[10px] flex items-center justify-center font-black">
-              {migrados.length}
             </span>
           )}
         </button>
@@ -372,87 +337,7 @@ export default function UsuariosClientView({
         </div>
       )}
 
-      {activeTab === 'migrados' && (
-        <div className="flex-1">
-          <div className="p-6 border-b border-slate-100 bg-slate-50/50">
-            <h2 className="font-bold text-slate-700 flex items-center">
-              <Link size={18} className="mr-2 text-teal-600" /> Vincular Profesionales de Datos Migrados
-            </h2>
-            <p className="text-xs text-slate-500 mt-1">
-              Aquí puedes unificar los nombres que provienen de la base de datos antigua vinculándolos a los usuarios reales del sistema. Esto actualizará sus estadísticas automáticamente.
-            </p>
-          </div>
 
-          {migrados.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-[500px] text-slate-400 space-y-3">
-              <CheckCircle size={48} className="text-slate-200" />
-              <p className="font-medium italic">No hay profesionales migrados pendientes de vinculación</p>
-            </div>
-          ) : (
-            <div className="p-6">
-              <div className="max-w-4xl border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-sm">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50 text-[10px] uppercase tracking-wider font-bold text-slate-400 border-b border-slate-100">
-                      <th className="px-6 py-4">Nombre en Historial Migrado</th>
-                      <th className="px-6 py-4 text-center">Registros Totales</th>
-                      <th className="px-6 py-4">Funcionario Real en GIA</th>
-                      <th className="px-6 py-4 text-center">Acción</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 text-sm text-slate-600">
-                    {migrados.map((m) => {
-                      const selectedRut = mappings[m.profesional_original] || "";
-                      return (
-                        <tr key={m.profesional_original} className="hover:bg-slate-50/55 transition-colors">
-                          <td className="px-6 py-4 font-bold text-slate-700 uppercase">
-                            {m.profesional_original}
-                          </td>
-                          <td className="px-6 py-4 text-center">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-600">
-                              {m.cantidad}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4">
-                            <select
-                              value={selectedRut}
-                              onChange={(e) => setMappings({
-                                ...mappings,
-                                [m.profesional_original]: e.target.value
-                              })}
-                              className="w-full max-w-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-teal-200 outline-none uppercase font-semibold text-slate-700"
-                            >
-                              <option value="">-- Seleccionar Funcionario Real --</option>
-                              {usuarios.map((u) => (
-                                <option key={u.rut} value={u.rut}>
-                                  {u.nombre} ({u.profesion})
-                                </option>
-                              ))}
-                            </select>
-                          </td>
-                          <td className="px-6 py-4 text-center">
-                            <button
-                              onClick={() => handleVincular(m.profesional_original, selectedRut)}
-                              disabled={loading || !selectedRut}
-                              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center mx-auto active:scale-95 shadow-sm border ${
-                                selectedRut 
-                                  ? 'bg-teal-600 border-teal-600 text-white hover:bg-teal-700 hover:border-teal-700' 
-                                  : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
-                              }`}
-                            >
-                              <Check size={14} className="mr-1.5" /> Vincular Registros
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Modal Aprobación */}
       {isAprobar && (

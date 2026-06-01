@@ -1,15 +1,13 @@
-import { listarUsuarios, listarSolicitudes, obtenerProfesionalesMigrados } from "@/actions/userActions";
+import { listarUsuarios, listarSolicitudes } from "@/actions/userActions";
 import UsuariosClientView from "./UsuariosClientView";
 import { Shield } from "lucide-react";
 
 export default async function UsuariosPage() {
   const resultUsers = await listarUsuarios();
   const resultRequests = await listarSolicitudes();
-  const resultMigrated = await obtenerProfesionalesMigrados();
   
   const usuarios = resultUsers.success ? resultUsers.data : [];
   const solicitudes = resultRequests.success ? resultRequests.data : [];
-  const migrados = resultMigrated.success ? resultMigrated.data : [];
 
   return (
     <div>
@@ -26,7 +24,7 @@ export default async function UsuariosPage() {
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden min-h-[600px]">
-        <UsuariosClientView usuarios={usuarios || []} solicitudes={solicitudes || []} migrados={migrados || []} />
+        <UsuariosClientView usuarios={usuarios || []} solicitudes={solicitudes || []} />
       </div>
     </div>
   );
