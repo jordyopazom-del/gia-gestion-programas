@@ -2,6 +2,7 @@ import { getOportunidadesHoy } from "@/actions/agendaActions";
 import OportunidadClientView from "./OportunidadClientView";
 import { getCurrentUser } from "@/actions/userActions";
 import { redirect } from "next/navigation";
+import { getLocalDateString } from "@/lib/dateUtils";
 
 export default async function OportunidadPage() {
   const user = await getCurrentUser();
@@ -11,7 +12,7 @@ export default async function OportunidadPage() {
   if (!hasAccess) redirect("/dashboard");
 
   // Por defecto cargamos la fecha de hoy
-  const hoy = new Date().toISOString().split('T')[0];
+  const hoy = getLocalDateString();
   const { data = [], error } = await getOportunidadesHoy(hoy);
 
   return <OportunidadClientView initialData={data} initialDate={hoy} />;

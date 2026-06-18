@@ -7,15 +7,23 @@ export async function getMujerDashboardData() {
   try {
     const result = await sql`
       WITH UltimoPap AS (
-        SELECT rut_paciente, fecha_pap, resultado,
+        SELECT rut_paciente, fecha_pap, resultado, tipo_examen, adecuacion_muestra,
+               motivo_insatisfactoria, fecha_resultado, derivado_upc, fecha_derivacion_upc,
                ROW_NUMBER() OVER(PARTITION BY rut_paciente ORDER BY fecha_pap DESC) as rn
         FROM gia_mujer_pap
       )
       SELECT 
         p.rut, p.dv, p.nombre_completo, TO_CHAR(p.fecha_nacimiento, 'YYYY-MM-DD') as fecha_nacimiento, p.sector, p.telefono, p.direccion,
         p.estado, p.motivo_egreso, p.fecha_egreso, p.es_pad,
-        pap.fecha_pap as ultima_fecha_pap,
-        pap.resultado as ultimo_resultado_pap
+        p.histerectomizada, TO_CHAR(p.fecha_histerectomia, 'YYYY-MM-DD') as fecha_histerectomia, p.causa_histerectomia,
+        TO_CHAR(pap.fecha_pap, 'YYYY-MM-DD') as ultima_fecha_pap,
+        pap.resultado as ultimo_resultado_pap,
+        pap.tipo_examen as ultimo_tipo_examen,
+        pap.adecuacion_muestra as ultima_adecuacion_muestra,
+        pap.motivo_insatisfactoria as ultimo_motivo_insatisfactoria,
+        TO_CHAR(pap.fecha_resultado, 'YYYY-MM-DD') as ultima_fecha_resultado,
+        pap.derivado_upc as ultimo_derivado_upc,
+        TO_CHAR(pap.fecha_derivacion_upc, 'YYYY-MM-DD') as ultima_fecha_derivacion_upc
       FROM gia_pacientes p
       LEFT JOIN UltimoPap pap ON p.rut = pap.rut_paciente AND pap.rn = 1
       WHERE p.sexo = 'FEMENINO'
@@ -28,19 +36,61 @@ export async function getMujerDashboardData() {
   }
 }
 
-export async function guardarPap(data: { rut_paciente: string, fecha_pap: string, resultado: string, observaciones?: string }) {
+export async function guardarPap(data: { 
+  rut_paciente: string, 
+  fecha_pap: string, 
+  resultado: string, 
+  observaciones?: string,
+  tipo_examen?: string,
+  adecuacion_muestra?: string,
+  motivo_insatisfactoria?: string,
+  fecha_resultado?: string,
+  derivado_upc?: boolean,
+  fecha_derivacion_upc?: string
+}) {
   try {
     const user = await getCurrentUser();
     const profesional_rut = user ? user.rut : '12345678-5';
 
     await sql`
-      INSERT INTO gia_mujer_pap (rut_paciente, fecha_pap, resultado, profesional_rut, observaciones)
-      VALUES (${data.rut_paciente}, ${data.fecha_pap}, ${data.resultado}, ${profesional_rut}, ${data.observaciones || ''})
+      INSERT INTO gia_mujer_pap (
+        rut_paciente, fecha_pap, resultado, profesional_rut, observaciones,
+        tipo_examen, adecuacion_muestra, motivo_insatisfactoria, fecha_resultado,
+        derivado_upc, fecha_derivacion_upc
+      )
+      VALUES (
+        ${data.rut_paciente}, ${data.fecha_pap}, ${data.resultado}, ${profesional_rut}, ${data.observaciones || ''},
+        ${data.tipo_examen || 'PAP'}, ${data.adecuacion_muestra || 'SATISFACTORIA'}, ${data.motivo_insatisfactoria || null},
+        ${data.fecha_resultado || null}, ${data.derivado_upc || false}, ${data.fecha_derivacion_upc || null}
+      )
     `;
     return { success: true };
   } catch (error: any) {
-    console.error("Error al guardar PAP:", error);
-    return { error: "Error de base de datos al guardar el PAP." };
+    console.error("Error al guardar PAP/VPH:", error);
+    return { error: "Error de base de datos al guardar el examen de tamizaje." };
+  }
+}
+
+export async function guardarHisterectomia(data: {
+  rut_paciente: string;
+  histerectomizada: boolean;
+  fecha_histerectomia?: string;
+  causa_histerectomia?: string;
+}) {
+  try {
+    await sql`
+      UPDATE gia_pacientes
+      SET 
+        histerectomizada = ${data.histerectomizada},
+        fecha_histerectomia = ${data.fecha_histerectomia || null},
+        causa_histerectomia = ${data.causa_histerectomia || null},
+        fecha_actualizacion = CURRENT_TIMESTAMP
+      WHERE rut = ${data.rut_paciente}
+    `;
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error al guardar histerectomía:", error);
+    return { error: "Error de base de datos al actualizar antecedentes de histerectomía." };
   }
 }
 
@@ -65,3 +115,30 @@ export async function buscarPacienteMujerPorRut(rutInput: string) {
     return { error: "Error de conexión con la base de datos." };
   }
 }
+
+export async function getHistorialExamenesPaciente(rut: string) {
+  try {
+    const result = await sql`
+      SELECT 
+        id, 
+        TO_CHAR(fecha_pap, 'YYYY-MM-DD') as fecha_pap, 
+        resultado, 
+        tipo_examen, 
+        adecuacion_muestra, 
+        motivo_insatisfactoria, 
+        TO_CHAR(fecha_resultado, 'YYYY-MM-DD') as fecha_resultado, 
+        derivado_upc, 
+        TO_CHAR(fecha_derivacion_upc, 'YYYY-MM-DD') as fecha_derivacion_upc,
+        observaciones,
+        profesional_rut
+      FROM gia_mujer_pap
+      WHERE rut_paciente = ${rut}
+      ORDER BY fecha_pap DESC
+    `;
+    return { success: true, examenes: result as any[] };
+  } catch (error: any) {
+    console.error("Error al obtener historial de exámenes CaCu:", error);
+    return { error: "Error de base de datos al obtener el historial de exámenes." };
+  }
+}
+

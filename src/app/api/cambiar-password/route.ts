@@ -2,12 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { sql } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
+import { decrypt } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
     const cookieStore = await cookies();
-    const rut = cookieStore.get("gia_auth_token")?.value;
+    const token = cookieStore.get("gia_auth_token")?.value;
 
+    if (!token) {
+      return NextResponse.json({ error: "Sesión no válida. Vuelve a iniciar sesión." }, { status: 401 });
+    }
+
+    const rut = await decrypt(token);
     if (!rut) {
       return NextResponse.json({ error: "Sesión no válida. Vuelve a iniciar sesión." }, { status: 401 });
     }

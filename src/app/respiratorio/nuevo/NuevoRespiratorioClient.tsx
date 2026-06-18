@@ -23,6 +23,7 @@ import { useRouter } from "next/navigation";
 import { buscarPacienteRespiratorio, guardarAtencionRespiratoria } from "@/actions/respiratorioActions";
 import { crearPacienteProvisorio } from "@/actions/pacientesActions";
 import { UserProfile } from "@/actions/userActions";
+import { getLocalDateString } from "@/lib/dateUtils";
 import { toast } from "react-hot-toast";
 
 const LISTA_DIAG = ["ASMA LEVE", "ASMA MODERADA", "ASMA SEVERA", "EPOC TIPO A", "EPOC TIPO B", "SBOR", "OXIGENO DEPENDIENTE", "AVNI", "FIBROSIS QUISTICA", "OTRAS RESPIRATORIAS"];
@@ -61,7 +62,7 @@ export default function NuevoRespiratorioClient({ user }: { user: UserProfile })
 
   const [diagnostico, setDiagnostico] = useState(LISTA_DIAG[0]);
   const [nivelControl, setNivelControl] = useState(LISTA_CONTROL[0]);
-  const [tipoAtencion, setTipoAtencion] = useState(LISTA_TIPO[0]);
+  const [tipoAtencion, setTipoAtencion] = useState("");
   const [esPad, setEsPad] = useState(false);
   const [observaciones, setObservaciones] = useState("");
   const [esMigrante, setEsMigrante] = useState(false);
@@ -135,7 +136,7 @@ export default function NuevoRespiratorioClient({ user }: { user: UserProfile })
           
           setEq5dScore(prevCli.eq5d_score?.toString() || "");
           setCatScore(prevCli.cat_score?.toString() || "");
-          setFechaEncuesta(prevCli.fecha_encuesta || new Date().toISOString().slice(0, 10));
+          setFechaEncuesta(prevCli.fecha_encuesta || getLocalDateString());
           setEsMigrante(!!prevCli.es_migrante);
           setEsPuebloOriginario(!!prevCli.pueblo_originario);
           setEsSecueladoTbc(!!prevCli.secuelado_tbc);
@@ -143,7 +144,7 @@ export default function NuevoRespiratorioClient({ user }: { user: UserProfile })
         } else {
           setEq5dScore("");
           setCatScore("");
-          setFechaEncuesta(new Date().toISOString().slice(0, 10));
+          setFechaEncuesta(getLocalDateString());
           setEsMigrante(false);
           setEsPuebloOriginario(false);
           setEsSecueladoTbc(false);
@@ -345,7 +346,7 @@ export default function NuevoRespiratorioClient({ user }: { user: UserProfile })
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Fecha de Atención (Real)</label>
                     <input 
-                      type="date" required value={fechaAtencion} max={new Date().toISOString().split("T")[0]}
+                      type="date" required value={fechaAtencion} max={getLocalDateString()}
                       onChange={(e) => setFechaAtencion(e.target.value)}
                       className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none"
                     />
@@ -353,9 +354,11 @@ export default function NuevoRespiratorioClient({ user }: { user: UserProfile })
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Tipo de Atención</label>
                     <select 
+                      required
                       value={tipoAtencion} onChange={e => setTipoAtencion(e.target.value)}
                       className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none"
                     >
+                       <option value="">SELECCIONE TIPO DE ATENCIÓN...</option>
                        {LISTA_TIPO.map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
                   </div>
@@ -637,11 +640,21 @@ export default function NuevoRespiratorioClient({ user }: { user: UserProfile })
                   setObservaciones("");
                   setEq5dScore("");
                   setCatScore("");
-                  setFechaEncuesta(new Date().toISOString().slice(0, 10));
+                  setFechaEncuesta(getLocalDateString());
                   setEsMigrante(false);
                   setEsPuebloOriginario(false);
                   setEsSecueladoTbc(false);
                   setOtraRespiratoriaDetalle("");
+                  setDiagnostico(LISTA_DIAG[0]);
+                  setNivelControl(LISTA_CONTROL[0]);
+                  setTipoAtencion("");
+                  setEsPad(false);
+                  setMesCitaMed("");
+                  setAnioCitaMed("");
+                  setMesCitaKin("");
+                  setAnioCitaKin("");
+                  setMesCitaEsp("");
+                  setAnioCitaEsp("");
                 }}
                 className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition-all"
               >
@@ -680,7 +693,7 @@ export default function NuevoRespiratorioClient({ user }: { user: UserProfile })
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Fecha de Nacimiento</label>
                 <input 
                   type="date" required value={provFechaNac} onChange={e => setProvFechaNac(e.target.value)}
-                  max={new Date().toISOString().split("T")[0]}
+                  max={getLocalDateString()}
                   className="w-full border border-slate-200 rounded-lg px-4 py-2 text-sm"
                 />
               </div>
@@ -701,11 +714,17 @@ export default function NuevoRespiratorioClient({ user }: { user: UserProfile })
                     value={provSector} onChange={e => setProvSector(e.target.value)}
                     className="w-full border border-slate-200 rounded-lg px-4 py-2 text-sm"
                   >
+                    <option value="ARQUILHUE">ARQUILHUE</option>
+                    <option value="EMR CHABRANCO">EMR CHABRANCO</option>
+                    <option value="EMR CURRIÑE">EMR CURRIÑE</option>
+                    <option value="EMR HUEINAHUE">EMR HUEINAHUE</option>
+                    <option value="ISLA HUAPI">ISLA HUAPI</option>
+                    <option value="LLIFEN">LLIFEN</option>
+                    <option value="LONCOPAN">LONCOPAN</option>
+                    <option value="MAIHUE">MAIHUE</option>
+                    <option value="NONTUELA">NONTUELA</option>
                     <option value="SECTOR 1">SECTOR 1</option>
                     <option value="SECTOR 2">SECTOR 2</option>
-                    <option value="SECTOR 3">SECTOR 3</option>
-                    <option value="SECTOR 4">SECTOR 4</option>
-                    <option value="RURAL">RURAL</option>
                   </select>
                 </div>
               </div>

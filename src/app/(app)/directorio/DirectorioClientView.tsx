@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { Search, MapPin, Download, UserMinus, History, CheckCircle, AlertCircle, X, ShieldCheck, UserCheck, Trash2, UserPlus, Edit2, Phone, Calendar, Hash, ClipboardList } from "lucide-react";
 import { egresarPaciente, validarPaciente, eliminarPacienteProvisorio, upsertPaciente, PacienteData } from "@/actions/pacientesActions";
 import { UserProfile } from "@/actions/userActions";
+import { getLocalDateString } from "@/lib/dateUtils";
 
 const calculateAge = (birthDate: string | Date | null) => {
   if (!birthDate) return "-";
@@ -54,8 +55,8 @@ export default function DirectorioClientView({ pacientes, user }: { pacientes: a
 
   // Get distinct sectors for the filter
   const sectors = useMemo(() => {
-    const s = new Set(pacientes.map(p => p.sector));
-    return ["Todos", ...Array.from(s).sort()];
+    const s = new Set(pacientes.map(p => p.sector).filter(sec => sec && sec.toUpperCase() !== "SECTOR GENERAL"));
+    return ["Todos", ...Array.from(s)].sort();
   }, [pacientes]);
 
   const filtered = useMemo(() => {
@@ -501,7 +502,7 @@ export default function DirectorioClientView({ pacientes, user }: { pacientes: a
                         <input 
                             type="date" required value={formData.fecha_nacimiento || ""} 
                             onChange={e => setFormData({...formData, fecha_nacimiento: e.target.value})}
-                            max={new Date().toISOString().split("T")[0]}
+                            max={getLocalDateString()}
                             className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                     </div>

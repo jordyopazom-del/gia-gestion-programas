@@ -22,7 +22,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Check,
-  Edit2
+  Edit2,
+  CalendarX
 } from "lucide-react";
 import Link from "next/link";
 import { UserProfile } from "@/actions/userActions";
@@ -30,8 +31,10 @@ import {
   getRespiratorioData, 
   updateDiagnosticoControl, 
   egresarPacienteRespiratorio,
-  togglePadStatus 
+  togglePadStatus,
+  guardarAtencionRespiratoria
 } from "@/actions/respiratorioActions";
+import { getLocalDateString, getLocalMonthString } from "@/lib/dateUtils";
 import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import { LogOut, History, UserCheck, Trash2 } from "lucide-react";
@@ -172,6 +175,7 @@ export default function RespiratorioClientView({ data, user }: { data: any[], us
   const [filterDiag, setFilterDiag] = useState("Todos");
   const [filterCtrl, setFilterCtrl] = useState("Todos");
   const [filterVigencia, setFilterVigencia] = useState("Todos");
+  const [filterAsistencia, setFilterAsistencia] = useState("Todos");
   const [onlyPad, setOnlyPad] = useState(false);
 
   // Estados de Pestañas y Modales
@@ -180,7 +184,7 @@ export default function RespiratorioClientView({ data, user }: { data: any[], us
   const [showEgresoModal, setShowEgresoModal] = useState(false);
   const [selectedPaciente, setSelectedPaciente] = useState<any>(null);
   const [motivoEgreso, setMotivoEgreso] = useState("ALTA MÉDICA");
-  const [fechaEgreso, setFechaEgreso] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
+  const [fechaEgreso, setFechaEgreso] = useState(getLocalMonthString()); // YYYY-MM
   const [obsEgreso, setObsEgreso] = useState("");
 
   const [isEgresando, setIsEgresando] = useState(false);
@@ -201,6 +205,55 @@ export default function RespiratorioClientView({ data, user }: { data: any[], us
   const [editPacienteDataCli, setEditPacienteDataCli] = useState<any>({});
   const [editObservaciones, setEditObservaciones] = useState("");
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+
+  // Estados para Modal de NSP (Inasistencias rápidas)
+  const [showNspModal, setShowNspModal] = useState(false);
+  const [selectedPacienteNsp, setSelectedPacienteNsp] = useState<any>(null);
+  const [nspFechaAtencion, setNspFechaAtencion] = useState("");
+  const [nspTipoAtencion, setNspTipoAtencion] = useState("CONTROL MÉDICO");
+  const [nspObservaciones, setNspObservaciones] = useState("");
+  const [isSavingNsp, setIsSavingNsp] = useState(false);
+
+  const handleSaveNsp = async () => {
+    if (!selectedPacienteNsp) return;
+    setIsSavingNsp(true);
+
+    let prevCli: any = {};
+    try {
+      prevCli = typeof selectedPacienteNsp.data_clinica === 'string' 
+        ? JSON.parse(selectedPacienteNsp.data_clinica) 
+        : (selectedPacienteNsp.data_clinica || {});
+    } catch(e) {}
+
+    const res = await guardarAtencionRespiratoria({
+      rut_paciente: selectedPacienteNsp.rut,
+      fecha_atencion: nspFechaAtencion,
+      tipo_atencion: nspTipoAtencion,
+      diagnostico: selectedPacienteNsp.diagnostico || "SIN REGISTRO",
+      nivel_control: selectedPacienteNsp.nivel_control || "SIN EVALUAR",
+      profesional_rut: user.rut,
+      es_pad: !!selectedPacienteNsp.es_pad,
+      es_inasistente: true,
+      observaciones: nspObservaciones,
+      data_clinica: {
+        ...prevCli,
+        profesional_nombre: user.nombre,
+        es_inasistente_tipo: nspTipoAtencion,
+        fecha_registro_inasistencia: new Date().toISOString()
+      }
+    });
+
+    if (res.success) {
+      toast.success("Inasistencia (NSP) registrada correctamente");
+      setShowNspModal(false);
+      setSelectedPacienteNsp(null);
+      setNspObservaciones("");
+      router.refresh();
+    } else {
+      toast.error("Error al registrar inasistencia: " + res.error);
+    }
+    setIsSavingNsp(false);
+  };
 
   const handleSaveEdit = async () => {
     if (!editFichaId) return;
@@ -352,7 +405,10 @@ export default function RespiratorioClientView({ data, user }: { data: any[], us
     toast.success("Excel de campaña generado correctamente");
   };
 
-  const sectors = useMemo(() => ["Todos", ...Array.from(new Set(data.map(p => p.sector))).sort()], [data]);
+  const sectors = useMemo(() => {
+    const s = new Set(data.map(p => p.sector).filter(sec => sec && sec.toUpperCase() !== "SECTOR GENERAL"));
+    return ["Todos", ...Array.from(s)].sort();
+  }, [data]);
   
   // Generar listas dinámicas para los filtros (Diagnóstico y Control) limpiando espacios
   const uniqueDiagnostics = useMemo(() => Array.from(new Set(data.map(p => p.diagnostico?.trim()))).filter(Boolean).sort(), [data]);
@@ -389,10 +445,13 @@ export default function RespiratorioClientView({ data, user }: { data: any[], us
       const matchVigencia = filterVigencia === "Todos" || pStatus === filterVigencia;
 
       const matchPad = !onlyPad || p.es_pad;
+      
+      // Filtro de asistencia (NSP)
+      const matchAsistencia = filterAsistencia === "Todos" || (filterAsistencia === "Nsp" && p.es_inasistente);
 
-      return matchRut && matchSector && matchProg && matchDiag && matchCtrl && matchVigencia && matchPad;
+      return matchRut && matchSector && matchProg && matchDiag && matchCtrl && matchVigencia && matchPad && matchAsistencia;
     });
-  }, [data, searchRut, filterSector, filterProg, filterDiag, filterCtrl, filterVigencia, onlyPad, activeTab]);
+  }, [data, searchRut, filterSector, filterProg, filterDiag, filterCtrl, filterVigencia, filterAsistencia, onlyPad, activeTab]);
 
   const stats = useMemo(() => {
     const total = data.filter(p => !p.estado_programa || p.estado_programa === 'ACTIVO').length;
@@ -638,13 +697,24 @@ export default function RespiratorioClientView({ data, user }: { data: any[], us
                       <option value="Por Vencer">POR VENCER</option>
                     </select>
                 </div>
+                <div className="flex-1">
+                    <select 
+                      value={filterAsistencia} 
+                      onChange={(e) => setFilterAsistencia(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-slate-50 border-none rounded-xl text-xs font-bold text-slate-600 focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="Todos">ASISTENCIA (TODOS)</option>
+                      <option value="Nsp">SÓLO CON NSP PENDIENTE</option>
+                    </select>
+                </div>
                 <button 
                   onClick={() => {
                     setSearchRut(""); setFilterSector("Todos"); setFilterProg("Todos");
                     setFilterDiag("Todos"); setFilterCtrl("Todos"); setFilterVigencia("Todos");
+                    setFilterAsistencia("Todos");
                     setOnlyPad(false);
                   }}
-                  className="px-4 py-2 text-[10px] font-black text-slate-400 hover:text-red-500 transition-colors flex items-center gap-1"
+                  className="px-4 py-2 text-[10px] font-black text-slate-400 hover:text-red-500 transition-colors flex items-center gap-1 shrink-0"
                 >
                   <RotateCcw size={12} />
                   LIMPIAR FILTROS
@@ -794,6 +864,13 @@ export default function RespiratorioClientView({ data, user }: { data: any[], us
                         <span className="flex items-center"><MapPin size={10} className="mr-0.5"/> {p.sector}</span>
                       </div>
                       
+                      {p.es_inasistente && (
+                        <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600 text-[9px] font-bold w-fit mb-2 shadow-sm">
+                          <CalendarX size={10} className="text-slate-500" />
+                          <span>NSP PENDIENTE: {p.tipo_atencion} ({formatDate(p.ultima_atencion_global)})</span>
+                        </div>
+                      )}
+                      
                       {p.observaciones && (
                         <div 
                           className="relative group flex items-start gap-1.5 p-2 bg-amber-50/50 border border-amber-100/50 rounded-lg max-w-xs cursor-help select-none"
@@ -892,44 +969,59 @@ export default function RespiratorioClientView({ data, user }: { data: any[], us
                     <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end space-x-2">
                           {activeTab === 'activos' ? (
-                            canManage && (
-                              <div className="flex items-center space-x-2">
-                                <button 
-                                  onClick={() => {
-                                    let dCli: any = {};
-                                    try {
-                                      dCli = typeof p.data_clinica === 'string' ? JSON.parse(p.data_clinica) : (p.data_clinica || {});
-                                    } catch (e) {
-                                      dCli = {};
-                                    }
-                                    setEditFichaId(p.ficha_id);
-                                    setEditDiag(p.diagnostico || "");
-                                    setEditCtrl(p.nivel_control || "");
-                                    setEditMigrante(!!dCli.es_migrante);
-                                    setEditPuebloOriginario(!!dCli.pueblo_originario);
-                                    setEditSecueladoTbc(!!dCli.secuelado_tbc);
-                                    setEditOtraRespiratoriaDetalle(dCli.otra_respiratoria_detalle || "");
-                                    setEditPacienteDataCli(dCli);
-                                    setEditObservaciones(p.observaciones || "");
-                                    setShowEditModal(true);
-                                  }}
-                                  className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                                  title="Editar Diagnóstico / Caracterización"
-                                >
-                                  <Edit2 size={16} />
-                                </button>
-                                <button 
-                                  onClick={() => {
-                                    setSelectedPaciente(p);
-                                    setShowEgresoModal(true);
-                                  }}
-                                  className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all group/egreso"
-                                  title="Gestionar Egreso"
-                                >
-                                  <LogOut size={18} className="group-hover/egreso:scale-110 transition-transform" />
-                                </button>
-                              </div>
-                            )
+                            <div className="flex items-center space-x-2">
+                              <button 
+                                onClick={() => {
+                                  setSelectedPacienteNsp(p);
+                                  setNspFechaAtencion(getLocalDateString());
+                                  setNspTipoAtencion("CONTROL MÉDICO");
+                                  setNspObservaciones("");
+                                  setShowNspModal(true);
+                                }}
+                                className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-all"
+                                title="Registrar Inasistencia (NSP)"
+                              >
+                                <CalendarX size={16} />
+                              </button>
+                              {canManage && (
+                                <>
+                                  <button 
+                                    onClick={() => {
+                                      let dCli: any = {};
+                                      try {
+                                        dCli = typeof p.data_clinica === 'string' ? JSON.parse(p.data_clinica) : (p.data_clinica || {});
+                                      } catch (e) {
+                                        dCli = {};
+                                      }
+                                      setEditFichaId(p.ficha_id);
+                                      setEditDiag(p.diagnostico || "");
+                                      setEditCtrl(p.nivel_control || "");
+                                      setEditMigrante(!!dCli.es_migrante);
+                                      setEditPuebloOriginario(!!dCli.pueblo_originario);
+                                      setEditSecueladoTbc(!!dCli.secuelado_tbc);
+                                      setEditOtraRespiratoriaDetalle(dCli.otra_respiratoria_detalle || "");
+                                      setEditPacienteDataCli(dCli);
+                                      setEditObservaciones(p.observaciones || "");
+                                      setShowEditModal(true);
+                                    }}
+                                    className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                                    title="Editar Diagnóstico / Caracterización"
+                                  >
+                                    <Edit2 size={16} />
+                                  </button>
+                                  <button 
+                                    onClick={() => {
+                                      setSelectedPaciente(p);
+                                      setShowEgresoModal(true);
+                                    }}
+                                    className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all group/egreso"
+                                    title="Gestionar Egreso"
+                                  >
+                                    <LogOut size={18} className="group-hover/egreso:scale-110 transition-transform" />
+                                  </button>
+                                </>
+                              )}
+                            </div>
                           ) : (
                              <div className="text-right">
                                 <p className="text-[9px] font-black text-red-600 uppercase leading-none mb-1">{p.estado_programa}</p>
@@ -1313,6 +1405,95 @@ export default function RespiratorioClientView({ data, user }: { data: any[], us
                   className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition disabled:opacity-50 flex items-center justify-center space-x-2"
                 >
                   {isSavingEdit ? "Guardando..." : <><Check size={18} /> <span>Guardar Cambios</span></>}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Registro de NSP (Inasistencias rápidas) */}
+      {showNspModal && selectedPacienteNsp && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[32px] p-8 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h3 className="text-xl font-bold text-slate-800">Registrar NSP (Inasistencia)</h3>
+                <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest">{selectedPacienteNsp.nombre_completo}</p>
+              </div>
+              <button 
+                onClick={() => {
+                  setShowNspModal(false);
+                  setSelectedPacienteNsp(null);
+                }} 
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-5">
+              {/* Fecha de la Inasistencia */}
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Fecha del Control Perdido</label>
+                <input 
+                  type="date" 
+                  required 
+                  value={nspFechaAtencion} 
+                  max={getLocalDateString()}
+                  onChange={(e) => setNspFechaAtencion(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none"
+                />
+              </div>
+
+              {/* Tipo de Atención NSP */}
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Tipo de Control Faltante</label>
+                <select
+                  value={nspTipoAtencion}
+                  onChange={(e) => setNspTipoAtencion(e.target.value)}
+                  className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold bg-white text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none"
+                >
+                  <option value="CONTROL MÉDICO">CONTROL MÉDICO</option>
+                  <option value="CONTROL KINESIOLÓGICO">CONTROL KINESIOLÓGICO</option>
+                  <option value="ESPIROMETRÍA">ESPIROMETRÍA</option>
+                </select>
+              </div>
+
+              {/* Observaciones / Motivo NSP */}
+              <div>
+                <div className="flex justify-between items-center mb-1.5">
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Observaciones / Justificación</label>
+                  <span className="text-[9px] font-bold text-slate-400">{nspObservaciones.length}/500</span>
+                </div>
+                <textarea
+                  value={nspObservaciones}
+                  onChange={(e) => setNspObservaciones(e.target.value.slice(0, 500))}
+                  placeholder="Detalle si el paciente avisó o si se conoce algún motivo de su inasistencia..."
+                  rows={3}
+                  maxLength={500}
+                  className="w-full border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold bg-white text-slate-800 focus:ring-2 focus:ring-blue-500 font-mono outline-none"
+                />
+              </div>
+
+              {/* Botones de Acción */}
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => {
+                    setShowNspModal(false);
+                    setSelectedPacienteNsp(null);
+                  }}
+                  className="flex-1 bg-slate-100 text-slate-600 py-3 rounded-xl font-bold hover:bg-slate-200 transition"
+                  disabled={isSavingNsp}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleSaveNsp}
+                  disabled={isSavingNsp || !nspFechaAtencion}
+                  className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition disabled:opacity-50 flex items-center justify-center space-x-2"
+                >
+                  {isSavingNsp ? "Guardando..." : <><Check size={18} /> <span>Confirmar NSP</span></>}
                 </button>
               </div>
             </div>

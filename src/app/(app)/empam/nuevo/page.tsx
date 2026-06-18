@@ -4,6 +4,7 @@ import { useState } from "react";
 import { buscarPacientePorRut, saveEmpamRecord, EmpamSubmission } from "@/actions/empamActions";
 import { crearPacienteProvisorio } from "@/actions/pacientesActions";
 import { Search, UserCircle, Calendar, ShieldCheck, AlertCircle, UserPlus, X } from "lucide-react";
+import { getLocalDateString } from "@/lib/dateUtils";
 
 export default function NuevoEmpam() {
   const [rutInput, setRutInput] = useState("");
@@ -285,7 +286,7 @@ export default function NuevoEmpam() {
                     type="date" 
                     required 
                     value={fechaAtencion} 
-                    max={new Date().toISOString().split("T")[0]} 
+                    max={getLocalDateString()} 
                     onChange={e => setFechaAtencion(e.target.value)} 
                     className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
                   />
@@ -487,7 +488,7 @@ export default function NuevoEmpam() {
                   <div>
                     <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Fecha Nacimiento</label>
                     <input 
-                      type="date" required value={provFechaNac} max={new Date().toISOString().split("T")[0]} onChange={e => setProvFechaNac(e.target.value)}
+                      type="date" required value={provFechaNac} max={getLocalDateString()} onChange={e => setProvFechaNac(e.target.value)}
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>

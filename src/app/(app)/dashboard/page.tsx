@@ -31,6 +31,15 @@ export default function DashboardPage() {
           <h2 className="text-lg font-semibold text-slate-800 mb-1">Oportunidad de Atención</h2>
           <p className="text-sm text-slate-500">Cruce inteligente con agenda diaria.</p>
         </div>
+
+        {/* ECICEP Card */}
+        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm hover:shadow-md transition-shadow">
+          <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center mb-4">
+            <span className="text-indigo-600 font-bold text-xl">4</span>
+          </div>
+          <h2 className="text-lg font-semibold text-slate-800 mb-1">Estratificación ECICEP</h2>
+          <p className="text-sm text-slate-500">Cuidado Integral Centrado en la Persona y gestión de cronicidad.</p>
+        </div>
       </div>
     </div>
   );

@@ -250,6 +250,9 @@ export default function UsuariosClientView({
                           {u.accesos?.includes("oportunidad") && (
                             <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-50 text-purple-600 border border-purple-100 font-bold uppercase">Oport.</span>
                           )}
+                          {u.accesos?.includes("ecicep") && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-100 font-bold uppercase">ECICEP</span>
+                          )}
                         </div>
                       )}
                     </td>
@@ -547,6 +550,15 @@ export default function UsuariosClientView({
                         className="rounded border-slate-300 text-purple-600 focus:ring-purple-500 h-4 w-4"
                       />
                       <span>Oport. de Atención</span>
+                    </label>
+                    <label className="flex items-center space-x-2 text-xs font-bold text-slate-700 cursor-pointer select-none">
+                      <input 
+                        type="checkbox"
+                        checked={formAccesos.includes("ecicep")}
+                        onChange={(e) => handleAccesoToggle("ecicep", e.target.checked)}
+                        className="rounded border-slate-300 text-purple-600 focus:ring-purple-500 h-4 w-4"
+                      />
+                      <span>Estratificación ECICEP</span>
                     </label>
                   </div>
                 </div>
