@@ -281,7 +281,7 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
     setPlanAtenciones(planAtenciones.filter((_, i) => i !== idx));
   };
 
-  const updatePlanRow = (idx: number, field: 'rol' | 'mes' | 'ano', value: any) => {
+  const updatePlanRow = (idx: number, field: 'rol' | 'mes' | 'ano' | 'nota', value: any) => {
     const updated = [...planAtenciones];
     updated[idx] = { ...updated[idx], [field]: value };
     setPlanAtenciones(updated);
