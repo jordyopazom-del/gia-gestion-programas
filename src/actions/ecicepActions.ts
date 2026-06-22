@@ -26,11 +26,18 @@ export async function buscarPacienteParaEcicep(rutInput: string) {
       }
     }
 
+    const ultimaEval = await sql`
+      SELECT * FROM gia_ecicep 
+      WHERE rut_paciente = ${rutNum} 
+      ORDER BY fecha_atencion DESC, id DESC 
+      LIMIT 1
+    `;
+
     if (age < 15) {
-      return { error: `Bloqueo de Seguridad: El paciente tiene ${age} años. La estratificación ECICEP es exclusiva para población de 15 años o más.`, data: p, age };
+      return { error: `Bloqueo de Seguridad: El paciente tiene ${age} años. La estratificación ECICEP es exclusiva para población de 15 años o más.`, data: p, age, evaluacion: ultimaEval[0] || null };
     }
 
-    return { error: null, data: p, age };
+    return { error: null, data: p, age, evaluacion: ultimaEval[0] || null };
   } catch (error) {
     console.error(error);
     return { error: "Error interno al buscar el paciente." };
@@ -186,6 +193,7 @@ export async function getEcicepDashboardData() {
       WHERE p.estado = 'ACTIVO'
         AND p.fecha_nacimiento IS NOT NULL
         AND DATE_PART('year', AGE(CURRENT_DATE, p.fecha_nacimiento::DATE)) >= 15
+        AND (p.estado_registro = 'OFICIAL' OR e.fecha_atencion IS NOT NULL)
       ORDER BY p.nombre_completo ASC
     `;
     return result;

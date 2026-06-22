@@ -96,6 +96,8 @@ export async function getEmpamDashboardData() {
       LEFT JOIN gia_usuarios u ON e.profesional_rut = u.rut
       WHERE p.fecha_nacimiento IS NOT NULL
         AND DATE_PART('year', AGE(CURRENT_DATE, p.fecha_nacimiento::DATE)) >= 65
+        AND p.estado = 'ACTIVO'
+        AND (p.estado_registro = 'OFICIAL' OR e.fecha_atencion IS NOT NULL)
       ORDER BY p.nombre_completo ASC
     `;
     return result;

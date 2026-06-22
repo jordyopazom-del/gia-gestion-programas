@@ -1,0 +1,43 @@
+name: Respaldo Diario de Base de Datos (Railway)
+
+on:
+  schedule:
+    # Se ejecuta todos los días a las 07:00 UTC (03:00 AM hora de Chile UTC-4)
+    - cron: '0 7 * * *'
+  workflow_dispatch: # Permite ejecutar el respaldo de forma manual desde la web de GitHub
+
+jobs:
+  backup:
+    name: Crear y guardar respaldo lógico
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Instalar cliente de PostgreSQL
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Generar respaldo lógico (pg_dump)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "ERROR: La variable secreta DATABASE_URL no está configurada en GitHub Secrets."
+            exit 1
+          fi
+          
+          # Generar nombre del archivo con la fecha de hoy
+          FILENAME="backup_$(date +'%Y-%m-%d').sql.gz"
+          
+          echo "Iniciando descarga de datos desde Railway..."
+          pg_dump "$DATABASE_URL" | gzip > "$FILENAME"
+          
+          echo "Respaldo generado exitosamente: $FILENAME"
+          echo "FILENAME=$FILENAME" >> $GITHUB_ENV
+
+      - name: Guardar respaldo como artefacto de GitHub (Privado)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.FILENAME }}
+          path: ${{ env.FILENAME }}
+          retention-days: 90 # Retención gratuita por 90 días

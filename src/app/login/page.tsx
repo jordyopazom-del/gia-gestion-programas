@@ -227,6 +227,12 @@ export default function LoginPage() {
             {loading ? "Autenticando..." : "Ingresar a la Plataforma"}
           </button>
         </form>
+
+        <div className="mt-4 bg-slate-50 p-3.5 rounded-xl border border-slate-100/80">
+          <p className="text-[11px] text-slate-500 font-medium leading-relaxed text-center">
+            💡 <strong>¿Primera vez ingresando?</strong> Si tu solicitud de acceso ya fue aprobada por el Administrador, inicia sesión con tu RUT y la contraseña provisoria <strong className="text-blue-600 font-bold">cesfam123</strong>.
+          </p>
+        </div>
         
         <div className="mt-8 pt-6 border-t border-slate-100 text-center">
           <button 
@@ -469,7 +475,9 @@ export default function LoginPage() {
                   </div>
                   <div>
                     <h4 className="font-bold text-slate-800 text-lg">¡Solicitud Enviada!</h4>
-                    <p className="text-sm text-slate-500 px-4">Tu solicitud ha sido enviada al Jefe de SOME. Te notificaremos una vez que sea aprobada.</p>
+                    <p className="text-xs text-slate-500 px-4 mt-2 leading-relaxed">
+                      Tu solicitud ha sido enviada al Administrador. Una vez que aprueben tu acceso, podrás ingresar utilizando tu RUT y la contraseña provisoria: <strong className="text-blue-600 font-bold">cesfam123</strong>.
+                    </p>
                   </div>
                 </div>
               ) : (

@@ -110,20 +110,56 @@ export default function NuevoEcicep() {
         setPaciente(res.data);
         const computedAge = res.age ?? null;
         setAge(computedAge);
-        if (computedAge !== null && computedAge < 65) {
-          setFuncionalidad("No aplica (Menor de 65 años)");
+        
+        // Cargar evaluación anterior si existe para pacientes de excepción
+        if (res.evaluacion) {
+          setCategoria(res.evaluacion.categoria || "G1");
+          setDiagnosticos(res.evaluacion.diagnosticos || []);
+          setPolifarmacia(!!res.evaluacion.polifarmacia);
+          setFuncionalidad(res.evaluacion.funcionalidad || (computedAge !== null && computedAge < 65 ? "No aplica (Menor de 65 años)" : "Autovalente sin riesgo"));
+          setDeterioroCognitivo(!!res.evaluacion.deterioro_cognitivo);
+          setRiesgoSocial(!!res.evaluacion.riesgo_social);
+          setHospitalizacionReciente(!!res.evaluacion.hospitalizacion_reciente);
+          setConsultasUrgencia(res.evaluacion.consultas_urgencia || 0);
+          setGestorRut(res.evaluacion.gestor_rut || "");
         } else {
-          setFuncionalidad("Autovalente sin riesgo");
+          setCategoria("G1");
+          setDiagnosticos([]);
+          setPolifarmacia(false);
+          setFuncionalidad(computedAge !== null && computedAge < 65 ? "No aplica (Menor de 65 años)" : "Autovalente sin riesgo");
+          setDeterioroCognitivo(false);
+          setRiesgoSocial(false);
+          setHospitalizacionReciente(false);
+          setConsultasUrgencia(0);
+          setGestorRut("");
         }
       }
     } else {
       setPaciente(res.data);
       const computedAge = res.age ?? null;
       setAge(computedAge);
-      if (computedAge !== null && computedAge < 65) {
-        setFuncionalidad("No aplica (Menor de 65 años)");
+      
+      // Cargar evaluación anterior si existe
+      if (res.evaluacion) {
+        setCategoria(res.evaluacion.categoria || "G1");
+        setDiagnosticos(res.evaluacion.diagnosticos || []);
+        setPolifarmacia(!!res.evaluacion.polifarmacia);
+        setFuncionalidad(res.evaluacion.funcionalidad || (computedAge !== null && computedAge < 65 ? "No aplica (Menor de 65 años)" : "Autovalente sin riesgo"));
+        setDeterioroCognitivo(!!res.evaluacion.deterioro_cognitivo);
+        setRiesgoSocial(!!res.evaluacion.riesgo_social);
+        setHospitalizacionReciente(!!res.evaluacion.hospitalizacion_reciente);
+        setConsultasUrgencia(res.evaluacion.consultas_urgencia || 0);
+        setGestorRut(res.evaluacion.gestor_rut || "");
       } else {
-        setFuncionalidad("Autovalente sin riesgo");
+        setCategoria("G1");
+        setDiagnosticos([]);
+        setPolifarmacia(false);
+        setFuncionalidad(computedAge !== null && computedAge < 65 ? "No aplica (Menor de 65 años)" : "Autovalente sin riesgo");
+        setDeterioroCognitivo(false);
+        setRiesgoSocial(false);
+        setHospitalizacionReciente(false);
+        setConsultasUrgencia(0);
+        setGestorRut("");
       }
     }
     setLoadingSearch(false);

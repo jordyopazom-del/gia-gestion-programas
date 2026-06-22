@@ -162,12 +162,11 @@ export default function DirectorioClientView({ pacientes, user }: { pacientes: a
   };
 
   // Derived stats
-  const totalPacientes = pacientes.length;
-  // This could be any other stat. For now let's mimic the prototype:
-  const stat1 = totalPacientes; // Total
-  const stat2 = pacientes.filter(p => p.sexo === "FEMENINO").length; // Females
-  const stat3 = pacientes.filter(p => p.sexo === "MASCULINO").length; // Males
-  const stat4 = pacientes.filter(p => {
+  const pacientesActivosOficiales = pacientes.filter(p => p.estado === "ACTIVO" && p.estado_registro === "OFICIAL");
+  const stat1 = pacientesActivosOficiales.length; // Total Oficiales Activos (Vigentes)
+  const stat2 = pacientesActivosOficiales.filter(p => p.sexo === "FEMENINO").length; // Females
+  const stat3 = pacientesActivosOficiales.filter(p => p.sexo === "MASCULINO").length; // Males
+  const stat4 = pacientesActivosOficiales.filter(p => {
     const age = calculateAge(p.fecha_nacimiento);
     return typeof age === 'number' ? age >= 65 : Number(age) >= 65;
   }).length; // Elderly
@@ -290,7 +289,11 @@ export default function DirectorioClientView({ pacientes, user }: { pacientes: a
       <div className="flex-1 px-6 pb-6">
         <div className="flex justify-between items-end mb-2">
            <span className="text-sm text-slate-600 font-medium">
-             {tab === "activos" ? 'Mostrando población bajo control vigente' : 'Mostrando pacientes egresados históricamente'} ({filtered.length})
+             {tab === "activos" 
+               ? 'Mostrando población bajo control vigente' 
+               : tab === "egresados" 
+                 ? 'Mostrando pacientes egresados históricamente' 
+                 : 'Mostrando pacientes pendientes de validación'} ({filtered.length})
            </span>
            <button className="text-slate-400 hover:text-slate-600"><Download size={16} /></button>
         </div>

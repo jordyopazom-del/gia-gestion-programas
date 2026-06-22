@@ -27,6 +27,8 @@ export async function getMujerDashboardData() {
       FROM gia_pacientes p
       LEFT JOIN UltimoPap pap ON p.rut = pap.rut_paciente AND pap.rn = 1
       WHERE p.sexo = 'FEMENINO'
+        AND p.estado = 'ACTIVO'
+        AND (p.estado_registro = 'OFICIAL' OR pap.fecha_pap IS NOT NULL)
       ORDER BY p.nombre_completo ASC
     `;
     return { data: result as any[] };
