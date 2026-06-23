@@ -4,6 +4,8 @@ import DirectorioClientView from "./DirectorioClientView";
 import { Users } from "lucide-react";
 import { getCurrentUser } from "@/actions/userActions";
 
+export const dynamic = 'force-dynamic';
+
 export default async function DirectorioPage() {
   const pacientes = await getDirectorioCompleto();
   const user = await getCurrentUser();

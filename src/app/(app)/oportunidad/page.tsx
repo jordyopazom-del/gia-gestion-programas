@@ -4,6 +4,8 @@ import { getCurrentUser } from "@/actions/userActions";
 import { redirect } from "next/navigation";
 import { getLocalDateString } from "@/lib/dateUtils";
 
+export const dynamic = 'force-dynamic';
+
 export default async function OportunidadPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");

@@ -2,6 +2,8 @@ import { listarUsuarios, listarSolicitudes } from "@/actions/userActions";
 import UsuariosClientView from "./UsuariosClientView";
 import { Shield } from "lucide-react";
 
+export const dynamic = 'force-dynamic';
+
 export default async function UsuariosPage() {
   const resultUsers = await listarUsuarios();
   const resultRequests = await listarSolicitudes();

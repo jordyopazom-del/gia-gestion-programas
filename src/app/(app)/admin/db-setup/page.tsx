@@ -2,6 +2,8 @@ import { getCurrentUser } from "@/actions/userActions";
 import DbSetupClient from "./DbSetupClient";
 import { ShieldAlert } from "lucide-react";
 
+export const dynamic = 'force-dynamic';
+
 export default async function DbSetupPage() {
   const user = await getCurrentUser();
 
