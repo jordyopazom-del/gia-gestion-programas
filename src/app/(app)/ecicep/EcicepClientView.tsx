@@ -56,25 +56,45 @@ const formatDate = (dateString: string | null) => {
   }
 };
 
+const getParsedDataClinica = (dataClinica: any) => {
+  if (!dataClinica) return null;
+  if (typeof dataClinica === "string") {
+    try {
+      return JSON.parse(dataClinica);
+    } catch (e) {
+      return null;
+    }
+  }
+  return dataClinica;
+};
+
+const getItemDisplayStatus = (item: { rol: string; mes: number; ano: number; nota?: string }) => {
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth() + 1;
+  const NOMBRES_MESES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+  const baseLabel = `${NOMBRES_MESES[item.mes - 1]} ${item.ano}`;
+  const isExpired = item.ano < currentYear || (item.ano === currentYear && item.mes < currentMonth);
+  
+  return { 
+    label: baseLabel, 
+    isExpired,
+    className: isExpired 
+      ? "bg-red-50 text-red-700 border border-red-200 px-1.5 py-0.5 rounded text-[10px] font-bold" 
+      : "bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded text-[10px] font-bold" 
+  };
+};
+
 const getCitaDisplayStatus = (p: any, rol: string) => {
-  const plan = p.data_clinica?.plan || [];
+  const dataClinica = getParsedDataClinica(p.data_clinica);
+  const plan = [...(dataClinica?.plan || [])].sort((a: any, b: any) => {
+    return (a.ano * 12 + a.mes) - (b.ano * 12 + b.mes);
+  });
+  
   const match = plan.find((item: any) => item.rol === rol);
   
   if (match) {
-    const today = new Date();
-    const currentYear = today.getFullYear();
-    const currentMonth = today.getMonth() + 1;
-    const NOMBRES_MESES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-    const baseLabel = `${NOMBRES_MESES[match.mes - 1]} ${match.ano}`;
-    const isExpired = match.ano < currentYear || (match.ano === currentYear && match.mes < currentMonth);
-    
-    return { 
-      label: baseLabel, 
-      isExpired,
-      className: isExpired 
-        ? "bg-red-50 text-red-700 border border-red-200 px-1.5 py-0.5 rounded text-[10px] font-bold" 
-        : "bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded text-[10px] font-bold" 
-    };
+    return getItemDisplayStatus(match);
   }
   
   let legacyDate = null;
@@ -135,7 +155,7 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
   const [citaEnfermero, setCitaEnfermero] = useState("");
   const [citaNutri, setCitaNutri] = useState("");
   const [citaKine, setCitaKine] = useState("");
-  const [planAtenciones, setPlanAtenciones] = useState<{ rol: string; mes: number; ano: number }[]>([]);
+  const [planAtenciones, setPlanAtenciones] = useState<{ rol: string; mes: number; ano: number; nota?: string }[]>([]);
   const [seguimientoTelefonico, setSeguimientoTelefonico] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -177,10 +197,11 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
     setGestorRut(selectedPatient.gestor_rut || "");
     setProfesionalRut(selectedPatient.profesional_rut || user.rut || "");
     setObservaciones(selectedPatient.observaciones || "");
-    setSeguimientoTelefonico(selectedPatient.data_clinica?.seguimiento_telefonico || false);
+    const dataClinica = getParsedDataClinica(selectedPatient.data_clinica);
+    setSeguimientoTelefonico(dataClinica?.seguimiento_telefonico || false);
     
     // Cargar plan dinámico de atenciones
-    const plan = selectedPatient.data_clinica?.plan || [];
+    const plan = dataClinica?.plan || [];
     if (plan.length > 0) {
       setPlanAtenciones(plan);
     } else {
@@ -311,7 +332,8 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
       const cat = p.categoria || "PENDIENTE";
       const matchCategory = filterCategory === "Todos" || cat === filterCategory;
       
-      const matchSeguimiento = !onlySeguimiento || p.data_clinica?.seguimiento_telefonico;
+      const dataClinica = getParsedDataClinica(p.data_clinica);
+      const matchSeguimiento = !onlySeguimiento || dataClinica?.seguimiento_telefonico;
       const matchBrecha = !onlyBrecha || hasBrecha(p);
       
       return matchRut && matchSector && matchStatus && matchCategory && matchSeguimiento && matchBrecha;
@@ -331,7 +353,8 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
     let totalSeguimiento = 0;
 
     data.forEach(p => {
-      if (p.data_clinica?.seguimiento_telefonico) totalSeguimiento++;
+      const dataClinica = getParsedDataClinica(p.data_clinica);
+      if (dataClinica?.seguimiento_telefonico) totalSeguimiento++;
       const cat = p.categoria || "PENDIENTE";
       catCounts[cat] = (catCounts[cat] || 0) + 1;
 
@@ -400,7 +423,7 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
         "Funcionalidad": p.funcionalidad || "-",
         "Deterioro Cognitivo": p.deterioro_cognitivo ? "SI" : "NO",
         "Riesgo Social": p.riesgo_social ? "SI" : "NO",
-        "Seguimiento Telefónico": p.data_clinica?.seguimiento_telefonico ? "SI" : "NO",
+        "Seguimiento Telefónico": getParsedDataClinica(p.data_clinica)?.seguimiento_telefonico ? "SI" : "NO",
         "Hospitalización Reciente (12m)": p.hospitalizacion_reciente ? "SI" : "NO",
         "Consultas Urgencia (12m)": p.consultas_urgencia || 0,
         "Diagnósticos Crónicos": p.diagnosticos ? p.diagnosticos.join(", ") : "-",
@@ -636,7 +659,7 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
                           <div className="font-bold text-slate-800 uppercase text-xs block text-left group-hover:text-blue-600 group-hover:underline transition-colors">
                             {p.nombre_completo}
                           </div>
-                          {p.data_clinica?.seguimiento_telefonico && (
+                          {getParsedDataClinica(p.data_clinica)?.seguimiento_telefonico && (
                             <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-100 text-[9px] font-black tracking-widest shrink-0 animate-pulse" title="Seguimiento Telefónico Activo">
                               📞 SEGUIMIENTO
                             </span>
@@ -947,15 +970,20 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
                         selectedPatient.categoria === 'G2' ? 'RIESGO MODERADO' :
                         selectedPatient.categoria === 'G1' ? 'RIESGO BAJO' : 'G0 - SIN RIESGO'}
                      </p>
-                      <p className="text-[10px] opacity-80 pt-2 border-t border-black/10 flex flex-col space-y-1">
-                        <span>Evaluado el: {formatDate(selectedPatient.ultima_atencion)}</span>
-                        <span>Elaborado por: {selectedPatient.data_clinica?.creador?.nombre || selectedPatient.profesional_nombre || "Clínico Registrador"}</span>
-                        {selectedPatient.data_clinica?.creador && selectedPatient.data_clinica.creador.rut !== selectedPatient.profesional_rut && (
-                          <span className="font-semibold text-slate-900 mt-0.5">
-                            Última actualización: {selectedPatient.profesional_nombre}
-                          </span>
-                        )}
-                      </p>
+                    {(() => {
+                         const dataClinica = getParsedDataClinica(selectedPatient.data_clinica);
+                         return (
+                           <p className="text-[10px] opacity-80 pt-2 border-t border-black/10 flex flex-col space-y-1">
+                             <span>Evaluado el: {formatDate(selectedPatient.ultima_atencion)}</span>
+                             <span>Elaborado por: {dataClinica?.creador?.nombre || selectedPatient.profesional_nombre || "Clínico Registrador"}</span>
+                             {dataClinica?.creador && dataClinica.creador.rut !== selectedPatient.profesional_rut && (
+                               <span className="font-semibold text-slate-900 mt-0.5">
+                                 Última actualización: {selectedPatient.profesional_nombre}
+                               </span>
+                             )}
+                           </p>
+                         );
+                       })()}
                   </div>
                 ) : (
                   <div className="p-4 rounded-2xl border border-red-200 bg-red-50 text-red-800 flex flex-col space-y-2">
@@ -971,12 +999,15 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
                   <Calendar size={12} className="mr-2" /> Plan de Cuidado (Citas Programadas)
                 </h4>
                 {(() => {
-                  const plan = selectedPatient.data_clinica?.plan || [];
+                  const dataClinica = getParsedDataClinica(selectedPatient.data_clinica);
+                  const plan = [...(dataClinica?.plan || [])].sort((a: any, b: any) => {
+                    return (a.ano * 12 + a.mes) - (b.ano * 12 + b.mes);
+                  });
                   if (plan.length > 0) {
                     return (
                       <div className="grid grid-cols-2 gap-3">
                         {plan.map((item: any, idx: number) => {
-                          const status = getCitaDisplayStatus(selectedPatient, item.rol);
+                          const status = getItemDisplayStatus(item);
                           return (
                             <div key={idx} className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex flex-col justify-between space-y-1">
                               <span className="text-[10px] text-slate-400 uppercase font-black">{item.rol}</span>

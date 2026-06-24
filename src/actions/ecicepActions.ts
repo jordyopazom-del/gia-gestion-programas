@@ -144,7 +144,7 @@ export async function saveEcicepRecord(data: EcicepSubmission) {
         ${data.cita_enfermero || null},
         ${data.cita_nutri || null},
         ${data.cita_kine || null},
-        ${JSON.stringify(payloadDataClinica)}, 
+        ${sql.json(payloadDataClinica)}, 
         ${userRut}
       )
     `;

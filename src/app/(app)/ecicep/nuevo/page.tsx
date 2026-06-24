@@ -22,6 +22,18 @@ const ENFERMEDADES_CRONICAS = [
   "Secuela de Accidente Cerebrovascular (ACV)"
 ];
 
+const getParsedDataClinica = (dataClinica: any) => {
+  if (!dataClinica) return null;
+  if (typeof dataClinica === "string") {
+    try {
+      return JSON.parse(dataClinica);
+    } catch (e) {
+      return null;
+    }
+  }
+  return dataClinica;
+};
+
 export default function NuevoEcicep() {
   const [rutInput, setRutInput] = useState("");
   const formatRut = (value: string) => {
@@ -61,7 +73,7 @@ export default function NuevoEcicep() {
   const [citaEnfermero, setCitaEnfermero] = useState("");
   const [citaNutri, setCitaNutri] = useState("");
   const [citaKine, setCitaKine] = useState("");
-  const [planAtenciones, setPlanAtenciones] = useState<{ rol: string; mes: number; ano: number }[]>([]);
+  const [planAtenciones, setPlanAtenciones] = useState<{ rol: string; mes: number; ano: number; nota?: string }[]>([]);
   const [seguimientoTelefonico, setSeguimientoTelefonico] = useState(false);
   const [clinicos, setClinicos] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
@@ -122,6 +134,10 @@ export default function NuevoEcicep() {
           setHospitalizacionReciente(!!res.evaluacion.hospitalizacion_reciente);
           setConsultasUrgencia(res.evaluacion.consultas_urgencia || 0);
           setGestorRut(res.evaluacion.gestor_rut || "");
+          
+          const dataClinica = getParsedDataClinica(res.evaluacion.data_clinica);
+          setPlanAtenciones(dataClinica?.plan || []);
+          setSeguimientoTelefonico(!!dataClinica?.seguimiento_telefonico);
         } else {
           setCategoria("G1");
           setDiagnosticos([]);
@@ -132,6 +148,8 @@ export default function NuevoEcicep() {
           setHospitalizacionReciente(false);
           setConsultasUrgencia(0);
           setGestorRut("");
+          setPlanAtenciones([]);
+          setSeguimientoTelefonico(false);
         }
       }
     } else {
@@ -150,6 +168,10 @@ export default function NuevoEcicep() {
         setHospitalizacionReciente(!!res.evaluacion.hospitalizacion_reciente);
         setConsultasUrgencia(res.evaluacion.consultas_urgencia || 0);
         setGestorRut(res.evaluacion.gestor_rut || "");
+        
+        const dataClinica = getParsedDataClinica(res.evaluacion.data_clinica);
+        setPlanAtenciones(dataClinica?.plan || []);
+        setSeguimientoTelefonico(!!dataClinica?.seguimiento_telefonico);
       } else {
         setCategoria("G1");
         setDiagnosticos([]);
@@ -160,6 +182,8 @@ export default function NuevoEcicep() {
         setHospitalizacionReciente(false);
         setConsultasUrgencia(0);
         setGestorRut("");
+        setPlanAtenciones([]);
+        setSeguimientoTelefonico(false);
       }
     }
     setLoadingSearch(false);
