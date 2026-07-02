@@ -218,13 +218,7 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
     const dataClinica = getParsedDataClinica(selectedPatient.data_clinica);
     setSeguimientoTelefonico(dataClinica?.seguimiento_telefonico || false);
     setEstamentoSeguimiento(dataClinica?.estamento_seguimiento || "");
-    setProcLab(!!dataClinica?.procedimientos_pendientes?.laboratorio);
-    setProcEcg(!!dataClinica?.procedimientos_pendientes?.ecg);
-    setProcEspiro(!!dataClinica?.procedimientos_pendientes?.espirometria);
-    setProcFondoOjo(!!dataClinica?.procedimientos_pendientes?.fondoOjo);
-    setProcPerfilPA(!!dataClinica?.procedimientos_pendientes?.perfilPA);
-    setProcOtros(!!dataClinica?.procedimientos_pendientes?.otros);
-    setProcOtrosTexto(dataClinica?.procedimientos_pendientes?.otrosTexto || "");
+
     setFechaIngreso(dataClinica?.fecha_ingreso || selectedPatient.ultima_atencion || new Date().toISOString().slice(0, 10));
     
     // Cargar plan dinámico de atenciones
