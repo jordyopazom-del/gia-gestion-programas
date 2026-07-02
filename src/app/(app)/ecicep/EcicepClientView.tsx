@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { Search, MapPin, AlertTriangle, CheckCircle, Clock, Download, ClipboardCheck, X, User, Phone, Map, Calendar, ShieldCheck, HeartPulse, UserCheck, Info, Plus, Save } from "lucide-react";
+import { Search, MapPin, AlertTriangle, CheckCircle, Clock, Download, ClipboardCheck, X, User, Phone, Map, Calendar, Plus, Save } from "lucide-react";
 import * as XLSX from "xlsx";
 import toast from "react-hot-toast";
 import { UserProfile } from "@/actions/userActions";
@@ -169,10 +169,7 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
   const [gestorRut, setGestorRut] = useState("");
   const [profesionalRut, setProfesionalRut] = useState("");
   const [observaciones, setObservaciones] = useState("");
-  const [citaMedico, setCitaMedico] = useState("");
-  const [citaEnfermero, setCitaEnfermero] = useState("");
-  const [citaNutri, setCitaNutri] = useState("");
-  const [citaKine, setCitaKine] = useState("");
+
   const [planAtenciones, setPlanAtenciones] = useState<any[]>([]);
   const [seguimientoTelefonico, setSeguimientoTelefonico] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -199,7 +196,6 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
     return a;
   }, [selectedPatient]);
 
-  const isAdultoMayor = patientAge !== null && patientAge >= 65;
 
   const openFormModal = () => {
     if (!selectedPatient) return;
@@ -366,7 +362,18 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
   };
 
   const addPlanRow = () => {
-    setPlanAtenciones([...planAtenciones, { rol: "Médico", mes: new Date().getMonth() + 1, ano: new Date().getFullYear() }]);
+    setPlanAtenciones([...planAtenciones, { 
+      rol: "Médico", 
+      mes: new Date().getMonth() + 1, 
+      ano: new Date().getFullYear(),
+      laboratorio: false,
+      ecg: false,
+      espirometria: false,
+      fondoOjo: false,
+      perfilPA: false,
+      otros: false,
+      otrosTexto: ""
+    }]);
   };
 
   const removePlanRow = (idx: number) => {

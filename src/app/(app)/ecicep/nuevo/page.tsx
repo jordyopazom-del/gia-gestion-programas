@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { buscarPacienteParaEcicep, saveEcicepRecord, obtenerClinicosActivos, EcicepSubmission } from "@/actions/ecicepActions";
 import { crearPacienteProvisorio } from "@/actions/pacientesActions";
 import { getCurrentUser } from "@/actions/userActions";
-import { Search, UserCircle, Calendar, ShieldCheck, AlertCircle, UserPlus, X, ClipboardCheck, Info } from "lucide-react";
+import { Search, UserCircle, Calendar, AlertCircle, UserPlus, X, ClipboardCheck } from "lucide-react";
 import { getLocalDateString } from "@/lib/dateUtils";
 import { toast } from "react-hot-toast";
 
@@ -81,10 +81,7 @@ export default function NuevoEcicep() {
   const [gestorRut, setGestorRut] = useState("");
   const [profesionalRut, setProfesionalRut] = useState("");
   const [observaciones, setObservaciones] = useState("");
-  const [citaMedico, setCitaMedico] = useState("");
-  const [citaEnfermero, setCitaEnfermero] = useState("");
-  const [citaNutri, setCitaNutri] = useState("");
-  const [citaKine, setCitaKine] = useState("");
+
   const [planAtenciones, setPlanAtenciones] = useState<any[]>([]);
   const [seguimientoTelefonico, setSeguimientoTelefonico] = useState(false);
   const [estamentoSeguimiento, setEstamentoSeguimiento] = useState("");
