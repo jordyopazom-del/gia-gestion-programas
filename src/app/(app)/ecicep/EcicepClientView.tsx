@@ -1443,53 +1443,51 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
                           placeholder="Nota específica para esta cita (Ej: examen de sangre, 10 sesiones...)"
                           className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-[11px] text-slate-600 placeholder-slate-400 outline-none focus:ring-1 focus:ring-blue-500"
                         />
+                        
+                        {/* Procedimientos y Órdenes para esta cita */}
+                        <div className="pt-2 border-t border-slate-100 mt-2">
+                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Órdenes pendientes para esta cita:</p>
+                          <div className="flex flex-wrap gap-2">
+                            <label className="flex items-center space-x-1.5 cursor-pointer bg-white px-2 py-1 rounded border border-slate-200 hover:bg-slate-50">
+                              <input type="checkbox" className="h-3 w-3 text-red-600 rounded border-slate-300" checked={item.laboratorio || false} onChange={e => updatePlanRow(idx, 'laboratorio', e.target.checked)} />
+                              <span className="text-[10px] font-bold text-slate-600">🩸 Lab</span>
+                            </label>
+                            <label className="flex items-center space-x-1.5 cursor-pointer bg-white px-2 py-1 rounded border border-slate-200 hover:bg-slate-50">
+                              <input type="checkbox" className="h-3 w-3 text-rose-600 rounded border-slate-300" checked={item.ecg || false} onChange={e => updatePlanRow(idx, 'ecg', e.target.checked)} />
+                              <span className="text-[10px] font-bold text-slate-600">🫀 ECG</span>
+                            </label>
+                            <label className="flex items-center space-x-1.5 cursor-pointer bg-white px-2 py-1 rounded border border-slate-200 hover:bg-slate-50">
+                              <input type="checkbox" className="h-3 w-3 text-teal-600 rounded border-slate-300" checked={item.espirometria || false} onChange={e => updatePlanRow(idx, 'espirometria', e.target.checked)} />
+                              <span className="text-[10px] font-bold text-slate-600">🫁 Espiro</span>
+                            </label>
+                            <label className="flex items-center space-x-1.5 cursor-pointer bg-white px-2 py-1 rounded border border-slate-200 hover:bg-slate-50">
+                              <input type="checkbox" className="h-3 w-3 text-amber-600 rounded border-slate-300" checked={item.fondoOjo || false} onChange={e => updatePlanRow(idx, 'fondoOjo', e.target.checked)} />
+                              <span className="text-[10px] font-bold text-slate-600">👁️ F.Ojo</span>
+                            </label>
+                            <label className="flex items-center space-x-1.5 cursor-pointer bg-white px-2 py-1 rounded border border-slate-200 hover:bg-slate-50">
+                              <input type="checkbox" className="h-3 w-3 text-indigo-600 rounded border-slate-300" checked={item.perfilPA || false} onChange={e => updatePlanRow(idx, 'perfilPA', e.target.checked)} />
+                              <span className="text-[10px] font-bold text-slate-600">⚕️ Perfil PA</span>
+                            </label>
+                            <label className="flex items-center space-x-1.5 cursor-pointer bg-white px-2 py-1 rounded border border-slate-200 hover:bg-slate-50">
+                              <input type="checkbox" className="h-3 w-3 text-slate-600 rounded border-slate-300" checked={item.otros || false} onChange={e => updatePlanRow(idx, 'otros', e.target.checked)} />
+                              <span className="text-[10px] font-bold text-slate-600">➕ Otros</span>
+                            </label>
+                          </div>
+                          {item.otros && (
+                            <div className="mt-2">
+                              <input 
+                                type="text" 
+                                value={item.otrosTexto || ""}
+                                onChange={e => updatePlanRow(idx, 'otrosTexto', e.target.value)}
+                                placeholder="Ej: Rx Tórax..."
+                                className="w-full bg-white border border-slate-200 rounded px-2.5 py-1 text-[11px] text-slate-700 outline-none focus:ring-1 focus:ring-blue-500"
+                                required
+                              />
+                            </div>
+                          )}
+                        </div>
                       </div>
                     ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Procedimientos Pendientes */}
-              <div className="pt-4 mt-4 border-t border-slate-100">
-                <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider mb-3">📋 Órdenes y Procedimientos Pendientes</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                  <label className="flex items-center space-x-2.5 cursor-pointer bg-slate-50 p-2.5 rounded-lg border border-slate-200 hover:bg-slate-100 transition">
-                    <input type="checkbox" className="h-4 w-4 text-red-600 rounded border-slate-300" checked={procLab} onChange={e => setProcLab(e.target.checked)} />
-                    <span className="text-[11px] font-bold text-slate-700 select-none">🩸 Laboratorio</span>
-                  </label>
-                  <label className="flex items-center space-x-2.5 cursor-pointer bg-slate-50 p-2.5 rounded-lg border border-slate-200 hover:bg-slate-100 transition">
-                    <input type="checkbox" className="h-4 w-4 text-rose-600 rounded border-slate-300" checked={procEcg} onChange={e => setProcEcg(e.target.checked)} />
-                    <span className="text-[11px] font-bold text-slate-700 select-none">🫀 ECG</span>
-                  </label>
-                  <label className="flex items-center space-x-2.5 cursor-pointer bg-slate-50 p-2.5 rounded-lg border border-slate-200 hover:bg-slate-100 transition">
-                    <input type="checkbox" className="h-4 w-4 text-teal-600 rounded border-slate-300" checked={procEspiro} onChange={e => setProcEspiro(e.target.checked)} />
-                    <span className="text-[11px] font-bold text-slate-700 select-none">🫁 Espirometría</span>
-                  </label>
-                  <label className="flex items-center space-x-2.5 cursor-pointer bg-slate-50 p-2.5 rounded-lg border border-slate-200 hover:bg-slate-100 transition">
-                    <input type="checkbox" className="h-4 w-4 text-amber-600 rounded border-slate-300" checked={procFondoOjo} onChange={e => setProcFondoOjo(e.target.checked)} />
-                    <span className="text-[11px] font-bold text-slate-700 select-none">👁️ Fondo Ojo</span>
-                  </label>
-                  <label className="flex items-center space-x-2.5 cursor-pointer bg-slate-50 p-2.5 rounded-lg border border-slate-200 hover:bg-slate-100 transition">
-                    <input type="checkbox" className="h-4 w-4 text-indigo-600 rounded border-slate-300" checked={procPerfilPA} onChange={e => setProcPerfilPA(e.target.checked)} />
-                    <span className="text-[11px] font-bold text-slate-700 select-none">⚕️ Perfil PA</span>
-                  </label>
-                  <div className="flex flex-col space-y-2">
-                    <label className="flex items-center space-x-2.5 cursor-pointer bg-slate-50 p-2.5 rounded-lg border border-slate-200 hover:bg-slate-100 transition">
-                      <input type="checkbox" className="h-4 w-4 text-slate-600 rounded border-slate-300" checked={procOtros} onChange={e => { setProcOtros(e.target.checked); if(!e.target.checked) setProcOtrosTexto(""); }} />
-                      <span className="text-[11px] font-bold text-slate-700 select-none">➕ Otros</span>
-                    </label>
-                  </div>
-                </div>
-                {procOtros && (
-                  <div className="mt-3 animate-in fade-in slide-in-from-top-2">
-                    <input 
-                      type="text" 
-                      value={procOtrosTexto}
-                      onChange={e => setProcOtrosTexto(e.target.value)}
-                      placeholder="Especifique qué otros exámenes u órdenes..."
-                      className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                    />
                   </div>
                 )}
               </div>
