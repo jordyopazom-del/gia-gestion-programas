@@ -308,10 +308,7 @@ export default function NuevoEcicep() {
       setConsultasUrgencia(0);
       setGestorRut("");
       setObservaciones("");
-      setCitaMedico("");
-      setCitaEnfermero("");
-      setCitaNutri("");
-      setCitaKine("");
+
       setPlanAtenciones([]);
       setSeguimientoTelefonico(false);
       setEstamentoSeguimiento("");
