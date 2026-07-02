@@ -85,7 +85,7 @@ export default function NuevoEcicep() {
   const [citaEnfermero, setCitaEnfermero] = useState("");
   const [citaNutri, setCitaNutri] = useState("");
   const [citaKine, setCitaKine] = useState("");
-  const [planAtenciones, setPlanAtenciones] = useState<{ rol: string; mes: number; ano: number; nota?: string }[]>([]);
+  const [planAtenciones, setPlanAtenciones] = useState<any[]>([]);
   const [seguimientoTelefonico, setSeguimientoTelefonico] = useState(false);
   const [estamentoSeguimiento, setEstamentoSeguimiento] = useState("");
   
