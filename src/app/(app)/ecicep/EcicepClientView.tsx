@@ -173,7 +173,7 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
   const [citaEnfermero, setCitaEnfermero] = useState("");
   const [citaNutri, setCitaNutri] = useState("");
   const [citaKine, setCitaKine] = useState("");
-  const [planAtenciones, setPlanAtenciones] = useState<{ rol: string; mes: number; ano: number; nota?: string }[]>([]);
+  const [planAtenciones, setPlanAtenciones] = useState<any[]>([]);
   const [seguimientoTelefonico, setSeguimientoTelefonico] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -373,9 +373,10 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
     setPlanAtenciones(planAtenciones.filter((_, i) => i !== idx));
   };
 
-  const updatePlanRow = (idx: number, field: 'rol' | 'mes' | 'ano' | 'nota', value: any) => {
+  const updatePlanRow = (idx: number, field: string, value: any) => {
     const updated = [...planAtenciones];
     updated[idx] = { ...updated[idx], [field]: value };
+    if (field === 'otros' && !value) updated[idx].otrosTexto = "";
     setPlanAtenciones(updated);
   };
 
