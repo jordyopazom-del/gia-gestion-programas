@@ -17,8 +17,13 @@ const ENFERMEDADES_CRONICAS = [
   "Hipotiroidismo",
   "Dislipidemia",
   "Depresión / Salud Mental Crónica",
-  "Epilepsia",
   "Secuela de Accidente Cerebrovascular (ACV)"
+];
+
+const ROLES_DISPONIBLES = [
+  "Médico", "Enfermero", "Nutricionista", "Kinesiólogo", 
+  "Psicólogo", "Asistente Social", "Terapeuta Ocupacional", 
+  "Fonoaudiólogo", "Odontólogo", "TENS", "Matrón(a)"
 ];
 
 const getEcicepStatus = (fechaString: string | null) => {
@@ -132,6 +137,7 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
   const [filterSector, setFilterSector] = useState("Todos");
   const [filterStatus, setFilterStatus] = useState("Todos");
   const [filterCategory, setFilterCategory] = useState("Todos");
+  const [filterPendienteEstamento, setFilterPendienteEstamento] = useState("Todos");
   const [onlySeguimiento, setOnlySeguimiento] = useState(false);
   const [onlyBrecha, setOnlyBrecha] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
@@ -140,6 +146,7 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
   const [showFormModal, setShowFormModal] = useState(false);
   const [clinicos, setClinicos] = useState<any[]>([]);
   const [fechaAtencion, setFechaAtencion] = useState("");
+  const [fechaIngreso, setFechaIngreso] = useState("");
   const [categoria, setCategoria] = useState("G1");
   const [diagnosticos, setDiagnosticos] = useState<string[]>([]);
   const [polifarmacia, setPolifarmacia] = useState(false);
@@ -199,6 +206,7 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
     setObservaciones(selectedPatient.observaciones || "");
     const dataClinica = getParsedDataClinica(selectedPatient.data_clinica);
     setSeguimientoTelefonico(dataClinica?.seguimiento_telefonico || false);
+    setFechaIngreso(dataClinica?.fecha_ingreso || selectedPatient.ultima_atencion || new Date().toISOString().slice(0, 10));
     
     // Cargar plan dinámico de atenciones
     const plan = dataClinica?.plan || [];
@@ -269,7 +277,7 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
       cita_enfermero: dateEnf,
       cita_nutri: dateNut,
       cita_kine: dateKin,
-      data_clinica: { plan: planAtenciones, seguimiento_telefonico: seguimientoTelefonico }
+      data_clinica: { plan: planAtenciones, seguimiento_telefonico: seguimientoTelefonico, fecha_ingreso: fechaIngreso }
     };
 
     const res = await saveEcicepRecord(payload);
@@ -314,8 +322,7 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
   }, [data]);
 
   const hasBrecha = (p: any) => {
-    const roles = ["Médico", "Enfermero", "Nutricionista", "Kinesiólogo"];
-    return roles.some(rol => {
+    return ROLES_DISPONIBLES.some(rol => {
       const status = getCitaDisplayStatus(p, rol);
       return status.isExpired;
     });
@@ -336,9 +343,14 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
       const matchSeguimiento = !onlySeguimiento || dataClinica?.seguimiento_telefonico;
       const matchBrecha = !onlyBrecha || hasBrecha(p);
       
-      return matchRut && matchSector && matchStatus && matchCategory && matchSeguimiento && matchBrecha;
+      const matchPendienteEstamento = filterPendienteEstamento === "Todos" || (() => {
+        const status = getCitaDisplayStatus(p, filterPendienteEstamento);
+        return status.isExpired;
+      })();
+      
+      return matchRut && matchSector && matchStatus && matchCategory && matchSeguimiento && matchBrecha && matchPendienteEstamento;
     });
-  }, [data, searchRut, filterSector, filterStatus, filterCategory, onlySeguimiento, onlyBrecha]);
+  }, [data, searchRut, filterSector, filterStatus, filterCategory, onlySeguimiento, onlyBrecha, filterPendienteEstamento]);
 
   const stats = useMemo(() => {
     const total = data.length;
@@ -418,6 +430,7 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
         "Sector": p.sector,
         "Teléfono": p.telefono,
         "Fecha Última Estratificación": formatDate(p.ultima_atencion),
+        "Fecha Ingreso ECICEP": formatDate(getParsedDataClinica(p.data_clinica)?.fecha_ingreso || p.ultima_atencion),
         "Categoría ECICEP": p.categoria || "PENDIENTE",
         "Polifarmacia": p.polifarmacia ? "SI" : "NO",
         "Funcionalidad": p.funcionalidad || "-",
@@ -534,7 +547,7 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
 
       {view === 'lista' ? (
         <>
-          <div className="px-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="px-6 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
             <div>
               <label className="flex items-center text-xs font-semibold text-slate-500 mb-1">
                 <Search size={12} className="mr-1" /> Buscar por RUT o Nombre
@@ -585,6 +598,20 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
                 <option value="Próximo a Vencer">Próximo a Vencer</option>
                 <option value="Vencido">Vencido</option>
                 <option value="Pendiente">Sin Registro</option>
+              </select>
+            </div>
+            <div>
+              <label className="flex items-center text-xs font-semibold text-slate-500 mb-1">
+                <AlertTriangle size={12} className="mr-1" /> Brecha por Estamento
+              </label>
+              <select 
+                value={filterPendienteEstamento} onChange={e => setFilterPendienteEstamento(e.target.value)}
+                className="w-full bg-slate-100 border-none rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-100 font-bold text-slate-700"
+              >
+                <option value="Todos">Todos los estamentos</option>
+                {ROLES_DISPONIBLES.map(rol => (
+                  <option key={rol} value={rol}>{rol}</option>
+                ))}
               </select>
             </div>
           </div>
@@ -973,15 +1000,16 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
                     {(() => {
                          const dataClinica = getParsedDataClinica(selectedPatient.data_clinica);
                          return (
-                           <p className="text-[10px] opacity-80 pt-2 border-t border-black/10 flex flex-col space-y-1">
-                             <span>Evaluado el: {formatDate(selectedPatient.ultima_atencion)}</span>
-                             <span>Elaborado por: {dataClinica?.creador?.nombre || selectedPatient.profesional_nombre || "Clínico Registrador"}</span>
-                             {dataClinica?.creador && dataClinica.creador.rut !== selectedPatient.profesional_rut && (
-                               <span className="font-semibold text-slate-900 mt-0.5">
-                                 Última actualización: {selectedPatient.profesional_nombre}
-                               </span>
-                             )}
-                           </p>
+                           <div className="text-[10px] opacity-80 pt-2 border-t border-black/10 flex flex-col space-y-1">
+                             <span><strong>Ingresado el:</strong> {formatDate(dataClinica?.fecha_ingreso || selectedPatient.ultima_atencion)}</span>
+                             <span><strong>Evaluado el:</strong> {formatDate(selectedPatient.ultima_atencion)}</span>
+                             <span className="mt-1">
+                               <strong className="text-indigo-800">Gestor de Caso:</strong> {selectedPatient.gestor_nombre || 'Sin Asignar'}
+                             </span>
+                             <span>
+                               <strong>Última actualización por:</strong> {selectedPatient.profesional_nombre || "Clínico Registrador"}
+                             </span>
+                           </div>
                          );
                        })()}
                   </div>
@@ -1128,7 +1156,7 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
             <form onSubmit={handleSaveModal} className="flex-1 overflow-y-auto p-6 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">Fecha de la Estratificación</label>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">Fecha de la Estratificación Actual</label>
                   <input 
                     type="date" 
                     required 
@@ -1139,7 +1167,18 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">Profesional Responsable / Evaluador</label>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">Fecha de Ingreso al ECICEP (Histórica)</label>
+                  <input 
+                    type="date" 
+                    required 
+                    value={fechaIngreso} 
+                    max={new Date().toISOString().slice(0, 10)} 
+                    onChange={e => setFechaIngreso(e.target.value)} 
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none font-bold text-emerald-700" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">Profesional que Registra / Modifica</label>
                   <select 
                     required
                     value={profesionalRut} 
@@ -1152,7 +1191,19 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
                     ))}
                   </select>
                 </div>
-
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">Gestor de Caso (Titular)</label>
+                  <select 
+                    value={gestorRut} 
+                    onChange={e => setGestorRut(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none font-bold text-indigo-700"
+                  >
+                    <option value="">-- Seleccionar Gestor (Opcional) --</option>
+                    {clinicos.map(c => (
+                      <option key={c.rut} value={c.rut}>{c.nombre} ({c.profesion})</option>
+                    ))}
+                  </select>
+                </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-600 mb-1">Categoría ECICEP</label>
                   <select 
@@ -1206,7 +1257,7 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
                             onChange={e => updatePlanRow(idx, 'rol', e.target.value)}
                             className="flex-1 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-700 outline-none"
                           >
-                            {["Médico", "Enfermero", "Nutricionista", "Kinesiólogo", "Psicólogo", "Asistente Social", "Terapeuta Ocupacional", "Fonoaudiólogo", "Odontólogo", "TENS", "Matrón(a)"].map(role => (
+                            {ROLES_DISPONIBLES.map(role => (
                               <option key={role} value={role}>{role}</option>
                             ))}
                           </select>

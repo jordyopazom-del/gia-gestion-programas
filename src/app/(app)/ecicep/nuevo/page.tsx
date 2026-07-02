@@ -58,6 +58,11 @@ export default function NuevoEcicep() {
     const offset = d.getTimezoneOffset() * 60000;
     return new Date(d.getTime() - offset).toISOString().slice(0, 10);
   });
+  const [fechaIngreso, setFechaIngreso] = useState(() => {
+    const d = new Date();
+    const offset = d.getTimezoneOffset() * 60000;
+    return new Date(d.getTime() - offset).toISOString().slice(0, 10);
+  });
   const [categoria, setCategoria] = useState("G1");
   const [diagnosticos, setDiagnosticos] = useState<string[]>([]);
   const [polifarmacia, setPolifarmacia] = useState(false);
@@ -138,6 +143,7 @@ export default function NuevoEcicep() {
           const dataClinica = getParsedDataClinica(res.evaluacion.data_clinica);
           setPlanAtenciones(dataClinica?.plan || []);
           setSeguimientoTelefonico(!!dataClinica?.seguimiento_telefonico);
+          setFechaIngreso(dataClinica?.fecha_ingreso || res.evaluacion.fecha_atencion || new Date().toISOString().slice(0, 10));
         } else {
           setCategoria("G1");
           setDiagnosticos([]);
@@ -150,6 +156,7 @@ export default function NuevoEcicep() {
           setGestorRut("");
           setPlanAtenciones([]);
           setSeguimientoTelefonico(false);
+          setFechaIngreso(new Date().toISOString().slice(0, 10));
         }
       }
     } else {
@@ -172,6 +179,7 @@ export default function NuevoEcicep() {
         const dataClinica = getParsedDataClinica(res.evaluacion.data_clinica);
         setPlanAtenciones(dataClinica?.plan || []);
         setSeguimientoTelefonico(!!dataClinica?.seguimiento_telefonico);
+        setFechaIngreso(dataClinica?.fecha_ingreso || res.evaluacion.fecha_atencion || new Date().toISOString().slice(0, 10));
       } else {
         setCategoria("G1");
         setDiagnosticos([]);
@@ -184,6 +192,7 @@ export default function NuevoEcicep() {
         setGestorRut("");
         setPlanAtenciones([]);
         setSeguimientoTelefonico(false);
+        setFechaIngreso(new Date().toISOString().slice(0, 10));
       }
     }
     setLoadingSearch(false);
@@ -251,7 +260,7 @@ export default function NuevoEcicep() {
       cita_enfermero: dateEnf,
       cita_nutri: dateNut,
       cita_kine: dateKin,
-      data_clinica: { plan: planAtenciones, seguimiento_telefonico: seguimientoTelefonico }
+      data_clinica: { plan: planAtenciones, seguimiento_telefonico: seguimientoTelefonico, fecha_ingreso: fechaIngreso }
     };
 
     const res = await saveEcicepRecord(payload);
@@ -278,6 +287,7 @@ export default function NuevoEcicep() {
       setCitaKine("");
       setPlanAtenciones([]);
       setSeguimientoTelefonico(false);
+      setFechaIngreso(new Date().toISOString().slice(0, 10));
     }
     setSaving(false);
   };
@@ -429,7 +439,7 @@ export default function NuevoEcicep() {
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                   <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-1">Fecha de la Estratificación</label>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">Fecha de la Estratificación Actual</label>
                     <input 
                       type="date" 
                       required 
@@ -440,7 +450,18 @@ export default function NuevoEcicep() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-1">Profesional Responsable / Evaluador</label>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">Fecha de Ingreso al ECICEP (Histórica)</label>
+                    <input 
+                      type="date" 
+                      required 
+                      value={fechaIngreso} 
+                      max={getLocalDateString()} 
+                      onChange={e => setFechaIngreso(e.target.value)} 
+                      className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none font-bold text-emerald-700" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">Profesional que Registra / Modifica</label>
                     <select 
                       required
                       value={profesionalRut} 
@@ -448,6 +469,19 @@ export default function NuevoEcicep() {
                       className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none font-bold text-blue-600"
                     >
                       <option value="">-- Seleccione Profesional --</option>
+                      {clinicos.map(c => (
+                        <option key={c.rut} value={c.rut}>{c.nombre} ({c.profesion})</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">Gestor de Caso (Titular)</label>
+                    <select 
+                      value={gestorRut} 
+                      onChange={e => setGestorRut(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none font-bold text-indigo-700"
+                    >
+                      <option value="">-- Seleccionar Gestor (Opcional) --</option>
                       {clinicos.map(c => (
                         <option key={c.rut} value={c.rut}>{c.nombre} ({c.profesion})</option>
                       ))}

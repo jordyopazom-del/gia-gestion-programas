@@ -41,3 +41,15 @@ Antes de dar una tarea por finalizada, Antigravity DEBE auto-validar:
 ---
 > [!IMPORTANT]
 > Estas reglas son inamovibles. Si una tarea las contradice, Antigravity debe alertar al usuario antes de proceder.
+
+## 🔄 Protocolo de Inicio de Conversación y Control
+Cada vez que se inicie o retome una conversación, Antigravity debe:
+1.  **Revisión Obligatoria**: Leer activamente las reglas del proyecto (`AGENTS.md`).
+2.  **Cero Cambios sin Autorización**: No modificar ni crear código sin autorización explícita del usuario.
+3.  **Cero Despliegues sin Autorización**: No realizar commits, pushes ni subir nada a producción sin autorización explícita del usuario.
+4.  **Consulta ante Dudas**: Preguntar siempre ante cualquier duda o ambigüedad, sin asumir.
+5.  **Explicación y Justificación**: Explicar detalladamente qué se planea hacer y el porqué, incluyendo las **ventajas y desventajas** de las decisiones propuestas.
+6.  **Resumen de Control**: Proveer al usuario de:
+    *   Un resumen de lo último realizado.
+    *   Un listado claro de tareas pendientes.
+    *   Sugerencias de posibilidades de mejoras.
