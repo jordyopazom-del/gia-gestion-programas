@@ -150,13 +150,7 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
   const [fechaIngreso, setFechaIngreso] = useState("");
   const [estamentoSeguimiento, setEstamentoSeguimiento] = useState("");
   
-  const [procLab, setProcLab] = useState(false);
-  const [procEcg, setProcEcg] = useState(false);
-  const [procEspiro, setProcEspiro] = useState(false);
-  const [procFondoOjo, setProcFondoOjo] = useState(false);
-  const [procPerfilPA, setProcPerfilPA] = useState(false);
-  const [procOtros, setProcOtros] = useState(false);
-  const [procOtrosTexto, setProcOtrosTexto] = useState("");
+
 
   const [categoria, setCategoria] = useState("G1");
   const [diagnosticos, setDiagnosticos] = useState<string[]>([]);
@@ -306,15 +300,6 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
         plan: planAtenciones, 
         seguimiento_telefonico: seguimientoTelefonico,
         estamento_seguimiento: seguimientoTelefonico ? estamentoSeguimiento : "",
-        procedimientos_pendientes: {
-          laboratorio: procLab,
-          ecg: procEcg,
-          espirometria: procEspiro,
-          fondoOjo: procFondoOjo,
-          perfilPA: procPerfilPA,
-          otros: procOtros,
-          otrosTexto: procOtros ? procOtrosTexto : ""
-        },
         fecha_ingreso: fechaIngreso 
       }
     };
