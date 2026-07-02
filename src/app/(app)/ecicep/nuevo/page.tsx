@@ -6,6 +6,13 @@ import { crearPacienteProvisorio } from "@/actions/pacientesActions";
 import { getCurrentUser } from "@/actions/userActions";
 import { Search, UserCircle, Calendar, ShieldCheck, AlertCircle, UserPlus, X, ClipboardCheck, Info } from "lucide-react";
 import { getLocalDateString } from "@/lib/dateUtils";
+import { toast } from "react-hot-toast";
+
+const ROLES_DISPONIBLES = [
+  "Médico", "Enfermero", "Nutricionista", "Kinesiólogo", 
+  "Psicólogo", "Asistente Social", "Terapeuta Ocupacional", 
+  "Fonoaudiólogo", "Odontólogo", "TENS", "Matrón(a)"
+];
 
 const ENFERMEDADES_CRONICAS = [
   "Hipertensión Arterial (HTA)",
@@ -80,6 +87,8 @@ export default function NuevoEcicep() {
   const [citaKine, setCitaKine] = useState("");
   const [planAtenciones, setPlanAtenciones] = useState<{ rol: string; mes: number; ano: number; nota?: string }[]>([]);
   const [seguimientoTelefonico, setSeguimientoTelefonico] = useState(false);
+  const [estamentoSeguimiento, setEstamentoSeguimiento] = useState("");
+  
   const [clinicos, setClinicos] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -143,6 +152,7 @@ export default function NuevoEcicep() {
           const dataClinica = getParsedDataClinica(res.evaluacion.data_clinica);
           setPlanAtenciones(dataClinica?.plan || []);
           setSeguimientoTelefonico(!!dataClinica?.seguimiento_telefonico);
+          setEstamentoSeguimiento(dataClinica?.estamento_seguimiento || "");
           setFechaIngreso(dataClinica?.fecha_ingreso || res.evaluacion.fecha_atencion || new Date().toISOString().slice(0, 10));
         } else {
           setCategoria("G1");
@@ -156,6 +166,7 @@ export default function NuevoEcicep() {
           setGestorRut("");
           setPlanAtenciones([]);
           setSeguimientoTelefonico(false);
+          setEstamentoSeguimiento("");
           setFechaIngreso(new Date().toISOString().slice(0, 10));
         }
       }
@@ -179,6 +190,7 @@ export default function NuevoEcicep() {
         const dataClinica = getParsedDataClinica(res.evaluacion.data_clinica);
         setPlanAtenciones(dataClinica?.plan || []);
         setSeguimientoTelefonico(!!dataClinica?.seguimiento_telefonico);
+        setEstamentoSeguimiento(dataClinica?.estamento_seguimiento || "");
         setFechaIngreso(dataClinica?.fecha_ingreso || res.evaluacion.fecha_atencion || new Date().toISOString().slice(0, 10));
       } else {
         setCategoria("G1");
@@ -192,6 +204,7 @@ export default function NuevoEcicep() {
         setGestorRut("");
         setPlanAtenciones([]);
         setSeguimientoTelefonico(false);
+        setEstamentoSeguimiento("");
         setFechaIngreso(new Date().toISOString().slice(0, 10));
       }
     }
@@ -207,16 +220,28 @@ export default function NuevoEcicep() {
   };
 
   const addPlanRow = () => {
-    setPlanAtenciones([...planAtenciones, { rol: "Médico", mes: new Date().getMonth() + 1, ano: new Date().getFullYear() }]);
+    setPlanAtenciones([...planAtenciones, { 
+      rol: "Médico", 
+      mes: new Date().getMonth() + 1, 
+      ano: new Date().getFullYear(),
+      laboratorio: false,
+      ecg: false,
+      espirometria: false,
+      fondoOjo: false,
+      perfilPA: false,
+      otros: false,
+      otrosTexto: ""
+    }]);
   };
 
   const removePlanRow = (idx: number) => {
     setPlanAtenciones(planAtenciones.filter((_, i) => i !== idx));
   };
 
-  const updatePlanRow = (idx: number, field: 'rol' | 'mes' | 'ano' | 'nota', value: any) => {
+  const updatePlanRow = (idx: number, field: string, value: any) => {
     const updated = [...planAtenciones];
     updated[idx] = { ...updated[idx], [field]: value };
+    if (field === 'otros' && !value) updated[idx].otrosTexto = "";
     setPlanAtenciones(updated);
   };
 
@@ -260,7 +285,12 @@ export default function NuevoEcicep() {
       cita_enfermero: dateEnf,
       cita_nutri: dateNut,
       cita_kine: dateKin,
-      data_clinica: { plan: planAtenciones, seguimiento_telefonico: seguimientoTelefonico, fecha_ingreso: fechaIngreso }
+      data_clinica: { 
+        plan: planAtenciones, 
+        seguimiento_telefonico: seguimientoTelefonico,
+        estamento_seguimiento: seguimientoTelefonico ? estamentoSeguimiento : "",
+        fecha_ingreso: fechaIngreso 
+      }
     };
 
     const res = await saveEcicepRecord(payload);
@@ -287,6 +317,7 @@ export default function NuevoEcicep() {
       setCitaKine("");
       setPlanAtenciones([]);
       setSeguimientoTelefonico(false);
+      setEstamentoSeguimiento("");
       setFechaIngreso(new Date().toISOString().slice(0, 10));
     }
     setSaving(false);
@@ -500,18 +531,37 @@ export default function NuevoEcicep() {
                       <option value="G3">G3 - Riesgo Alto / Complejo</option>
                     </select>
                   </div>
-                  <div className="flex items-center pt-5">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 pt-5 border-t border-slate-100">
                     <label className="flex items-center space-x-2.5 cursor-pointer">
                       <input 
                         type="checkbox" 
                         className="h-4.5 w-4.5 text-blue-600 focus:ring-blue-500 border-slate-300 rounded"
                         checked={seguimientoTelefonico}
-                        onChange={e => setSeguimientoTelefonico(e.target.checked)}
+                        onChange={e => {
+                          setSeguimientoTelefonico(e.target.checked);
+                          if (!e.target.checked) setEstamentoSeguimiento("");
+                        }}
                       />
                       <span className="text-xs font-bold text-slate-700 uppercase tracking-wide select-none">
                         📞 Requiere Seguimiento Telefónico
                       </span>
                     </label>
+                    
+                    {seguimientoTelefonico && (
+                      <div className="mt-3 sm:mt-0 animate-in fade-in slide-in-from-left-4 duration-200">
+                        <select
+                          required
+                          value={estamentoSeguimiento}
+                          onChange={e => setEstamentoSeguimiento(e.target.value)}
+                          className="bg-slate-50 border border-slate-200 rounded-md px-3 py-1.5 text-xs font-bold text-blue-700 outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="">-- Asignar a Estamento --</option>
+                          {ROLES_DISPONIBLES.map(r => (
+                            <option key={r} value={r}>{r}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -578,9 +628,52 @@ export default function NuevoEcicep() {
                           type="text"
                           value={item.nota || ""}
                           onChange={e => updatePlanRow(idx, 'nota', e.target.value)}
-                          placeholder="Nota específica para esta cita (Ej: examen de sangre, 10 sesiones...)"
+                          placeholder="Nota específica para esta cita (Ej: control cardiovascular, 10 sesiones...)"
                           className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-[11px] text-slate-600 placeholder-slate-400 outline-none focus:ring-1 focus:ring-blue-500"
                         />
+                        
+                        {/* Procedimientos y Órdenes para esta cita */}
+                        <div className="pt-2 border-t border-slate-100 mt-2">
+                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Órdenes pendientes para esta cita:</p>
+                          <div className="flex flex-wrap gap-2">
+                            <label className="flex items-center space-x-1.5 cursor-pointer bg-white px-2 py-1 rounded border border-slate-200 hover:bg-slate-50">
+                              <input type="checkbox" className="h-3 w-3 text-red-600 rounded border-slate-300" checked={item.laboratorio || false} onChange={e => updatePlanRow(idx, 'laboratorio', e.target.checked)} />
+                              <span className="text-[10px] font-bold text-slate-600">🩸 Lab</span>
+                            </label>
+                            <label className="flex items-center space-x-1.5 cursor-pointer bg-white px-2 py-1 rounded border border-slate-200 hover:bg-slate-50">
+                              <input type="checkbox" className="h-3 w-3 text-rose-600 rounded border-slate-300" checked={item.ecg || false} onChange={e => updatePlanRow(idx, 'ecg', e.target.checked)} />
+                              <span className="text-[10px] font-bold text-slate-600">🫀 ECG</span>
+                            </label>
+                            <label className="flex items-center space-x-1.5 cursor-pointer bg-white px-2 py-1 rounded border border-slate-200 hover:bg-slate-50">
+                              <input type="checkbox" className="h-3 w-3 text-teal-600 rounded border-slate-300" checked={item.espirometria || false} onChange={e => updatePlanRow(idx, 'espirometria', e.target.checked)} />
+                              <span className="text-[10px] font-bold text-slate-600">🫁 Espiro</span>
+                            </label>
+                            <label className="flex items-center space-x-1.5 cursor-pointer bg-white px-2 py-1 rounded border border-slate-200 hover:bg-slate-50">
+                              <input type="checkbox" className="h-3 w-3 text-amber-600 rounded border-slate-300" checked={item.fondoOjo || false} onChange={e => updatePlanRow(idx, 'fondoOjo', e.target.checked)} />
+                              <span className="text-[10px] font-bold text-slate-600">👁️ F.Ojo</span>
+                            </label>
+                            <label className="flex items-center space-x-1.5 cursor-pointer bg-white px-2 py-1 rounded border border-slate-200 hover:bg-slate-50">
+                              <input type="checkbox" className="h-3 w-3 text-indigo-600 rounded border-slate-300" checked={item.perfilPA || false} onChange={e => updatePlanRow(idx, 'perfilPA', e.target.checked)} />
+                              <span className="text-[10px] font-bold text-slate-600">⚕️ Perfil PA</span>
+                            </label>
+                            <label className="flex items-center space-x-1.5 cursor-pointer bg-white px-2 py-1 rounded border border-slate-200 hover:bg-slate-50">
+                              <input type="checkbox" className="h-3 w-3 text-slate-600 rounded border-slate-300" checked={item.otros || false} onChange={e => updatePlanRow(idx, 'otros', e.target.checked)} />
+                              <span className="text-[10px] font-bold text-slate-600">➕ Otros</span>
+                            </label>
+                          </div>
+                          {item.otros && (
+                            <div className="mt-2">
+                              <input 
+                                type="text" 
+                                value={item.otrosTexto || ""}
+                                onChange={e => updatePlanRow(idx, 'otrosTexto', e.target.value)}
+                                placeholder="Ej: Rx Tórax..."
+                                className="w-full bg-white border border-slate-200 rounded px-2.5 py-1 text-[11px] text-slate-700 outline-none focus:ring-1 focus:ring-blue-500"
+                                required
+                              />
+                            </div>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>

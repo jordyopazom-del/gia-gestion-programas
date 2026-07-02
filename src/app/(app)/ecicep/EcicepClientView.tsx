@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { Search, MapPin, AlertTriangle, CheckCircle, Clock, Download, ClipboardCheck, X, User, Phone, Map, Calendar, ShieldCheck, HeartPulse, UserCheck, Info, Plus } from "lucide-react";
+import { Search, MapPin, AlertTriangle, CheckCircle, Clock, Download, ClipboardCheck, X, User, Phone, Map, Calendar, ShieldCheck, HeartPulse, UserCheck, Info, Plus, Save } from "lucide-react";
 import * as XLSX from "xlsx";
 import { UserProfile } from "@/actions/userActions";
 import { saveEcicepRecord, obtenerClinicosActivos, EcicepSubmission } from "@/actions/ecicepActions";
@@ -138,7 +138,7 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
   const [filterStatus, setFilterStatus] = useState("Todos");
   const [filterCategory, setFilterCategory] = useState("Todos");
   const [filterPendienteEstamento, setFilterPendienteEstamento] = useState("Todos");
-  const [onlySeguimiento, setOnlySeguimiento] = useState(false);
+  const [filterSeguimientoEstamento, setFilterSeguimientoEstamento] = useState("Todos");
   const [onlyBrecha, setOnlyBrecha] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
 
@@ -147,6 +147,16 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
   const [clinicos, setClinicos] = useState<any[]>([]);
   const [fechaAtencion, setFechaAtencion] = useState("");
   const [fechaIngreso, setFechaIngreso] = useState("");
+  const [estamentoSeguimiento, setEstamentoSeguimiento] = useState("");
+  
+  const [procLab, setProcLab] = useState(false);
+  const [procEcg, setProcEcg] = useState(false);
+  const [procEspiro, setProcEspiro] = useState(false);
+  const [procFondoOjo, setProcFondoOjo] = useState(false);
+  const [procPerfilPA, setProcPerfilPA] = useState(false);
+  const [procOtros, setProcOtros] = useState(false);
+  const [procOtrosTexto, setProcOtrosTexto] = useState("");
+
   const [categoria, setCategoria] = useState("G1");
   const [diagnosticos, setDiagnosticos] = useState<string[]>([]);
   const [polifarmacia, setPolifarmacia] = useState(false);
@@ -155,6 +165,12 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
   const [riesgoSocial, setRiesgoSocial] = useState(false);
   const [hospitalizacionReciente, setHospitalizacionReciente] = useState(false);
   const [consultasUrgencia, setConsultasUrgencia] = useState(0);
+
+  // Estados para Modal de Órdenes
+  const [showExamsModal, setShowExamsModal] = useState(false);
+  const [examsModalPatient, setExamsModalPatient] = useState<any>(null);
+  const [examsModalPlan, setExamsModalPlan] = useState<any[]>([]);
+
   const [gestorRut, setGestorRut] = useState("");
   const [profesionalRut, setProfesionalRut] = useState("");
   const [observaciones, setObservaciones] = useState("");
@@ -206,6 +222,14 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
     setObservaciones(selectedPatient.observaciones || "");
     const dataClinica = getParsedDataClinica(selectedPatient.data_clinica);
     setSeguimientoTelefonico(dataClinica?.seguimiento_telefonico || false);
+    setEstamentoSeguimiento(dataClinica?.estamento_seguimiento || "");
+    setProcLab(!!dataClinica?.procedimientos_pendientes?.laboratorio);
+    setProcEcg(!!dataClinica?.procedimientos_pendientes?.ecg);
+    setProcEspiro(!!dataClinica?.procedimientos_pendientes?.espirometria);
+    setProcFondoOjo(!!dataClinica?.procedimientos_pendientes?.fondoOjo);
+    setProcPerfilPA(!!dataClinica?.procedimientos_pendientes?.perfilPA);
+    setProcOtros(!!dataClinica?.procedimientos_pendientes?.otros);
+    setProcOtrosTexto(dataClinica?.procedimientos_pendientes?.otrosTexto || "");
     setFechaIngreso(dataClinica?.fecha_ingreso || selectedPatient.ultima_atencion || new Date().toISOString().slice(0, 10));
     
     // Cargar plan dinámico de atenciones
@@ -277,7 +301,21 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
       cita_enfermero: dateEnf,
       cita_nutri: dateNut,
       cita_kine: dateKin,
-      data_clinica: { plan: planAtenciones, seguimiento_telefonico: seguimientoTelefonico, fecha_ingreso: fechaIngreso }
+      data_clinica: { 
+        plan: planAtenciones, 
+        seguimiento_telefonico: seguimientoTelefonico,
+        estamento_seguimiento: seguimientoTelefonico ? estamentoSeguimiento : "",
+        procedimientos_pendientes: {
+          laboratorio: procLab,
+          ecg: procEcg,
+          espirometria: procEspiro,
+          fondoOjo: procFondoOjo,
+          perfilPA: procPerfilPA,
+          otros: procOtros,
+          otrosTexto: procOtros ? procOtrosTexto : ""
+        },
+        fecha_ingreso: fechaIngreso 
+      }
     };
 
     const res = await saveEcicepRecord(payload);
@@ -299,6 +337,49 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
       setDiagnosticos(diagnosticos.filter(d => d !== diag));
     } else {
       setDiagnosticos([...diagnosticos, diag]);
+    }
+  };
+
+  const handleSaveExamsModal = async () => {
+    if (!window.confirm("¿Estás seguro de guardar estos cambios? Los exámenes desmarcados se registrarán como realizados y desaparecerán de las órdenes pendientes.")) {
+      return;
+    }
+    
+    try {
+      const payload: EcicepSubmission = {
+        rut_paciente: examsModalPatient.rut,
+        fecha_atencion: examsModalPatient.ultima_atencion,
+        categoria: examsModalPatient.categoria || "G1",
+        diagnosticos: examsModalPatient.diagnosticos || [],
+        polifarmacia: examsModalPatient.polifarmacia || false,
+        funcionalidad: examsModalPatient.funcionalidad || "No aplica (Menor de 65 años)",
+        deterioro_cognitivo: examsModalPatient.deterioro_cognitivo || false,
+        riesgo_social: examsModalPatient.riesgo_social || false,
+        hospitalizacion_reciente: examsModalPatient.hospitalizacion_reciente || false,
+        consultas_urgencia: examsModalPatient.consultas_urgencia || 0,
+        gestor_rut: examsModalPatient.gestor_rut || undefined,
+        profesional_rut: user.rut,
+        observaciones: examsModalPatient.observaciones || undefined,
+        cita_medico: examsModalPatient.cita_medico || undefined,
+        cita_enfermero: examsModalPatient.cita_enfermero || undefined,
+        cita_nutri: examsModalPatient.cita_nutri || undefined,
+        cita_kine: examsModalPatient.cita_kine || undefined,
+        data_clinica: {
+          ...getParsedDataClinica(examsModalPatient.data_clinica),
+          plan: examsModalPlan
+        }
+      };
+
+      const res = await saveEcicepRecord(payload);
+      if (res.success) {
+        toast.success("Órdenes actualizadas correctamente");
+        setShowExamsModal(false);
+        fetchData();
+      } else {
+        toast.error("Error al actualizar órdenes");
+      }
+    } catch (e) {
+      toast.error("Error de sistema al actualizar órdenes");
     }
   };
 
@@ -340,7 +421,9 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
       const matchCategory = filterCategory === "Todos" || cat === filterCategory;
       
       const dataClinica = getParsedDataClinica(p.data_clinica);
-      const matchSeguimiento = !onlySeguimiento || dataClinica?.seguimiento_telefonico;
+      const matchSeguimiento = filterSeguimientoEstamento === "Todos" ? true :
+        (filterSeguimientoEstamento === "Solo con Seguimiento" ? !!dataClinica?.seguimiento_telefonico :
+        (!!dataClinica?.seguimiento_telefonico && dataClinica?.estamento_seguimiento === filterSeguimientoEstamento));
       const matchBrecha = !onlyBrecha || hasBrecha(p);
       
       const matchPendienteEstamento = filterPendienteEstamento === "Todos" || (() => {
@@ -350,7 +433,7 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
       
       return matchRut && matchSector && matchStatus && matchCategory && matchSeguimiento && matchBrecha && matchPendienteEstamento;
     });
-  }, [data, searchRut, filterSector, filterStatus, filterCategory, onlySeguimiento, onlyBrecha, filterPendienteEstamento]);
+  }, [data, searchRut, filterSector, filterStatus, filterCategory, filterSeguimientoEstamento, onlyBrecha, filterPendienteEstamento]);
 
   const stats = useMemo(() => {
     const total = data.length;
@@ -436,7 +519,13 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
         "Funcionalidad": p.funcionalidad || "-",
         "Deterioro Cognitivo": p.deterioro_cognitivo ? "SI" : "NO",
         "Riesgo Social": p.riesgo_social ? "SI" : "NO",
-        "Seguimiento Telefónico": getParsedDataClinica(p.data_clinica)?.seguimiento_telefonico ? "SI" : "NO",
+        "Seguimiento Telefónico": (() => {
+          const dc = getParsedDataClinica(p.data_clinica);
+          if (dc?.seguimiento_telefonico) {
+            return dc?.estamento_seguimiento ? `SI - ${dc.estamento_seguimiento}` : "SI";
+          }
+          return "NO";
+        })(),
         "Hospitalización Reciente (12m)": p.hospitalizacion_reciente ? "SI" : "NO",
         "Consultas Urgencia (12m)": p.consultas_urgencia || 0,
         "Diagnósticos Crónicos": p.diagnosticos ? p.diagnosticos.join(", ") : "-",
@@ -623,17 +712,19 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
                </span>
                
                <div className="flex space-x-2">
-                 <label className={`flex items-center space-x-2 cursor-pointer px-3 py-1.5 rounded-lg border transition-all ${onlySeguimiento ? 'bg-blue-50 border-blue-200 text-blue-700 shadow-sm' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
-                   <input 
-                     type="checkbox" 
-                     className="rounded text-blue-600 focus:ring-blue-500 border-slate-300"
-                     checked={onlySeguimiento}
-                     onChange={(e) => setOnlySeguimiento(e.target.checked)}
-                   />
-                   <span className="text-xs font-bold uppercase tracking-wide flex items-center">
-                     📞 Solo Seguimiento
-                   </span>
-                 </label>
+                 <select
+                   value={filterSeguimientoEstamento}
+                   onChange={e => setFilterSeguimientoEstamento(e.target.value)}
+                   className={`px-3 py-1.5 rounded-lg border transition-all text-xs font-bold outline-none cursor-pointer ${filterSeguimientoEstamento !== "Todos" ? 'bg-blue-50 border-blue-200 text-blue-700 shadow-sm' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+                 >
+                   <option value="Todos">📞 SEGUIMIENTO: TODOS</option>
+                   <option value="Solo con Seguimiento">SOLO PACIENTES CON SEGUIMIENTO</option>
+                   <optgroup label="Filtrar por Asignado A:">
+                     {ROLES_DISPONIBLES.map(r => (
+                       <option key={r} value={r}>ASIGNADOS A: {r.toUpperCase()}</option>
+                     ))}
+                   </optgroup>
+                 </select>
 
                  <label className={`flex items-center space-x-2 cursor-pointer px-3 py-1.5 rounded-lg border transition-all ${onlyBrecha ? 'bg-red-50 border-red-200 text-red-700 shadow-sm' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
                     <input 
@@ -699,6 +790,43 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
                           <span>•</span>
                           <span className="flex items-center"><MapPin size={8} className="mr-0.5 text-slate-400 shrink-0"/> {p.sector}</span>
                         </div>
+                        {(() => {
+                           const dc = getParsedDataClinica(p.data_clinica);
+                           const plan = dc?.plan || [];
+                           const hasLab = plan.some((c: any) => c.laboratorio);
+                           const hasEcg = plan.some((c: any) => c.ecg);
+                           const hasEsp = plan.some((c: any) => c.espirometria);
+                           const hasFondo = plan.some((c: any) => c.fondoOjo);
+                           const hasPerfil = plan.some((c: any) => c.perfilPA);
+                           const hasOtros = plan.some((c: any) => c.otros);
+                           const otrosText = plan.find((c: any) => c.otrosTexto)?.otrosTexto || "";
+
+                           if (!hasLab && !hasEcg && !hasEsp && !hasFondo && !hasPerfil && !hasOtros) return null;
+                           return (
+                             <div className="flex flex-col gap-1 mt-2">
+                               <div 
+                                 className="inline-flex items-center px-2 py-1 rounded text-[10px] font-black bg-slate-900 text-white shadow-sm border border-slate-950 animate-pulse hover:bg-slate-800 transition-colors self-start cursor-pointer group/alert"
+                                 onClick={(e) => {
+                                   e.stopPropagation();
+                                   setExamsModalPlan(plan);
+                                   setExamsModalPatient(p);
+                                   setShowExamsModal(true);
+                                 }}
+                                 title="Click para revisar y resolver órdenes pendientes"
+                               >
+                                 <span className="mr-1 group-hover/alert:scale-110 transition-transform">⚠️</span> ÓRDENES PENDIENTES
+                               </div>
+                               <div className="flex flex-wrap gap-1 mt-0.5">
+                                 {hasLab && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-50 text-red-700 border border-red-100">🩸 LAB</span>}
+                                 {hasEcg && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-50 text-rose-700 border border-rose-100">🫀 ECG</span>}
+                                 {hasEsp && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-teal-50 text-teal-700 border border-teal-100">🫁 ESP</span>}
+                                 {hasFondo && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-100">👁️ FOJO</span>}
+                                 {hasPerfil && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">⚕️ PERFIL PA</span>}
+                                 {hasOtros && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-100 text-slate-700 border border-slate-200">➕ {otrosText ? otrosText.substring(0, 15) + (otrosText.length > 15 ? '...' : '') : 'OTROS'}</span>}
+                               </div>
+                             </div>
+                           );
+                        })()}
                       </td>
                       <td className="px-3 py-3.5">
                         {p.categoria ? (
@@ -1217,21 +1345,39 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
                     <option value="G3">G3 - Riesgo Alto / Complejo</option>
                   </select>
                 </div>
-                <div className="flex items-center pt-5">
-                  <label className="flex items-center space-x-2.5 cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      className="h-4.5 w-4.5 text-blue-600 focus:ring-blue-500 border-slate-300 rounded"
-                      checked={seguimientoTelefonico}
-                      onChange={e => setSeguimientoTelefonico(e.target.checked)}
-                    />
-                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wide select-none">
-                      📞 Requiere Seguimiento Telefónico
-                    </span>
-                  </label>
-                </div>
               </div>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 pt-4 border-t border-slate-100">
+                <label className="flex items-center space-x-2.5 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    className="h-4.5 w-4.5 text-blue-600 focus:ring-blue-500 border-slate-300 rounded"
+                    checked={seguimientoTelefonico}
+                    onChange={e => {
+                      setSeguimientoTelefonico(e.target.checked);
+                      if (!e.target.checked) setEstamentoSeguimiento("");
+                    }}
+                  />
+                  <span className="text-xs font-bold text-slate-700 uppercase tracking-wide select-none">
+                    📞 Requiere Seguimiento Telefónico
+                  </span>
+                </label>
 
+                {seguimientoTelefonico && (
+                  <div className="mt-3 sm:mt-0 animate-in fade-in slide-in-from-left-4 duration-200">
+                    <select
+                      required
+                      value={estamentoSeguimiento}
+                      onChange={e => setEstamentoSeguimiento(e.target.value)}
+                      className="bg-slate-50 border border-slate-200 rounded-md px-3 py-1.5 text-xs font-bold text-blue-700 outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">-- Asignar a Estamento --</option>
+                      {ROLES_DISPONIBLES.map(r => (
+                        <option key={r} value={r}>{r}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
               {/* Plan de Cuidado Anual (Próximas Citas) */}
               <div className="space-y-3">
                 <div className="flex justify-between items-center border-b border-slate-100 pb-2">
@@ -1300,6 +1446,51 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
                 )}
               </div>
 
+              {/* Procedimientos Pendientes */}
+              <div className="pt-4 mt-4 border-t border-slate-100">
+                <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider mb-3">📋 Órdenes y Procedimientos Pendientes</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                  <label className="flex items-center space-x-2.5 cursor-pointer bg-slate-50 p-2.5 rounded-lg border border-slate-200 hover:bg-slate-100 transition">
+                    <input type="checkbox" className="h-4 w-4 text-red-600 rounded border-slate-300" checked={procLab} onChange={e => setProcLab(e.target.checked)} />
+                    <span className="text-[11px] font-bold text-slate-700 select-none">🩸 Laboratorio</span>
+                  </label>
+                  <label className="flex items-center space-x-2.5 cursor-pointer bg-slate-50 p-2.5 rounded-lg border border-slate-200 hover:bg-slate-100 transition">
+                    <input type="checkbox" className="h-4 w-4 text-rose-600 rounded border-slate-300" checked={procEcg} onChange={e => setProcEcg(e.target.checked)} />
+                    <span className="text-[11px] font-bold text-slate-700 select-none">🫀 ECG</span>
+                  </label>
+                  <label className="flex items-center space-x-2.5 cursor-pointer bg-slate-50 p-2.5 rounded-lg border border-slate-200 hover:bg-slate-100 transition">
+                    <input type="checkbox" className="h-4 w-4 text-teal-600 rounded border-slate-300" checked={procEspiro} onChange={e => setProcEspiro(e.target.checked)} />
+                    <span className="text-[11px] font-bold text-slate-700 select-none">🫁 Espirometría</span>
+                  </label>
+                  <label className="flex items-center space-x-2.5 cursor-pointer bg-slate-50 p-2.5 rounded-lg border border-slate-200 hover:bg-slate-100 transition">
+                    <input type="checkbox" className="h-4 w-4 text-amber-600 rounded border-slate-300" checked={procFondoOjo} onChange={e => setProcFondoOjo(e.target.checked)} />
+                    <span className="text-[11px] font-bold text-slate-700 select-none">👁️ Fondo Ojo</span>
+                  </label>
+                  <label className="flex items-center space-x-2.5 cursor-pointer bg-slate-50 p-2.5 rounded-lg border border-slate-200 hover:bg-slate-100 transition">
+                    <input type="checkbox" className="h-4 w-4 text-indigo-600 rounded border-slate-300" checked={procPerfilPA} onChange={e => setProcPerfilPA(e.target.checked)} />
+                    <span className="text-[11px] font-bold text-slate-700 select-none">⚕️ Perfil PA</span>
+                  </label>
+                  <div className="flex flex-col space-y-2">
+                    <label className="flex items-center space-x-2.5 cursor-pointer bg-slate-50 p-2.5 rounded-lg border border-slate-200 hover:bg-slate-100 transition">
+                      <input type="checkbox" className="h-4 w-4 text-slate-600 rounded border-slate-300" checked={procOtros} onChange={e => { setProcOtros(e.target.checked); if(!e.target.checked) setProcOtrosTexto(""); }} />
+                      <span className="text-[11px] font-bold text-slate-700 select-none">➕ Otros</span>
+                    </label>
+                  </div>
+                </div>
+                {procOtros && (
+                  <div className="mt-3 animate-in fade-in slide-in-from-top-2">
+                    <input 
+                      type="text" 
+                      value={procOtrosTexto}
+                      onChange={e => setProcOtrosTexto(e.target.value)}
+                      placeholder="Especifique qué otros exámenes u órdenes..."
+                      className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                  </div>
+                )}
+              </div>
+
               <div>
                 <label className="block text-xs font-bold text-slate-600 mb-1">Observaciones</label>
                 <textarea 
@@ -1337,6 +1528,122 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
                 className="flex-1 px-4 py-3 rounded-xl text-xs font-bold bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-lg shadow-blue-100 disabled:opacity-50"
               >
                 {saving ? 'Guardando...' : '📋 Confirmar y Guardar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Resolución de Órdenes Pendientes */}
+      {showExamsModal && examsModalPatient && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <div>
+                <h3 className="font-black text-slate-800 text-lg flex items-center"><span className="mr-2">📋</span> Resolución de Órdenes</h3>
+                <p className="text-xs font-bold text-slate-500 mt-1">{examsModalPatient.nombre_completo} ({examsModalPatient.rut}-{examsModalPatient.dv})</p>
+              </div>
+              <button onClick={() => setShowExamsModal(false)} className="text-slate-400 hover:text-slate-600 hover:bg-slate-200 p-1.5 rounded-lg transition">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="p-5 max-h-[60vh] overflow-y-auto space-y-4 bg-white">
+              <div className="bg-blue-50 text-blue-700 p-3 rounded-xl text-xs font-medium border border-blue-100 mb-4 flex items-start">
+                <span className="mr-2 text-base leading-none">ℹ️</span>
+                <p>A continuación se listan las citas que tienen exámenes u órdenes pendientes. <strong>Desmarque las casillas</strong> de aquellos procedimientos que el paciente ya se haya realizado para quitarlos de la lista.</p>
+              </div>
+              
+              <div className="space-y-3">
+                {examsModalPlan.map((cita, idx) => {
+                  const hasExams = cita.laboratorio || cita.ecg || cita.espirometria || cita.fondoOjo || cita.perfilPA || cita.otros;
+                  if (!hasExams) return null;
+                  
+                  return (
+                    <div key={idx} className="bg-slate-50 border border-slate-200 rounded-xl p-4 transition hover:border-blue-200 hover:shadow-sm">
+                      <div className="flex justify-between items-center mb-3">
+                        <span className="font-black text-sm text-slate-700">Cita con {cita.rol}</span>
+                        <span className="text-[10px] font-black tracking-widest bg-white px-2.5 py-1 rounded-md shadow-sm border border-slate-200 text-slate-500 uppercase">
+                          {["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"][cita.mes - 1]} {cita.ano}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                         {cita.laboratorio && (
+                           <label className="flex items-center space-x-2 cursor-pointer bg-white px-3 py-2 rounded-lg border border-slate-200 hover:bg-red-50 hover:border-red-200 transition">
+                             <input type="checkbox" checked={cita.laboratorio} onChange={e => {
+                               const newPlan = [...examsModalPlan];
+                               newPlan[idx].laboratorio = e.target.checked;
+                               setExamsModalPlan(newPlan);
+                             }} className="h-4 w-4 text-red-600 rounded border-slate-300" />
+                             <span className="text-xs font-bold text-slate-700 select-none">🩸 Laboratorio</span>
+                           </label>
+                         )}
+                         {cita.ecg && (
+                           <label className="flex items-center space-x-2 cursor-pointer bg-white px-3 py-2 rounded-lg border border-slate-200 hover:bg-rose-50 hover:border-rose-200 transition">
+                             <input type="checkbox" checked={cita.ecg} onChange={e => {
+                               const newPlan = [...examsModalPlan];
+                               newPlan[idx].ecg = e.target.checked;
+                               setExamsModalPlan(newPlan);
+                             }} className="h-4 w-4 text-rose-600 rounded border-slate-300" />
+                             <span className="text-xs font-bold text-slate-700 select-none">🫀 ECG</span>
+                           </label>
+                         )}
+                         {cita.espirometria && (
+                           <label className="flex items-center space-x-2 cursor-pointer bg-white px-3 py-2 rounded-lg border border-slate-200 hover:bg-teal-50 hover:border-teal-200 transition">
+                             <input type="checkbox" checked={cita.espirometria} onChange={e => {
+                               const newPlan = [...examsModalPlan];
+                               newPlan[idx].espirometria = e.target.checked;
+                               setExamsModalPlan(newPlan);
+                             }} className="h-4 w-4 text-teal-600 rounded border-slate-300" />
+                             <span className="text-xs font-bold text-slate-700 select-none">🫁 Espirometría</span>
+                           </label>
+                         )}
+                         {cita.fondoOjo && (
+                           <label className="flex items-center space-x-2 cursor-pointer bg-white px-3 py-2 rounded-lg border border-slate-200 hover:bg-amber-50 hover:border-amber-200 transition">
+                             <input type="checkbox" checked={cita.fondoOjo} onChange={e => {
+                               const newPlan = [...examsModalPlan];
+                               newPlan[idx].fondoOjo = e.target.checked;
+                               setExamsModalPlan(newPlan);
+                             }} className="h-4 w-4 text-amber-600 rounded border-slate-300" />
+                             <span className="text-xs font-bold text-slate-700 select-none">👁️ Fondo Ojo</span>
+                           </label>
+                         )}
+                         {cita.perfilPA && (
+                           <label className="flex items-center space-x-2 cursor-pointer bg-white px-3 py-2 rounded-lg border border-slate-200 hover:bg-indigo-50 hover:border-indigo-200 transition">
+                             <input type="checkbox" checked={cita.perfilPA} onChange={e => {
+                               const newPlan = [...examsModalPlan];
+                               newPlan[idx].perfilPA = e.target.checked;
+                               setExamsModalPlan(newPlan);
+                             }} className="h-4 w-4 text-indigo-600 rounded border-slate-300" />
+                             <span className="text-xs font-bold text-slate-700 select-none">⚕️ Perfil PA</span>
+                           </label>
+                         )}
+                         {cita.otros && (
+                           <label className="flex items-center space-x-2 cursor-pointer bg-white px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-100 transition">
+                             <input type="checkbox" checked={cita.otros} onChange={e => {
+                               const newPlan = [...examsModalPlan];
+                               newPlan[idx].otros = e.target.checked;
+                               setExamsModalPlan(newPlan);
+                             }} className="h-4 w-4 text-slate-600 rounded border-slate-300" />
+                             <span className="text-xs font-bold text-slate-700 select-none">➕ {cita.otrosTexto || 'Otros'}</span>
+                           </label>
+                         )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            
+            <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end space-x-3">
+              <button onClick={() => setShowExamsModal(false)} className="px-4 py-2 text-sm font-bold text-slate-600 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition">
+                Cancelar
+              </button>
+              <button 
+                onClick={handleSaveExamsModal}
+                className="px-5 py-2 text-sm font-black text-white bg-blue-600 rounded-xl hover:bg-blue-700 shadow-sm transition flex items-center"
+              >
+                <Save size={16} className="mr-2" /> Guardar Resoluciones
               </button>
             </div>
           </div>
