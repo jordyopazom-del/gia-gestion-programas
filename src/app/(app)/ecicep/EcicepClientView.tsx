@@ -7,20 +7,6 @@ import toast from "react-hot-toast";
 import { UserProfile } from "@/actions/userActions";
 import { saveEcicepRecord, obtenerClinicosActivos, EcicepSubmission } from "@/actions/ecicepActions";
 
-const ENFERMEDADES_CRONICAS = [
-  "Hipertensión Arterial (HTA)",
-  "Diabetes Mellitus Tipo 2 (DM2)",
-  "Enfermedad Pulmonar Obstructiva Crónica (EPOC)",
-  "Asma Bronquial",
-  "Enfermedad Renal Crónica (ERC)",
-  "Artrosis (Cadera/Rodilla/Otras)",
-  "Insuficiencia Cardíaca (ICC)",
-  "Hipotiroidismo",
-  "Dislipidemia",
-  "Depresión / Salud Mental Crónica",
-  "Secuela de Accidente Cerebrovascular (ACV)"
-];
-
 const ROLES_DISPONIBLES = [
   "Médico", "Enfermero", "Nutricionista", "Kinesiólogo", 
   "Psicólogo", "Asistente Social", "Terapeuta Ocupacional", 

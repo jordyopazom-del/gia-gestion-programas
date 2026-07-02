@@ -14,20 +14,7 @@ const ROLES_DISPONIBLES = [
   "Fonoaudiólogo", "Odontólogo", "TENS", "Matrón(a)"
 ];
 
-const ENFERMEDADES_CRONICAS = [
-  "Hipertensión Arterial (HTA)",
-  "Diabetes Mellitus Tipo 2 (DM2)",
-  "Enfermedad Pulmonar Obstructiva Crónica (EPOC)",
-  "Asma Bronquial",
-  "Enfermedad Renal Crónica (ERC)",
-  "Artrosis (Cadera/Rodilla/Otras)",
-  "Insuficiencia Cardíaca (ICC)",
-  "Hipotiroidismo",
-  "Dislipidemia",
-  "Depresión / Salud Mental Crónica",
-  "Epilepsia",
-  "Secuela de Accidente Cerebrovascular (ACV)"
-];
+
 
 const getParsedDataClinica = (dataClinica: any) => {
   if (!dataClinica) return null;
