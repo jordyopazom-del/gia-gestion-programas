@@ -375,7 +375,9 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
       if (res.success) {
         toast.success("Órdenes actualizadas correctamente");
         setShowExamsModal(false);
-        fetchData();
+        setTimeout(() => {
+          window.location.reload();
+        }, 500);
       } else {
         toast.error("Error al actualizar órdenes");
       }
