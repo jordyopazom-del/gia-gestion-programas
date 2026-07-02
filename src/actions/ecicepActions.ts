@@ -103,6 +103,8 @@ export async function saveEcicepRecord(data: EcicepSubmission) {
     const payloadDataClinica = {
       plan: data.data_clinica?.plan || [],
       seguimiento_telefonico: data.data_clinica?.seguimiento_telefonico || false,
+      estamento_seguimiento: data.data_clinica?.estamento_seguimiento || "",
+      fecha_ingreso: data.data_clinica?.fecha_ingreso || null,
       creador
     };
 
