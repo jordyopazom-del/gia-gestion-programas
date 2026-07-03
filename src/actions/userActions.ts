@@ -70,19 +70,44 @@ export async function crearUsuario(data: UserProfile & { password?: string }) {
     const cleanEmail = (data.email || '').toLowerCase().trim();
     const cleanProfesion = data.profesion.toUpperCase().trim();
 
-    const hashedPassword = hashPassword(data.password || "cesfam123");
-    await sql`
-      INSERT INTO gia_usuarios (rut, nombre, email, profesion, rol, password, debe_cambiar_password, accesos)
-      VALUES (${rutStandar}, ${cleanNombre}, ${cleanEmail}, ${cleanProfesion}, ${data.rol}, ${hashedPassword}, TRUE, ${data.accesos || []})
-      ON CONFLICT (rut) DO UPDATE SET
-        nombre = EXCLUDED.nombre,
-        email = EXCLUDED.email,
-        profesion = EXCLUDED.profesion,
-        rol = EXCLUDED.rol,
-        password = EXCLUDED.password,
-        debe_cambiar_password = TRUE,
-        accesos = EXCLUDED.accesos
-    `;
+    // Verificar si el usuario ya existe
+    const existing = await sql`SELECT 1 FROM gia_usuarios WHERE rut = ${rutStandar}`;
+
+    if (existing.length > 0) {
+      // Es una edición: solo actualizamos contraseña si viene explícitamente en el formulario
+      if (data.password && data.password.trim() !== "") {
+        const hashedPassword = hashPassword(data.password);
+        await sql`
+          UPDATE gia_usuarios SET
+            nombre = ${cleanNombre},
+            email = ${cleanEmail},
+            profesion = ${cleanProfesion},
+            rol = ${data.rol},
+            password = ${hashedPassword},
+            debe_cambiar_password = TRUE,
+            accesos = ${data.accesos || []}
+          WHERE rut = ${rutStandar}
+        `;
+      } else {
+        // Actualizamos todos los datos EXCEPTO la contraseña
+        await sql`
+          UPDATE gia_usuarios SET
+            nombre = ${cleanNombre},
+            email = ${cleanEmail},
+            profesion = ${cleanProfesion},
+            rol = ${data.rol},
+            accesos = ${data.accesos || []}
+          WHERE rut = ${rutStandar}
+        `;
+      }
+    } else {
+      // Usuario nuevo
+      const hashedPassword = hashPassword(data.password || "cesfam123");
+      await sql`
+        INSERT INTO gia_usuarios (rut, nombre, email, profesion, rol, password, debe_cambiar_password, accesos)
+        VALUES (${rutStandar}, ${cleanNombre}, ${cleanEmail}, ${cleanProfesion}, ${data.rol}, ${hashedPassword}, TRUE, ${data.accesos || []})
+      `;
+    }
     revalidatePath("/admin/usuarios");
     return { success: true };
   } catch (error) {
