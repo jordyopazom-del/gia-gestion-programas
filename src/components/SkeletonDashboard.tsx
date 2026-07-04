@@ -37,6 +37,7 @@ export default function SkeletonDashboard({
             <span className="text-sm">Registrar</span>
           </div>
         </div>
+      </div>
       )}
 
       {/* FILTROS SIMULADOS */}
