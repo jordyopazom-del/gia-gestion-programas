@@ -2,7 +2,7 @@ import { getEcicepDashboardData } from "@/actions/ecicepActions";
 import EcicepClientView from "./EcicepClientView";
 import { ClipboardCheck, Plus } from "lucide-react";
 import Link from "next/link";
-import { getCurrentUser } from "@/actions/userActions";
+import { getCurrentUser } from "@/lib/currentUser";
 import { redirect } from "next/navigation";
 
 export const dynamic = 'force-dynamic';

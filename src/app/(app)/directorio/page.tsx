@@ -2,7 +2,7 @@ import { getDirectorioCompleto } from "@/actions/pacientesActions";
 import CargaPadronWrapper from "./CargaPadronWrapper";
 import DirectorioClientView from "./DirectorioClientView";
 import { Users } from "lucide-react";
-import { getCurrentUser } from "@/actions/userActions";
+import { getCurrentUser } from "@/lib/currentUser";
 
 export const dynamic = 'force-dynamic';
 

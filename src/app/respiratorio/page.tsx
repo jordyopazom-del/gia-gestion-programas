@@ -1,5 +1,5 @@
 import { getRespiratorioData } from "@/actions/respiratorioActions";
-import { getCurrentUser } from "@/actions/userActions";
+import { getCurrentUser } from "@/lib/currentUser";
 import RespiratorioClientView from "./RespiratorioClientView";
 import { redirect } from "next/navigation";
 

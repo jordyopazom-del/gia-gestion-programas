@@ -1,4 +1,4 @@
-import { getCurrentUser } from "@/actions/userActions";
+import { getCurrentUser } from "@/lib/currentUser";
 import { redirect } from "next/navigation";
 import NuevoRespiratorioClient from "./NuevoRespiratorioClient";
 

@@ -1,6 +1,6 @@
 import { getOportunidadesHoy } from "@/actions/agendaActions";
 import OportunidadClientView from "./OportunidadClientView";
-import { getCurrentUser } from "@/actions/userActions";
+import { getCurrentUser } from "@/lib/currentUser";
 import { redirect } from "next/navigation";
 import { getLocalDateString } from "@/lib/dateUtils";
 

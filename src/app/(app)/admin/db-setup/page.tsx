@@ -1,4 +1,4 @@
-import { getCurrentUser } from "@/actions/userActions";
+import { getCurrentUser } from "@/lib/currentUser";
 import DbSetupClient from "./DbSetupClient";
 import { ShieldAlert } from "lucide-react";
 

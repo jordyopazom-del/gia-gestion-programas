@@ -1,5 +1,5 @@
 import { getMujerDashboardData } from "@/actions/mujerActions";
-import { getCurrentUser } from "@/actions/userActions";
+import { getCurrentUser } from "@/lib/currentUser";
 import MujerClientView from "./MujerClientView";
 import { redirect } from "next/navigation";
 
