@@ -1,11 +1,18 @@
+import { Suspense } from "react";
 import { getEcicepDashboardData } from "@/actions/ecicepActions";
 import EcicepClientView from "./EcicepClientView";
 import { ClipboardCheck, Plus } from "lucide-react";
 import Link from "next/link";
-import { getCurrentUser } from "@/lib/currentUser";
+import { getCurrentUser, UserProfile } from "@/lib/currentUser";
+import SkeletonDashboard from "@/components/SkeletonDashboard";
 import { redirect } from "next/navigation";
 
 export const dynamic = 'force-dynamic';
+
+async function EcicepDataWrapper({ user }: { user: UserProfile }) {
+  const data = await getEcicepDashboardData();
+  return <EcicepClientView data={data as any} user={user} />;
+}
 
 export default async function EcicepDashboardPage() {
   const user = await getCurrentUser();
@@ -14,7 +21,6 @@ export default async function EcicepDashboardPage() {
   const hasAccess = user.rol === "ADMINISTRADOR" || user.accesos?.includes("ecicep");
   if (!hasAccess) redirect("/dashboard");
 
-  const data = await getEcicepDashboardData();
   const canCreate = user.rol !== "ADMINISTRATIVO";
 
   return (
@@ -39,7 +45,9 @@ export default async function EcicepDashboardPage() {
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden flex flex-col min-h-[600px]">
-        <EcicepClientView data={data as any} user={user!} />
+        <Suspense fallback={<SkeletonDashboard showHeader={false} />}>
+          <EcicepDataWrapper user={user} />
+        </Suspense>
       </div>
     </div>
   );

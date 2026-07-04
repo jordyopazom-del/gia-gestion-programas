@@ -1,10 +1,17 @@
+import { Suspense } from "react";
 import { getEmpamDashboardData } from "@/actions/empamActions";
 import EmpamClientView from "./EmpamClientView";
 import { Activity, Plus } from "lucide-react";
 import Link from "next/link";
-import { getCurrentUser } from "@/lib/currentUser";
+import { getCurrentUser, UserProfile } from "@/lib/currentUser";
+import SkeletonDashboard from "@/components/SkeletonDashboard";
 import { redirect } from "next/navigation";
 export const dynamic = 'force-dynamic';
+
+async function EmpamDataWrapper({ user }: { user: UserProfile }) {
+  const data = await getEmpamDashboardData();
+  return <EmpamClientView data={data as any} user={user} />;
+}
 
 export default async function EmpamDashboardPage() {
   const user = await getCurrentUser();
@@ -12,8 +19,6 @@ export default async function EmpamDashboardPage() {
 
   const hasAccess = user.rol === "ADMINISTRADOR" || user.accesos?.includes("empam");
   if (!hasAccess) redirect("/dashboard");
-
-  const data = await getEmpamDashboardData();
 
   const canCreate = user.rol !== "ADMINISTRATIVO";
 
@@ -39,7 +44,9 @@ export default async function EmpamDashboardPage() {
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden flex flex-col min-h-[600px]">
-        <EmpamClientView data={data as any} user={user!} />
+        <Suspense fallback={<SkeletonDashboard showHeader={false} />}>
+          <EmpamDataWrapper user={user} />
+        </Suspense>
       </div>
     </div>
   );

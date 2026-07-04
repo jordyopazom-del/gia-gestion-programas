@@ -3,15 +3,18 @@ import { Wind, Download, Plus, Filter, Search } from "lucide-react";
 interface SkeletonDashboardProps {
   title?: string;
   subtitle?: string;
+  showHeader?: boolean;
 }
 
 export default function SkeletonDashboard({ 
   title = "Panel de Gestión", 
-  subtitle = "Cargando datos del módulo..." 
+  subtitle = "Cargando datos del módulo...",
+  showHeader = true
 }: SkeletonDashboardProps) {
   return (
     <div className="animate-pulse">
       {/* HEADER SIMULADO */}
+      {showHeader && (
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-200 text-slate-400 mr-4">
@@ -34,7 +37,7 @@ export default function SkeletonDashboard({
             <span className="text-sm">Registrar</span>
           </div>
         </div>
-      </div>
+      )}
 
       {/* FILTROS SIMULADOS */}
       <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4 mb-6">

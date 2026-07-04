@@ -1,13 +1,19 @@
+import { Suspense } from "react";
 import { getDirectorioCompleto } from "@/actions/pacientesActions";
 import CargaPadronWrapper from "./CargaPadronWrapper";
 import DirectorioClientView from "./DirectorioClientView";
 import { Users } from "lucide-react";
-import { getCurrentUser } from "@/lib/currentUser";
+import { getCurrentUser, UserProfile } from "@/lib/currentUser";
+import SkeletonDashboard from "@/components/SkeletonDashboard";
 
 export const dynamic = 'force-dynamic';
 
-export default async function DirectorioPage() {
+async function DirectorioDataWrapper({ user }: { user: UserProfile }) {
   const pacientes = await getDirectorioCompleto();
+  return <DirectorioClientView pacientes={pacientes} user={user} />;
+}
+
+export default async function DirectorioPage() {
   const user = await getCurrentUser();
 
   return (
@@ -31,7 +37,9 @@ export default async function DirectorioPage() {
 
         <div className="w-full">
           <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden flex flex-col min-h-[600px]">
-            <DirectorioClientView pacientes={pacientes} user={user!} />
+            <Suspense fallback={<SkeletonDashboard showHeader={false} />}>
+              <DirectorioDataWrapper user={user!} />
+            </Suspense>
           </div>
         </div>
       </div>
