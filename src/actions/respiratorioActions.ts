@@ -6,39 +6,51 @@ import { revalidatePath } from "next/cache";
 export async function getRespiratorioData() {
   try {
     const rows = await sql`
+      WITH ultimas_atenciones AS (
+        SELECT DISTINCT ON (rut_paciente) *
+        FROM gia_respiratorio
+        ORDER BY rut_paciente, id DESC
+      ),
+      ultimo_medico AS (
+        SELECT DISTINCT ON (rut_paciente) rut_paciente, fecha_atencion
+        FROM gia_respiratorio
+        WHERE tipo_atencion = 'CONTROL MÉDICO'
+        ORDER BY rut_paciente, fecha_atencion DESC, id DESC
+      ),
+      ultimo_kine AS (
+        SELECT DISTINCT ON (rut_paciente) rut_paciente, fecha_atencion
+        FROM gia_respiratorio
+        WHERE tipo_atencion = 'CONTROL KINESIOLÓGICO'
+        ORDER BY rut_paciente, fecha_atencion DESC, id DESC
+      ),
+      ultimo_espiro AS (
+        SELECT DISTINCT ON (rut_paciente) rut_paciente, fecha_atencion
+        FROM gia_respiratorio
+        WHERE tipo_atencion = 'ESPIROMETRÍA'
+        ORDER BY rut_paciente, fecha_atencion DESC, id DESC
+      )
       SELECT 
         p.*,
-        r_last.id as ficha_id,
-        r_last.diagnostico,
-        r_last.nivel_control,
-        r_last.data_clinica,
-        r_last.cita_medico,
-        r_last.cita_kine,
-        r_last.cita_espiro,
-        r_last.observaciones,
-        r_last.motivo_egreso as estado_programa,
-        COALESCE(
-          (SELECT fecha_atencion FROM gia_respiratorio WHERE rut_paciente = p.rut AND tipo_atencion = 'CONTROL MÉDICO' ORDER BY fecha_atencion DESC LIMIT 1),
-          r_last.cita_medico
-        ) as last_med,
-        COALESCE(
-          (SELECT fecha_atencion FROM gia_respiratorio WHERE rut_paciente = p.rut AND tipo_atencion = 'CONTROL KINESIOLÓGICO' ORDER BY fecha_atencion DESC LIMIT 1),
-          r_last.cita_kine
-        ) as last_kin,
-        COALESCE(
-          (SELECT fecha_atencion FROM gia_respiratorio WHERE rut_paciente = p.rut AND tipo_atencion = 'ESPIROMETRÍA' ORDER BY fecha_atencion DESC LIMIT 1),
-          r_last.cita_espiro
-        ) as last_esp,
-        r_last.fecha_atencion as ultima_atencion_global,
+        r.id as ficha_id,
+        r.diagnostico,
+        r.nivel_control,
+        r.data_clinica,
+        r.cita_medico,
+        r.cita_kine,
+        r.cita_espiro,
+        r.observaciones,
+        r.motivo_egreso as estado_programa,
+        COALESCE(med.fecha_atencion, r.cita_medico) as last_med,
+        COALESCE(kin.fecha_atencion, r.cita_kine) as last_kin,
+        COALESCE(esp.fecha_atencion, r.cita_espiro) as last_esp,
+        r.fecha_atencion as ultima_atencion_global,
         u.nombre as profesional_nombre
       FROM gia_pacientes p
-      INNER JOIN LATERAL (
-        SELECT * FROM gia_respiratorio 
-        WHERE rut_paciente = p.rut 
-        ORDER BY id DESC 
-        LIMIT 1
-      ) r_last ON true
-      LEFT JOIN gia_usuarios u ON r_last.profesional_rut = u.rut
+      INNER JOIN ultimas_atenciones r ON p.rut = r.rut_paciente
+      LEFT JOIN ultimo_medico med ON p.rut = med.rut_paciente
+      LEFT JOIN ultimo_kine kin ON p.rut = kin.rut_paciente
+      LEFT JOIN ultimo_espiro esp ON p.rut = esp.rut_paciente
+      LEFT JOIN gia_usuarios u ON r.profesional_rut = u.rut
       WHERE p.estado = 'ACTIVO'
       ORDER BY p.nombre_completo ASC
     `;
