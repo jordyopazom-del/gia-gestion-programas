@@ -12,18 +12,23 @@ import admin from "firebase-admin";
 // Forzar Node.js runtime (firebase-admin no es compatible con Edge)
 export const runtime = "nodejs";
 
-// Inicializar Firebase Admin (solo una vez)
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-    }),
-  });
+// Inicializar Firebase Admin de forma segura (evita errores en build-time)
+function getAdminDb() {
+  if (!admin.apps.length) {
+    if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !process.env.FIREBASE_PRIVATE_KEY) {
+      console.warn("⚠️ Faltan credenciales de Firebase en el entorno. Ignorando inicialización (seguro si es build-time).");
+      return null;
+    }
+    admin.initializeApp({
+      credential: admin.credential.cert({
+        projectId: process.env.FIREBASE_PROJECT_ID,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+      }),
+    });
+  }
+  return admin.firestore();
 }
-
-const adminDb = admin.firestore();
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -33,15 +38,20 @@ export async function GET(request: Request) {
     return redirect("/login");
   }
 
-  try {
-    // 1. Leer el token de Firestore
-    const doc = await adminDb.collection("sso_tokens").doc(nonce).get();
+  const adminDb = getAdminDb();
+  if (!adminDb) {
+    return redirect("/login?error=sso_failed");
+  }
 
-    if (!doc.exists) {
+  try {
+    // 1. Buscar y validar el nonce en Firebase
+    const nonceDoc = await adminDb.collection("sso_tokens").doc(nonce).get();
+
+    if (!nonceDoc.exists) {
       return redirect("/login?error=invalid_token");
     }
 
-    const data = doc.data()!;
+    const data = nonceDoc.data()!;
 
     // 2. Verificar expiración (60 segundos)
     const now = new Date();
