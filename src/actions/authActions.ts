@@ -52,7 +52,7 @@ export async function loginAction(rut: string, pass: string) {
       secure: process.env.NODE_ENV === "production",
       maxAge: 60 * 60 * 8, // 8 horas de turno
       path: "/",
-      sameSite: "strict",
+      sameSite: "lax",
     });
 
     return { success: true, mustChangePassword: mustChange };

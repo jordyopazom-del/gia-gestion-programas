@@ -3,6 +3,14 @@ import type { NextRequest } from "next/server";
 import { decrypt } from "@/lib/auth";
 
 export async function proxy(request: NextRequest) {
+  // --- SSO: Interceptar nonce y redirigir al endpoint de procesamiento ---
+  const ssoNonce = request.nextUrl.searchParams.get("sso_nonce");
+  if (ssoNonce) {
+    const ssoUrl = new URL("/api/sso", request.url);
+    ssoUrl.searchParams.set("sso_nonce", ssoNonce);
+    return NextResponse.redirect(ssoUrl);
+  }
+
   const tokenCookie = request.cookies.get("gia_auth_token");
   const token = tokenCookie?.value;
   

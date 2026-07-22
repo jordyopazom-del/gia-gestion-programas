@@ -1,17 +1,44 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { loginAction, cambiarPasswordAction, getPreguntaAction, resetPasswordAction } from "@/actions/authActions";
 import { solicitarAcceso } from "@/actions/userActions";
 import { Activity, UserPlus, X, Contact, User, Briefcase, Key, CheckCircle, ShieldAlert } from "lucide-react";
 
-export default function LoginPage() {
+// Mensajes de error SSO estandarizados
+const SSO_ERROR_MESSAGES: Record<string, { message: string; type: "warning" | "error" }> = {
+  user_not_registered: {
+    message: "Tu usuario de la Intranet no tiene acceso a esta plataforma. Solicita acceso al administrador.",
+    type: "warning",
+  },
+  invalid_token: {
+    message: "El enlace es inválido o ya fue utilizado. Intenta nuevamente desde la Intranet.",
+    type: "error",
+  },
+  token_expired: {
+    message: "El enlace expiró (60 segundos). Intenta nuevamente desde la Intranet.",
+    type: "error",
+  },
+  sso_failed: {
+    message: "Error al procesar el acceso automático. Usa tu contraseña.",
+    type: "error",
+  },
+};
+
+import { Suspense } from "react";
+
+function LoginContent() {
   const [rut, setRut] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Leer error SSO de la URL (?error=...)
+  const ssoErrorCode = searchParams.get("error");
+  const ssoError = ssoErrorCode ? SSO_ERROR_MESSAGES[ssoErrorCode] : null;
 
   // Estados para Solicitud
   const [showSolicitud, setShowSolicitud] = useState(false);
@@ -176,6 +203,18 @@ export default function LoginPage() {
           <h1 className="text-2xl font-bold text-slate-800">GIA Belarmina</h1>
           <p className="text-xs font-bold text-blue-600 uppercase tracking-widest mt-1">Gestión Integral APS</p>
         </div>
+
+        {/* Banner de error SSO */}
+        {ssoError && (
+          <div className={`rounded-lg p-3.5 text-xs font-medium mb-4 flex items-start gap-2 ${
+            ssoError.type === "warning"
+              ? "bg-amber-50 text-amber-700 border border-amber-200"
+              : "bg-red-50 text-red-600 border border-red-200"
+          }`}>
+            <span className="text-base leading-none mt-[-1px]">{ssoError.type === "warning" ? "⚠️" : "🔒"}</span>
+            <span>{ssoError.message}</span>
+          </div>
+        )}
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div className="space-y-1">
@@ -565,5 +604,13 @@ export default function LoginPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="flex h-screen w-full items-center justify-center bg-slate-50"><p className="text-slate-500 font-bold">Cargando acceso...</p></div>}>
+      <LoginContent />
+    </Suspense>
   );
 }
