@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { uploadAgendaDiaria, getOportunidadesHoy, marcarRescatado, getFechasConAgenda, Oportunidad, AgendaRow } from "@/actions/agendaActions";
-import { Upload, Search, User, AlertCircle, CheckCircle2, FileSpreadsheet, Printer } from "lucide-react";
+import { Calendar, Upload, Search, User, AlertCircle, CheckCircle2, FileSpreadsheet, Printer } from "lucide-react";
 import * as XLSX from "xlsx";
 import AgendaCalendar from "@/components/AgendaCalendar";
 
