@@ -120,7 +120,7 @@ export default function OportunidadClientView({ initialData, initialDate }: { in
   const filteredData = data.filter(item => {
     const matchesSearch = item.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || item.rut.includes(searchTerm);
     if (filter === 'VENCIDOS') return matchesSearch && item.empam_estado === 'VENCIDO';
-    if (filter === 'PENDIENTES') return matchesSearch && item.estado_rescate === 'PENDIENTE';
+    if (filter === 'PENDIENTES') return matchesSearch && item.estado_rescate !== 'RESCATADO';
     return matchesSearch;
   });
 
@@ -197,7 +197,7 @@ export default function OportunidadClientView({ initialData, initialDate }: { in
           <div>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Vencidos (Rescate)</p>
             <p className="text-2xl font-black text-slate-800">
-              {data.filter(i => i.empam_estado === 'VENCIDO').length}
+              {data.filter(i => i.empam_estado === 'VENCIDO' && i.estado_rescate !== 'RESCATADO').length}
             </p>
           </div>
         </div>
@@ -281,10 +281,11 @@ export default function OportunidadClientView({ initialData, initialDate }: { in
                       ? 'bg-red-100 text-red-600 border border-red-200' 
                       : item.empam_estado === 'AL DIA'
                       ? 'bg-emerald-100 text-emerald-600 border border-emerald-200'
-                      : 'bg-slate-100 text-slate-400 border border-slate-200'
+                      : 'bg-orange-100 text-orange-600 border border-orange-200'
                   }`}>
                     {item.empam_estado === 'VENCIDO' && <AlertCircle size={12} className="mr-1.5" />}
                     {item.empam_estado === 'AL DIA' && <CheckCircle2 size={12} className="mr-1.5" />}
+                    {item.empam_estado === 'SIN REGISTRO' && <AlertCircle size={12} className="mr-1.5" />}
                     {item.empam_estado}
                   </div>
                   {item.empam_fecha && (
@@ -308,7 +309,7 @@ export default function OportunidadClientView({ initialData, initialDate }: { in
                         const updated = await getOportunidadesHoy(fecha);
                         if (updated.data) setData(updated.data);
                       }}
-                      className="opacity-0 group-hover:opacity-100 transition-all bg-slate-800 text-white px-4 py-2 rounded-xl text-[10px] font-bold hover:bg-slate-900 active:scale-95"
+                      className="transition-all bg-slate-800 text-white px-4 py-2 rounded-xl text-[10px] font-bold hover:bg-slate-900 active:scale-95"
                     >
                       Gestionar Rescate
                     </button>

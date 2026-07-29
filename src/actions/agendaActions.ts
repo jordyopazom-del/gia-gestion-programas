@@ -71,7 +71,7 @@ export async function getOportunidadesHoy(fecha: string) {
         END as empam_estado
       FROM gia_agendas_diarias a
       LEFT JOIN ultimos_empam u ON a.rut = u.rut
-      LEFT JOIN gia_pacientes p ON (p.rut || '-' || p.dv) = a.rut
+      LEFT JOIN gia_pacientes p ON (p.rut || '-' || UPPER(p.dv)) = UPPER(REPLACE(a.rut, '.', ''))
       WHERE a.fecha_agenda = ${fecha}
       ORDER BY a.hora ASC
     `;
