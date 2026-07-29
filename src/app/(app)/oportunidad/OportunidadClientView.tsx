@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { uploadAgendaDiaria, getOportunidadesHoy, marcarRescatado, getFechasConAgenda, Oportunidad, AgendaRow } from "@/actions/agendaActions";
-import { Calendar, Upload, Search, User, AlertCircle, CheckCircle2, FileSpreadsheet, Printer } from "lucide-react";
+import { Calendar, Upload, Search, User, AlertCircle, CheckCircle2, FileSpreadsheet, Printer, Activity, Wind, Flower2 } from "lucide-react";
 import * as XLSX from "xlsx";
 import AgendaCalendar from "@/components/AgendaCalendar";
 
@@ -14,6 +14,7 @@ export default function OportunidadClientView({ initialData, initialDate, initia
   const [searchTerm, setSearchTerm] = useState("");
   const [filter, setFilter] = useState<'TODOS' | 'VENCIDOS' | 'PENDIENTES'>('TODOS');
   const [fechasAgenda, setFechasAgenda] = useState<string[]>(initialFechasConAgenda);
+  const [activeTab, setActiveTab] = useState<'EMPAM' | 'ECICEP' | 'RESPIRATORIO' | 'MUJER'>('EMPAM');
 
   // Cargar datos cuando cambie la fecha manualmente
   useEffect(() => {
@@ -123,6 +124,13 @@ export default function OportunidadClientView({ initialData, initialDate, initia
   };
 
   const filteredData = data.filter(item => {
+    // 1. Filtro demográfico por pestaña activa
+    if (activeTab === 'EMPAM') {
+      if (!item.edad || item.edad < 65) return false;
+    }
+    // Si agregamos más pestañas en el futuro, aquí van sus filtros demográficos (ej: Mujer >= 25)
+
+    // 2. Filtro de búsqueda y estado
     const matchesSearch = item.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || item.rut.includes(searchTerm);
     if (filter === 'VENCIDOS') return matchesSearch && item.empam_estado === 'VENCIDO';
     if (filter === 'PENDIENTES') return matchesSearch && item.estado_rescate !== 'RESCATADO';
@@ -180,7 +188,51 @@ export default function OportunidadClientView({ initialData, initialDate, initia
         }
       `}</style>
 
-      {/* Stats Cards */}
+      {/* Tabs de Programas */}
+      <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar no-print">
+        <button 
+          onClick={() => setActiveTab('EMPAM')}
+          className={`px-6 py-3 rounded-2xl text-sm font-bold flex items-center transition-all ${activeTab === 'EMPAM' ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50'}`}
+        >
+          <User size={18} className="mr-2" />
+          Adulto Mayor (EMPAM)
+        </button>
+        <button 
+          onClick={() => setActiveTab('ECICEP')}
+          className={`px-6 py-3 rounded-2xl text-sm font-bold flex items-center transition-all ${activeTab === 'ECICEP' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50'}`}
+        >
+          <Activity size={18} className="mr-2" />
+          Cuidado Crónico (ECICEP)
+        </button>
+        <button 
+          onClick={() => setActiveTab('RESPIRATORIO')}
+          className={`px-6 py-3 rounded-2xl text-sm font-bold flex items-center transition-all ${activeTab === 'RESPIRATORIO' ? 'bg-teal-600 text-white shadow-lg shadow-teal-200' : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50'}`}
+        >
+          <Wind size={18} className="mr-2" />
+          Respiratorio (ERA/IRA)
+        </button>
+        <button 
+          onClick={() => setActiveTab('MUJER')}
+          className={`px-6 py-3 rounded-2xl text-sm font-bold flex items-center transition-all ${activeTab === 'MUJER' ? 'bg-pink-600 text-white shadow-lg shadow-pink-200' : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50'}`}
+        >
+          <Flower2 size={18} className="mr-2" />
+          Programa Mujer (PAP)
+        </button>
+      </div>
+
+      {activeTab !== 'EMPAM' ? (
+        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-12 text-center flex flex-col items-center">
+          <div className="h-20 w-20 bg-slate-50 text-slate-400 rounded-full flex items-center justify-center mb-6">
+            <Calendar size={32} />
+          </div>
+          <h2 className="text-2xl font-black text-slate-800 mb-2">Módulo en Construcción</h2>
+          <p className="text-slate-500 max-w-md mx-auto">
+            El cruce inteligente para este programa estará disponible próximamente. Por ahora, utiliza la pestaña de <strong>Adulto Mayor (EMPAM)</strong>.
+          </p>
+        </div>
+      ) : (
+        <>
+          {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 no-print">
         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center">
           <div className="h-12 w-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mr-4">
@@ -270,8 +322,15 @@ export default function OportunidadClientView({ initialData, initialDate, initia
                   </div>
                 </td>
                 <td className="px-6 py-5">
-                  <p className="text-sm font-bold text-slate-800 leading-tight uppercase">{item.nombre}</p>
-                  <p className="text-[11px] font-mono text-slate-400">{item.rut}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-bold text-slate-800 leading-tight uppercase">{item.nombre}</p>
+                    {item.edad && (
+                      <span className="bg-slate-100 text-slate-500 text-[10px] font-black px-2 py-0.5 rounded-md">
+                        {item.edad} años
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] font-mono text-slate-400 mt-1">{item.rut}</p>
                 </td>
                 <td className="px-6 py-5 text-center">
                   <p className="text-xs font-black text-slate-700">{item.telefono || '—'}</p>
@@ -331,6 +390,8 @@ export default function OportunidadClientView({ initialData, initialDate, initia
           </tbody>
         </table>
       </div>
+      </>
+      )}
     </div>
   );
 }

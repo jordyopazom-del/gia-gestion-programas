@@ -18,6 +18,7 @@ export type Oportunidad = AgendaRow & {
   respiratorio_estado: string;
   estado_rescate: string;
   telefono?: string;
+  edad?: number;
 };
 
 export async function uploadAgendaDiaria(rows: AgendaRow[], fecha: string) {
@@ -64,6 +65,7 @@ export async function getOportunidadesHoy(fecha: string) {
         a.rut, a.nombre, a.hora, a.profesional, a.prestacion, a.estado_rescate,
         u.fecha_evaluacion as empam_fecha,
         p.telefono,
+        EXTRACT(YEAR FROM age(CURRENT_DATE, p.fecha_nacimiento))::int as edad,
         CASE 
           WHEN u.fecha_evaluacion IS NULL THEN 'SIN REGISTRO'
           WHEN u.fecha_evaluacion < (CURRENT_DATE - INTERVAL '1 year') THEN 'VENCIDO'
