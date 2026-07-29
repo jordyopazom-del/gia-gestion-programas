@@ -37,7 +37,7 @@ export default function OportunidadClientView({ initialData, initialDate, initia
     reader.onload = async (evt) => {
       try {
         const bstr = evt.target?.result;
-        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wb = XLSX.read(new Uint8Array(bstr as ArrayBuffer), { type: 'array' });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
         const rows = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
@@ -119,7 +119,7 @@ export default function OportunidadClientView({ initialData, initialDate, initia
       }
     };
     
-    reader.readAsBinaryString(file);
+    reader.readAsArrayBuffer(file);
   };
 
   const filteredData = data.filter(item => {
@@ -266,7 +266,6 @@ export default function OportunidadClientView({ initialData, initialDate, initia
                     </div>
                     <div>
                       <p className="text-xs font-bold text-slate-700 leading-tight">{item.profesional}</p>
-                      <p className="text-[10px] text-slate-400 font-medium">{item.prestacion}</p>
                     </div>
                   </div>
                 </td>
