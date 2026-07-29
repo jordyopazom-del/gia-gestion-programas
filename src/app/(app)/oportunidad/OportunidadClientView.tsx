@@ -123,14 +123,17 @@ export default function OportunidadClientView({ initialData, initialDate, initia
     reader.readAsArrayBuffer(file);
   };
 
-  const filteredData = data.filter(item => {
-    // 1. Filtro demográfico por pestaña activa
+  // 1. Filtro demográfico por pestaña activa (determina la población base)
+  const tabData = data.filter(item => {
     if (activeTab === 'EMPAM') {
       if (!item.edad || item.edad < 65) return false;
     }
     // Si agregamos más pestañas en el futuro, aquí van sus filtros demográficos (ej: Mujer >= 25)
+    return true;
+  });
 
-    // 2. Filtro de búsqueda y estado
+  // 2. Filtro de búsqueda y estado sobre la población de la pestaña
+  const filteredData = tabData.filter(item => {
     const matchesSearch = item.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || item.rut.includes(searchTerm);
     if (filter === 'VENCIDOS') return matchesSearch && item.empam_estado === 'VENCIDO';
     if (filter === 'PENDIENTES') return matchesSearch && item.estado_rescate !== 'RESCATADO';
@@ -240,7 +243,7 @@ export default function OportunidadClientView({ initialData, initialDate, initia
           </div>
           <div>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Citados Hoy</p>
-            <p className="text-2xl font-black text-slate-800">{data.length}</p>
+            <p className="text-2xl font-black text-slate-800">{tabData.length}</p>
           </div>
         </div>
 
@@ -251,7 +254,7 @@ export default function OportunidadClientView({ initialData, initialDate, initia
           <div>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Vencidos (Rescate)</p>
             <p className="text-2xl font-black text-slate-800">
-              {data.filter(i => i.empam_estado === 'VENCIDO' && i.estado_rescate !== 'RESCATADO').length}
+              {tabData.filter(i => i.empam_estado === 'VENCIDO' && i.estado_rescate !== 'RESCATADO').length}
             </p>
           </div>
         </div>
@@ -263,7 +266,7 @@ export default function OportunidadClientView({ initialData, initialDate, initia
           <div>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Rescatados</p>
             <p className="text-2xl font-black text-slate-800">
-              {data.filter(i => i.estado_rescate === 'RESCATADO').length}
+              {tabData.filter(i => i.estado_rescate === 'RESCATADO').length}
             </p>
           </div>
         </div>
