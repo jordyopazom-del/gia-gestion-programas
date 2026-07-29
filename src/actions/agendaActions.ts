@@ -96,3 +96,16 @@ export async function marcarRescatado(rut: string, fecha: string) {
     return { error: "Error al actualizar estado" };
   }
 }
+
+export async function getFechasConAgenda(): Promise<string[]> {
+  try {
+    const result = await sql`
+      SELECT DISTINCT fecha_agenda::text as fecha 
+      FROM gia_agendas_diarias 
+      ORDER BY fecha DESC
+    `;
+    return result.map((r: any) => r.fecha);
+  } catch (error) {
+    return [];
+  }
+}

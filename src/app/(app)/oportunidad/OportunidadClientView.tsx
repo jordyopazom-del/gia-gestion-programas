@@ -1,17 +1,19 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { uploadAgendaDiaria, getOportunidadesHoy, marcarRescatado, Oportunidad, AgendaRow } from "@/actions/agendaActions";
-import { Calendar, Upload, Search, User, Clock, AlertCircle, CheckCircle2, ChevronRight, FileSpreadsheet, Filter, Printer } from "lucide-react";
+import { uploadAgendaDiaria, getOportunidadesHoy, marcarRescatado, getFechasConAgenda, Oportunidad, AgendaRow } from "@/actions/agendaActions";
+import { Upload, Search, User, AlertCircle, CheckCircle2, FileSpreadsheet, Printer } from "lucide-react";
 import * as XLSX from "xlsx";
+import AgendaCalendar from "@/components/AgendaCalendar";
 
-export default function OportunidadClientView({ initialData, initialDate }: { initialData: Oportunidad[], initialDate: string }) {
+export default function OportunidadClientView({ initialData, initialDate, initialFechasConAgenda }: { initialData: Oportunidad[], initialDate: string, initialFechasConAgenda: string[] }) {
   const [data, setData] = useState<Oportunidad[]>(initialData);
   const [fecha, setFecha] = useState(initialDate);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filter, setFilter] = useState<'TODOS' | 'VENCIDOS' | 'PENDIENTES'>('TODOS');
+  const [fechasAgenda, setFechasAgenda] = useState<string[]>(initialFechasConAgenda);
 
   // Cargar datos cuando cambie la fecha manualmente
   useEffect(() => {
@@ -99,6 +101,9 @@ export default function OportunidadClientView({ initialData, initialDate }: { in
           if (res.success) {
             const updated = await getOportunidadesHoy(detectedDate);
             if (updated.data) setData(updated.data);
+            // Refrescar fechas con agenda para actualizar el calendario
+            const nuevasFechas = await getFechasConAgenda();
+            setFechasAgenda(nuevasFechas);
             alert(`¡Agenda cargada! Se encontraron ${res.count} pacientes.`);
           } else {
             alert(res.error);
@@ -139,14 +144,11 @@ export default function OportunidadClientView({ initialData, initialDate }: { in
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="bg-white p-2 rounded-2xl shadow-sm border border-slate-100 flex items-center">
-            <input 
-              type="date" 
-              value={fecha}
-              onChange={(e) => setFecha(e.target.value)}
-              className="text-sm font-bold text-slate-600 outline-none px-2"
-            />
-          </div>
+          <AgendaCalendar
+            value={fecha}
+            onChange={setFecha}
+            fechasConAgenda={fechasAgenda}
+          />
           
           <button 
             onClick={() => window.print()}

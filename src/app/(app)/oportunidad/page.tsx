@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { getOportunidadesHoy } from "@/actions/agendaActions";
+import { getOportunidadesHoy, getFechasConAgenda } from "@/actions/agendaActions";
 import OportunidadClientView from "./OportunidadClientView";
 import { getCurrentUser } from "@/lib/currentUser";
 import { redirect } from "next/navigation";
@@ -9,8 +9,11 @@ import SkeletonDashboard from "@/components/SkeletonDashboard";
 export const dynamic = 'force-dynamic';
 
 async function OportunidadDataWrapper({ hoy }: { hoy: string }) {
-  const { data = [], error } = await getOportunidadesHoy(hoy);
-  return <OportunidadClientView initialData={data} initialDate={hoy} />;
+  const [{ data = [] }, fechasConAgenda] = await Promise.all([
+    getOportunidadesHoy(hoy),
+    getFechasConAgenda(),
+  ]);
+  return <OportunidadClientView initialData={data} initialDate={hoy} initialFechasConAgenda={fechasConAgenda} />;
 }
 
 export default async function OportunidadPage() {
