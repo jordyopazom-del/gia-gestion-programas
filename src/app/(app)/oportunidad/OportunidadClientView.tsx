@@ -12,7 +12,6 @@ export default function OportunidadClientView({ initialData, initialDate, initia
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filter, setFilter] = useState<'TODOS' | 'VENCIDOS' | 'PENDIENTES'>('TODOS');
   const [fechasAgenda, setFechasAgenda] = useState<string[]>(initialFechasConAgenda);
   const [activeTab, setActiveTab] = useState<'EMPAM' | 'ECICEP' | 'RESPIRATORIO' | 'MUJER'>('EMPAM');
 
@@ -132,12 +131,17 @@ export default function OportunidadClientView({ initialData, initialDate, initia
     return true;
   });
 
-  // 2. Filtro de búsqueda y estado sobre la población de la pestaña
+  // 2. Filtro de búsqueda y ocultar "AL DIA" para limpiar vista clínica
   const filteredData = tabData.filter(item => {
-    const matchesSearch = item.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || item.rut.includes(searchTerm);
-    if (filter === 'VENCIDOS') return matchesSearch && item.empam_estado === 'VENCIDO';
-    if (filter === 'PENDIENTES') return matchesSearch && item.estado_rescate !== 'RESCATADO';
-    return matchesSearch;
+    // Si están al día, no hay gestión que hacer, los ocultamos.
+    if (activeTab === 'EMPAM' && item.empam_estado === 'AL DIA') return false;
+    
+    return item.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || item.rut.includes(searchTerm);
+  }).sort((a, b) => {
+    // 3. Orden automático: Priorizar los no rescatados arriba.
+    const aRescatado = a.estado_rescate === 'RESCATADO' ? 1 : 0;
+    const bRescatado = b.estado_rescate === 'RESCATADO' ? 1 : 0;
+    return aRescatado - bRescatado;
   });
 
   return (
@@ -283,19 +287,6 @@ export default function OportunidadClientView({ initialData, initialDate, initia
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full bg-slate-50 border-none rounded-2xl py-3 pl-12 pr-4 text-sm focus:ring-2 focus:ring-blue-100 outline-none transition-all"
           />
-        </div>
-        <div className="flex bg-slate-100 p-1 rounded-2xl">
-          {(['TODOS', 'VENCIDOS', 'PENDIENTES'] as const).map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`px-4 py-2 rounded-xl text-[10px] font-bold transition-all ${
-                filter === f ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              {f}
-            </button>
-          ))}
         </div>
       </div>
 
