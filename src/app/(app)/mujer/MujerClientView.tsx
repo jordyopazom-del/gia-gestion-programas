@@ -368,6 +368,7 @@ export default function MujerClientView({ initialData, user }: { initialData: Pa
         "RUT": `${p.rut}-${p.dv}`,
         "Nombre": p.nombre_completo,
         "Edad": age,
+        "Sexo": p.sexo || "FEMENINO",
         "Sector": p.sector,
         "Teléfono": p.telefono || "Sin Registro",
         "Histerectomizada": p.histerectomizada ? `SÍ (${p.causa_histerectomia})` : "NO",

@@ -486,6 +486,7 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
         "RUT": p.rut + "-" + p.dv,
         "Nombre": p.nombre_completo,
         "Edad": age,
+        "Sexo": p.sexo || "SIN REGISTRO",
         "Sector": p.sector,
         "Teléfono": p.telefono,
         "Fecha Última Estratificación": formatDate(p.ultima_atencion),
@@ -536,6 +537,7 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
         "RUT": `${p.rut}-${p.dv}`,
         "Nombre": p.nombre_completo,
         "Edad": age,
+        "Sexo": p.sexo || "SIN REGISTRO",
         "Sector": p.sector || "SIN SECTOR",
         "Teléfono": p.telefono || "-"
       };

@@ -346,6 +346,7 @@ export default function RespiratorioClientView({ data, user }: { data: any[], us
         "RUT": `${p.rut}-${p.dv}`,
         "NOMBRE COMPLETO": p.nombre_completo,
         "EDAD": age,
+        "SEXO": p.sexo || "SIN REGISTRO",
         "SECTOR": p.sector,
         "DIAGNÓSTICO": p.diagnostico === "OTRAS RESPIRATORIAS" && dataCli.otra_respiratoria_detalle
           ? `OTRAS RESPIRATORIAS (${dataCli.otra_respiratoria_detalle})`
@@ -395,6 +396,7 @@ export default function RespiratorioClientView({ data, user }: { data: any[], us
         "Rut": `${p.rut}-${p.dv}`,
         "Nombre": p.nombre_completo,
         "Edad": age || "-",
+        "Sexo": p.sexo || "SIN REGISTRO",
         "Sector": p.sector || "SIN SECTOR",
         "Telefono": p.telefono || "-"
       };

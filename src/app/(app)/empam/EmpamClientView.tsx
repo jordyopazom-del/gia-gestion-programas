@@ -155,6 +155,7 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
         "RUT": p.rut + "-" + p.dv,
         "Nombre": p.nombre_completo,
         "Edad": age,
+        "Sexo": p.sexo || "SIN REGISTRO",
         "Sector": p.sector,
         "Teléfono": p.telefono,
         "Fecha Último EMPAM": formatDate(p.ultima_atencion),
@@ -198,6 +199,7 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
         "Rut": `${p.rut}-${p.dv}`,
         "Nombre": p.nombre_completo,
         "Edad": age,
+        "Sexo": p.sexo || "SIN REGISTRO",
         "Sector": p.sector || "SIN SECTOR",
         "Telefono": p.telefono || "-"
       };
