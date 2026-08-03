@@ -15,6 +15,7 @@ type PacienteMujer = {
   sector: string;
   telefono: string;
   estado: string;
+  sexo?: string;
   es_pad?: boolean;
   histerectomizada?: boolean;
   fecha_histerectomia?: string;
