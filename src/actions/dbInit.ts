@@ -75,7 +75,7 @@ export async function initDatabase() {
       await sql`ALTER TABLE gia_pacientes ADD COLUMN IF NOT EXISTS fecha_histerectomia DATE`;
       await sql`ALTER TABLE gia_pacientes ADD COLUMN IF NOT EXISTS causa_histerectomia TEXT`;
     } catch (e) {
-      console.log("Columna es_pad o columnas de histerectomía ya existen o error al crearlas");
+      console.log("Columnas de pacientes ya existen o error al crearlas");
     }
 
     // 3. Tabla de Programa Adulto Mayor (EMPAM)
@@ -191,6 +191,37 @@ export async function initDatabase() {
       await sql`ALTER TABLE gia_ecicep ADD COLUMN IF NOT EXISTS cita_kine DATE`;
     } catch (e) {
       console.log("Columnas de seguimiento ECICEP ya existen o error al crearlas");
+    }
+
+    // 8. Tabla de Programa Infantil
+    await sql`
+      CREATE TABLE IF NOT EXISTS gia_infantil (
+        id SERIAL PRIMARY KEY,
+        rut_paciente TEXT REFERENCES gia_pacientes(rut) ON DELETE CASCADE,
+        ultimo_control_medico DATE,
+        ultimo_control_enfermera DATE,
+        ultimo_control_nutri DATE,
+        ultimo_control_dental DATE,
+        proximo_control DATE,
+        estamento_proximo_control TEXT,
+        es_naneas BOOLEAN DEFAULT FALSE,
+        es_caso_social BOOLEAN DEFAULT FALSE,
+        condicion_especial TEXT,
+        estado_nutricional TEXT,
+        dsm_resultado TEXT,
+        tipo_evaluacion_dsm TEXT,
+        dsm_detalle JSONB,
+        estado_programa TEXT DEFAULT 'ACTIVO',
+        observaciones TEXT,
+        profesional_rut TEXT REFERENCES gia_usuarios(rut),
+        fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
+
+    try {
+      await sql`ALTER TABLE gia_infantil ADD COLUMN IF NOT EXISTS dsm_detalle JSONB`;
+    } catch (e) {
+      console.log("Columna dsm_detalle ya existe en gia_infantil");
     }
 
     // 5. Crear el usuario Maestro (Si no existe)

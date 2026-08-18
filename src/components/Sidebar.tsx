@@ -11,7 +11,8 @@ import {
   Activity,
   Shield,
   HeartPulse,
-  ClipboardCheck
+  ClipboardCheck,
+  Baby
 } from "lucide-react";
 import { logoutAction } from "@/actions/authActions";
 import { useRouter } from "next/navigation";
@@ -24,6 +25,7 @@ const navigation = [
   { key: "mujer", name: "Programa de la Mujer", href: "/mujer", icon: HeartPulse, roles: ["ADMINISTRADOR", "REFERENTE", "CLINICO", "ADMINISTRATIVO"] },
   { key: "empam", name: "Programa Adulto Mayor", href: "/empam", icon: Activity, roles: ["ADMINISTRADOR", "REFERENTE", "CLINICO", "ADMINISTRATIVO"] },
   { key: "respiratorio", name: "Programa Respiratorio", href: "/respiratorio", icon: Stethoscope, roles: ["ADMINISTRADOR", "REFERENTE", "CLINICO", "ADMINISTRATIVO"] },
+  { key: "infantil", name: "Programa Infantil", href: "/infantil", icon: Baby, roles: ["ADMINISTRADOR", "REFERENTE", "CLINICO", "ADMINISTRATIVO"] },
   { key: "ecicep", name: "Cuidado Crónico ECICEP", href: "/ecicep", icon: ClipboardCheck, roles: ["ADMINISTRADOR", "REFERENTE", "CLINICO", "ADMINISTRATIVO"] },
 ];
 
