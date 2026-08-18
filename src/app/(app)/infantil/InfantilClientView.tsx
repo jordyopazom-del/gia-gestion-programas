@@ -73,7 +73,7 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
   const [edadMin, setEdadMin] = useState<number>(0);
   const [edadMax, setEdadMax] = useState<number>(10);
   
-  const canManage = user.rol === "ADMINISTRADOR" || user.rol === "GESTOR" || user.rol === "REFERENTE";
+  const canManage = user.rol === "ADMINISTRADOR" || (user.rol as string) === "GESTOR" || user.rol === "REFERENTE";
 
   // NSP Modal
   const [showNspModal, setShowNspModal] = useState(false);
