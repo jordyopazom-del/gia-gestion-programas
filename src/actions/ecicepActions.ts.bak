@@ -170,7 +170,7 @@ export async function getEcicepDashboardData() {
         FROM gia_ecicep
       )
       SELECT 
-        p.rut, p.dv, p.nombre_completo, p.fecha_nacimiento, p.sexo, p.sector, p.telefono, p.direccion,
+        p.rut, p.dv, p.nombre_completo, p.fecha_nacimiento, p.sector, p.telefono, p.direccion,
         p.estado, p.motivo_egreso, p.fecha_egreso,
         e.fecha_atencion as ultima_atencion,
         e.categoria,

@@ -498,20 +498,10 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
         "Fecha Última Estratificación": formatDate(p.ultima_atencion),
         "Fecha Ingreso ECICEP": formatDate(getParsedDataClinica(p.data_clinica)?.fecha_ingreso || p.ultima_atencion),
         "Categoría ECICEP": p.categoria || "PENDIENTE",
-        "Seguimiento Telefónico": (() => {
-          const dc = getParsedDataClinica(p.data_clinica);
-          if (dc?.seguimiento_telefonico) {
-            return dc?.estamento_seguimiento ? `SI - ${dc.estamento_seguimiento}` : "SI";
-          }
-          return "NO";
-        })(),
-        "Gestión de Caso": (() => {
-          const dc = getParsedDataClinica(p.data_clinica);
-          if (dc?.gestion_caso) {
-            return dc?.estamento_gestion ? `SI - ${dc.estamento_gestion}` : "SI";
-          }
-          return "NO";
-        })(),
+        "Seguimiento Telefónico": getParsedDataClinica(p.data_clinica)?.seguimiento_telefonico ? "SI" : "NO",
+        "Profesional Seguimiento": getParsedDataClinica(p.data_clinica)?.estamento_seguimiento || "-",
+        "Gestión de Caso": getParsedDataClinica(p.data_clinica)?.gestion_caso ? "SI" : "NO",
+        "Profesional Gestión de Caso": getParsedDataClinica(p.data_clinica)?.estamento_gestion || "-",
         "Diagnósticos Crónicos": p.diagnosticos ? p.diagnosticos.join(", ") : "-",
         "Profesional Evaluador": p.profesional_nombre || "-",
         "Gestor Asignado": p.gestor_nombre || "-",
@@ -548,13 +538,10 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
         "Sector": p.sector || "SIN SECTOR",
         "Teléfono": p.telefono || "-",
         "Profesional Evaluador": p.profesional_nombre || "-",
-        "Gestión de Caso": (() => {
-          const dc = getParsedDataClinica(p.data_clinica);
-          if (dc?.gestion_caso) {
-            return dc?.estamento_gestion ? `SI - ${dc.estamento_gestion}` : "SI";
-          }
-          return "NO";
-        })()
+        "Seguimiento Telefónico": getParsedDataClinica(p.data_clinica)?.seguimiento_telefonico ? "SI" : "NO",
+        "Profesional Seguimiento": getParsedDataClinica(p.data_clinica)?.estamento_seguimiento || "-",
+        "Gestión de Caso": getParsedDataClinica(p.data_clinica)?.gestion_caso ? "SI" : "NO",
+        "Profesional Gestión de Caso": getParsedDataClinica(p.data_clinica)?.estamento_gestion || "-"
       };
     });
 
