@@ -61,6 +61,16 @@ export default function NuevoControlInfantilPage() {
         setErrorBusqueda(res.error || "Paciente no encontrado");
       } else {
         const p = res.data;
+        p.edad_anios = Number(p.edad_anios);
+        p.edad_meses = Number(p.edad_meses);
+        p.edad_dias = Number(p.edad_dias);
+        
+        if (p.edad_anios >= 10) {
+          setErrorBusqueda(`El paciente ${p.nombre_completo} tiene ${p.edad_anios} años y ya no corresponde al programa infantil.`);
+          setBuscando(false);
+          return;
+        }
+
         setPacienteInfo(p);
         
         // Cargar flags actuales
@@ -103,7 +113,7 @@ export default function NuevoControlInfantilPage() {
       }
 
       // Payload dinámico
-      if (pacienteInfo.edad_anios === 0 && pacienteInfo.edad_meses <= 6) {
+      if (pacienteInfo.edad_anios === 0) {
         dsmDetalle = {
           ...dsmDetalle,
           score_ira: scoreIra,
@@ -464,9 +474,9 @@ export default function NuevoControlInfantilPage() {
               </div>
 
               {/* Controles Condicionales por Edad */}
-              {pacienteInfo.edad_anios === 0 && pacienteInfo.edad_meses <= 6 && (
+              {pacienteInfo.edad_anios === 0 && (
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 mt-auto">
-                  <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Controles Lactante Menor</h4>
+                  <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Controles Lactante Menor (menor de 1 año)</h4>
                   <div className="space-y-3">
                     {(pacienteInfo.edad_meses === 6 || pacienteInfo.edad_meses === 7) && (
                       <label className="flex items-center justify-between cursor-pointer">
