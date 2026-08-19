@@ -45,6 +45,7 @@ type InfantilData = {
   direccion: string;
   estado: string;
   motivo_egreso: string;
+  es_pad: boolean;
   es_naneas: boolean;
   es_caso_social: boolean;
   en_sala_estimulacion: boolean;
@@ -73,6 +74,11 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
   const [filterEstado, setFilterEstado] = useState("TODOS");
   const [edadMin, setEdadMin] = useState<number>(0);
   const [edadMax, setEdadMax] = useState<number>(10);
+  
+  const [filterPad, setFilterPad] = useState(false);
+  const [filterNaneas, setFilterNaneas] = useState(false);
+  const [filterSala, setFilterSala] = useState(false);
+  const [filterSocial, setFilterSocial] = useState(false);
   
   const canManage = user.rol === "ADMINISTRADOR" || user.rol === "REFERENTE";
 
@@ -199,6 +205,11 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
       );
     }
     
+    if (filterPad) list = list.filter(p => p.es_pad);
+    if (filterNaneas) list = list.filter(p => p.es_naneas);
+    if (filterSala) list = list.filter(p => p.en_sala_estimulacion);
+    if (filterSocial) list = list.filter(p => p.es_caso_social);
+
     return list;
   };
 
@@ -343,6 +354,50 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
           </div>
         </div>
         
+        <div className="flex flex-wrap items-center gap-4 bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 mt-1">
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Filtrar por:</span>
+          
+          <label className="flex items-center space-x-2 cursor-pointer select-none">
+            <input 
+              type="checkbox" 
+              checked={filterPad} 
+              onChange={(e) => setFilterPad(e.target.checked)} 
+              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-4 w-4"
+            />
+            <span className="text-xs font-bold text-slate-600">Estrategia PAD</span>
+          </label>
+          
+          <label className="flex items-center space-x-2 cursor-pointer select-none">
+            <input 
+              type="checkbox" 
+              checked={filterNaneas} 
+              onChange={(e) => setFilterNaneas(e.target.checked)} 
+              className="rounded border-slate-300 text-cyan-600 focus:ring-cyan-500 h-4 w-4"
+            />
+            <span className="text-xs font-bold text-slate-600">NANEAS</span>
+          </label>
+
+          <label className="flex items-center space-x-2 cursor-pointer select-none">
+            <input 
+              type="checkbox" 
+              checked={filterSala} 
+              onChange={(e) => setFilterSala(e.target.checked)} 
+              className="rounded border-slate-300 text-pink-600 focus:ring-pink-500 h-4 w-4"
+            />
+            <span className="text-xs font-bold text-slate-600">Sala Estimulación</span>
+          </label>
+
+          <label className="flex items-center space-x-2 cursor-pointer select-none">
+            <input 
+              type="checkbox" 
+              checked={filterSocial} 
+              onChange={(e) => setFilterSocial(e.target.checked)} 
+              className="rounded border-slate-300 text-green-600 focus:ring-green-500 h-4 w-4"
+            />
+            <span className="text-xs font-bold text-slate-600">Caso Social</span>
+          </label>
+        </div>
+        
         <div className="flex justify-between items-center text-xs text-slate-500 mt-2">
            <span>Mostrando {filteredData.length} pacientes según filtros.</span>
         </div>
@@ -385,8 +440,13 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
                       <span className="flex items-center font-bold uppercase"><MapPin size={10} className="mr-1 text-slate-400"/> {p.sector}</span>
                     </div>
                     {/* Banderas Clínicas en Listado */}
-                    {(p.es_naneas || p.es_caso_social || p.en_sala_estimulacion || p.condicion_especial) && (
+                    {(p.es_pad || p.es_naneas || p.es_caso_social || p.en_sala_estimulacion || p.condicion_especial) && (
                       <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                        {p.es_pad && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-blue-100 border border-blue-200 text-blue-800 text-[9px] font-black tracking-widest leading-none">
+                            PAD
+                          </span>
+                        )}
                         {p.es_naneas && (
                           <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600 text-[9px] font-black tracking-widest leading-none">
                             <ActivitySquare size={10} className="mr-1 text-cyan-600" />
@@ -582,13 +642,14 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
               </div>
 
               {/* Banderas Clínicas */}
-              {(selectedPaciente.es_naneas || selectedPaciente.es_caso_social || selectedPaciente.en_sala_estimulacion || selectedPaciente.condicion_especial) && (
+              {(selectedPaciente.es_pad || selectedPaciente.es_naneas || selectedPaciente.es_caso_social || selectedPaciente.en_sala_estimulacion || selectedPaciente.condicion_especial) && (
                 <div className="space-y-3">
                   <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center">
                     <AlertTriangle size={12} className="mr-2" /> Banderas Clínicas
                   </h4>
                   <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 space-y-2">
                     <div className="flex flex-wrap gap-2">
+                      {selectedPaciente.es_pad && <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-bold rounded">ESTRATEGIA PAD</span>}
                       {selectedPaciente.es_naneas && <span className="px-2 py-1 bg-cyan-100 text-cyan-800 text-xs font-bold rounded">NANEAS</span>}
                       {selectedPaciente.es_caso_social && <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-bold rounded">CASO SOCIAL</span>}
                       {selectedPaciente.en_sala_estimulacion && <span className="px-2 py-1 bg-pink-100 text-pink-800 text-xs font-bold rounded">SALA ESTIMULACIÓN</span>}
