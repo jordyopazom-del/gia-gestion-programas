@@ -158,6 +158,9 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
 
   const [planAtenciones, setPlanAtenciones] = useState<any[]>([]);
   const [seguimientoTelefonico, setSeguimientoTelefonico] = useState(false);
+  const [estamentoSeguimiento, setEstamentoSeguimiento] = useState("");
+  const [gestionCaso, setGestionCaso] = useState(false);
+  const [estamentoGestion, setEstamentoGestion] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [success, setSuccess] = useState(false);
@@ -200,6 +203,8 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
     const dataClinica = getParsedDataClinica(selectedPatient.data_clinica);
     setSeguimientoTelefonico(dataClinica?.seguimiento_telefonico || false);
     setEstamentoSeguimiento(dataClinica?.estamento_seguimiento || "");
+    setGestionCaso(dataClinica?.gestion_caso || false);
+    setEstamentoGestion(dataClinica?.estamento_gestion || "");
 
     setFechaIngreso(dataClinica?.fecha_ingreso || selectedPatient.ultima_atencion || new Date().toISOString().slice(0, 10));
     
@@ -276,6 +281,8 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
         plan: planAtenciones, 
         seguimiento_telefonico: seguimientoTelefonico,
         estamento_seguimiento: seguimientoTelefonico ? estamentoSeguimiento : "",
+        gestion_caso: gestionCaso,
+        estamento_gestion: gestionCaso ? estamentoGestion : "",
         fecha_ingreso: fechaIngreso 
       }
     };
@@ -775,11 +782,12 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
                            const hasEcg = plan.some((c: any) => c.ecg);
                            const hasEsp = plan.some((c: any) => c.espirometria);
                            const hasFondo = plan.some((c: any) => c.fondoOjo);
+                           const hasGlicemia = plan.some((c: any) => c.perfilGlicemia);
                            const hasPerfil = plan.some((c: any) => c.perfilPA);
                            const hasOtros = plan.some((c: any) => c.otros);
                            const otrosText = plan.find((c: any) => c.otrosTexto)?.otrosTexto || "";
 
-                           if (!hasLab && !hasEcg && !hasEsp && !hasFondo && !hasPerfil && !hasOtros) return null;
+                           if (!hasLab && !hasEcg && !hasEsp && !hasFondo && !hasGlicemia && !hasPerfil && !hasOtros) return null;
                            return (
                              <div className="flex flex-col gap-1 mt-2">
                                <div 
@@ -798,7 +806,7 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
                                  {hasLab && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-50 text-red-700 border border-red-100">🩸 LAB</span>}
                                  {hasEcg && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-50 text-rose-700 border border-rose-100">🫀 ECG</span>}
                                  {hasEsp && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-teal-50 text-teal-700 border border-teal-100">🫁 ESP</span>}
-                                 {hasFondo && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-100">👁️ FOJO</span>}
+                                 {hasFondo && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-100">👁️ FOJO</span>}\n                                 {hasGlicemia && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-50 text-purple-700 border border-purple-100">🩸 GLICEMIA</span>}
                                  {hasPerfil && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">⚕️ PERFIL PA</span>}
                                  {hasOtros && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-100 text-slate-700 border border-slate-200">➕ {otrosText ? otrosText.substring(0, 15) + (otrosText.length > 15 ? '...' : '') : 'OTROS'}</span>}
                                </div>
@@ -1356,6 +1364,39 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
                   </div>
                 )}
               </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 pt-4 border-t border-slate-100">
+                <label className="flex items-center space-x-2.5 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    className="h-4.5 w-4.5 text-indigo-600 focus:ring-indigo-500 border-slate-300 rounded"
+                    checked={gestionCaso}
+                    onChange={e => {
+                      setGestionCaso(e.target.checked);
+                      if (!e.target.checked) setEstamentoGestion("");
+                    }}
+                  />
+                  <span className="text-xs font-bold text-slate-700 uppercase tracking-wide select-none">
+                    📋 Requiere Gestión de Caso
+                  </span>
+                </label>
+
+                {gestionCaso && (
+                  <div className="mt-3 sm:mt-0 animate-in fade-in slide-in-from-left-4 duration-200">
+                    <select
+                      required
+                      value={estamentoGestion}
+                      onChange={e => setEstamentoGestion(e.target.value)}
+                      className="bg-slate-50 border border-slate-200 rounded-md px-3 py-1.5 text-xs font-bold text-indigo-700 outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option value="">-- Asignar a Estamento --</option>
+                      {ROLES_DISPONIBLES.map(r => (
+                        <option key={r} value={r}>{r}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
               {/* Plan de Cuidado Anual (Próximas Citas) */}
               <div className="space-y-3">
                 <div className="flex justify-between items-center border-b border-slate-100 pb-2">
@@ -1582,6 +1623,16 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
                                setExamsModalPlan(newPlan);
                              }} className="h-4 w-4 text-amber-600 rounded border-slate-300" />
                              <span className="text-xs font-bold text-slate-700 select-none">👁️ Fondo Ojo</span>
+                           </label>
+                         )}
+                         {cita.perfilGlicemia && (
+                           <label className="flex items-center space-x-2 cursor-pointer bg-white px-3 py-2 rounded-lg border border-slate-200 hover:bg-purple-50 hover:border-purple-200 transition">
+                             <input type="checkbox" checked={cita.perfilGlicemia} onChange={e => {
+                               const newPlan = [...examsModalPlan];
+                               newPlan[idx].perfilGlicemia = e.target.checked;
+                               setExamsModalPlan(newPlan);
+                             }} className="h-4 w-4 text-purple-600 rounded border-slate-300" />
+                             <span className="text-xs font-bold text-slate-700 select-none">🩸 Perfil Glicemia</span>
                            </label>
                          )}
                          {cita.perfilPA && (

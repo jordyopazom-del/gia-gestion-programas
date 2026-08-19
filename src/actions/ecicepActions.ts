@@ -104,6 +104,8 @@ export async function saveEcicepRecord(data: EcicepSubmission) {
       plan: data.data_clinica?.plan || [],
       seguimiento_telefonico: data.data_clinica?.seguimiento_telefonico || false,
       estamento_seguimiento: data.data_clinica?.estamento_seguimiento || "",
+      gestion_caso: data.data_clinica?.gestion_caso || false,
+      estamento_gestion: data.data_clinica?.estamento_gestion || "",
       fecha_ingreso: data.data_clinica?.fecha_ingreso || null,
       creador
     };

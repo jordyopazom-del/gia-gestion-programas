@@ -72,6 +72,8 @@ export default function NuevoEcicep() {
   const [planAtenciones, setPlanAtenciones] = useState<any[]>([]);
   const [seguimientoTelefonico, setSeguimientoTelefonico] = useState(false);
   const [estamentoSeguimiento, setEstamentoSeguimiento] = useState("");
+  const [gestionCaso, setGestionCaso] = useState(false);
+  const [estamentoGestion, setEstamentoGestion] = useState("");
   
   const [clinicos, setClinicos] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
@@ -273,6 +275,8 @@ export default function NuevoEcicep() {
         plan: planAtenciones, 
         seguimiento_telefonico: seguimientoTelefonico,
         estamento_seguimiento: seguimientoTelefonico ? estamentoSeguimiento : "",
+        gestion_caso: gestionCaso,
+        estamento_gestion: gestionCaso ? estamentoGestion : "",
         fecha_ingreso: fechaIngreso 
       }
     };
