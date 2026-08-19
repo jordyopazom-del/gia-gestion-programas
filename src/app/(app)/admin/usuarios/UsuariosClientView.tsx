@@ -253,6 +253,9 @@ export default function UsuariosClientView({
                           {u.accesos?.includes("ecicep") && (
                             <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-100 font-bold uppercase">ECICEP</span>
                           )}
+                          {u.accesos?.includes("infantil") && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-orange-50 text-orange-600 border border-orange-100 font-bold uppercase">Infantil</span>
+                          )}
                         </div>
                       )}
                     </td>
@@ -532,6 +535,15 @@ export default function UsuariosClientView({
                         className="rounded border-slate-300 text-purple-600 focus:ring-purple-500 h-4 w-4"
                       />
                       <span>Adulto Mayor (EMPAM)</span>
+                    </label>
+                    <label className="flex items-center space-x-2 text-xs font-bold text-slate-700 cursor-pointer select-none">
+                      <input 
+                        type="checkbox"
+                        checked={formAccesos.includes("infantil")}
+                        onChange={(e) => handleAccesoToggle("infantil", e.target.checked)}
+                        className="rounded border-slate-300 text-purple-600 focus:ring-purple-500 h-4 w-4"
+                      />
+                      <span>Prog. Infantil</span>
                     </label>
                     <label className="flex items-center space-x-2 text-xs font-bold text-slate-700 cursor-pointer select-none">
                       <input 
