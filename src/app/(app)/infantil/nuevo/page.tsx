@@ -54,9 +54,9 @@ export default function NuevoControlInfantilPage() {
     setErrorBusqueda(null);
     try {
       const res = await buscarPacienteInfantilPorRut(rutBusqueda);
-      if (res.error) {
-        toast.error(res.error);
-        setErrorBusqueda(res.error);
+      if (res.error || !res.data) {
+        toast.error(res.error || "Paciente no encontrado");
+        setErrorBusqueda(res.error || "Paciente no encontrado");
       } else {
         const p = res.data;
         // Postgres EXTRACT devuelve numeric (string en JS), así que los convertimos a Number
