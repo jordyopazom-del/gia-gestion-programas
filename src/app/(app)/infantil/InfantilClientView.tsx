@@ -1,8 +1,8 @@
 "use client";
-
+import * as XLSX from "xlsx";
 import { useState } from "react";
 import { UserProfile } from "@/actions/userActions";
-import { Search, Info, CheckCircle2, AlertCircle, Phone, Calendar, Stethoscope, Carrot, ActivitySquare, AlertTriangle, ShieldAlert, Baby, X, User, Map, MapPin, CalendarX, Edit, Puzzle } from "lucide-react";
+import { Search, Info, CheckCircle2, AlertCircle, Phone, Calendar, Stethoscope, Carrot, ActivitySquare, AlertTriangle, ShieldAlert, Baby, X, User, Map, MapPin, CalendarX, Edit, Puzzle, Download } from "lucide-react";
 import toast from "react-hot-toast";
 import { registrarNspInfantil, editarPacienteInfantilAdmin } from "@/actions/infantilActions";
 
@@ -247,6 +247,55 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
     return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800">Vigente</span>;
   };
 
+  const exportToExcel = () => {
+    const dataset = filteredData.map(p => {
+      const dsm = parseDsmDetalle(p.dsm_detalle) || {};
+      
+      return {
+        "RUT": p.rut + "-" + p.dv,
+        "Nombre Completo": p.nombre_completo,
+        "Edad Años": p.edad_anios,
+        "Edad Meses": p.edad_meses,
+        "Sector": p.sector,
+        "Estado Programa": p.estado_programa,
+        
+        "Estrategia PAD": p.es_pad ? "SI" : "NO",
+        "NANEAS": p.es_naneas ? "SI" : "NO",
+        "Caso Social": p.es_caso_social ? "SI" : "NO",
+        "Sala Estimulación": p.en_sala_estimulacion ? "SI" : "NO",
+        "Condición Especial": p.condicion_especial || "",
+        
+        "Estado Nutricional": p.estado_nutricional || "",
+        "Resultado DSM": p.dsm_resultado || "",
+        "Tipo Evaluación DSM": p.tipo_evaluacion_dsm || "",
+        
+        "DSM - Lenguaje": dsm.lenguaje || "",
+        "DSM - Social": dsm.social || "",
+        "DSM - Coordinación": dsm.coordinacion || "",
+        "DSM - Motricidad": dsm.motricidad || "",
+        "Score IRA": dsm.score_ira || "",
+        "LME (6/7 Mes)": dsm.lme === true ? "SI" : (dsm.lme === false ? "NO" : ""),
+        "Riesgo TEA (M-CHAT)": dsm.mchat || "",
+        "Derivación TEA": dsm.obsTea === true ? "SI" : "",
+        "Presión Arterial": dsm.presion_arterial || "",
+
+        "Último Control Médico": p.ultimo_control_medico ? p.ultimo_control_medico.substring(0, 10) : "",
+        "Último Control Enf": p.ultimo_control_enfermera ? p.ultimo_control_enfermera.substring(0, 10) : "",
+        "Último Control Nutri": p.ultimo_control_nutri ? p.ultimo_control_nutri.substring(0, 10) : "",
+        "Último Control Dental": p.ultimo_control_dental ? p.ultimo_control_dental.substring(0, 10) : "",
+        
+        "Próximo Control": p.proximo_control ? p.proximo_control.substring(0, 7) : "",
+        "Estamento Próx Control": p.estamento_proximo_control || "",
+        "Observaciones": p.observaciones || ""
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(dataset);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Poblacion_Infantil");
+    XLSX.writeFile(workbook, `Sabana_Estadistica_Infantil.xlsx`);
+  };
+
   return (
     <div className="flex flex-col h-full bg-white">
       {/* Indicadores Top */}
@@ -282,6 +331,13 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
                   Historial de Egresados
               </button>
           </div>
+          <button 
+            onClick={exportToExcel} 
+            className="flex items-center space-x-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100 hover:bg-emerald-100 transition shadow-sm font-bold text-sm"
+          >
+            <Download size={16} />
+            <span>Exportar a Excel</span>
+          </button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
