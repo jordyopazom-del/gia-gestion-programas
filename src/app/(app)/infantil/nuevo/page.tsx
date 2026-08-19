@@ -107,7 +107,7 @@ export default function NuevoControlInfantilPage() {
         dsmDetalle = {
           ...dsmDetalle,
           score_ira: scoreIra,
-          lme: lme
+          lme: (pacienteInfo.edad_meses === 6 || pacienteInfo.edad_meses === 7) ? lme : null
         };
       }
 
@@ -468,10 +468,12 @@ export default function NuevoControlInfantilPage() {
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 mt-auto">
                   <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Controles Lactante Menor</h4>
                   <div className="space-y-3">
-                    <label className="flex items-center justify-between cursor-pointer">
-                      <span className="text-sm font-semibold text-slate-700">Lactancia Materna Exclusiva (LME)</span>
-                      <input type="checkbox" checked={lme} onChange={e => setLme(e.target.checked)} className="rounded border-slate-300 text-pink-600 w-5 h-5" />
-                    </label>
+                    {(pacienteInfo.edad_meses === 6 || pacienteInfo.edad_meses === 7) && (
+                      <label className="flex items-center justify-between cursor-pointer">
+                        <span className="text-sm font-semibold text-slate-700">Lactancia Materna Exclusiva (LME)</span>
+                        <input type="checkbox" checked={lme} onChange={e => setLme(e.target.checked)} className="rounded border-slate-300 text-pink-600 w-5 h-5" />
+                      </label>
+                    )}
                     <div>
                       <label className="block text-xs font-medium text-slate-500 mb-1">Score IRA</label>
                       <select value={scoreIra} onChange={e => setScoreIra(e.target.value)} className="w-full text-sm rounded-lg border-slate-200">
