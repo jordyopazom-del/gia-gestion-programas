@@ -498,10 +498,6 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
         "Fecha Última Estratificación": formatDate(p.ultima_atencion),
         "Fecha Ingreso ECICEP": formatDate(getParsedDataClinica(p.data_clinica)?.fecha_ingreso || p.ultima_atencion),
         "Categoría ECICEP": p.categoria || "PENDIENTE",
-        "Polifarmacia": p.polifarmacia ? "SI" : "NO",
-        "Funcionalidad": p.funcionalidad || "-",
-        "Deterioro Cognitivo": p.deterioro_cognitivo ? "SI" : "NO",
-        "Riesgo Social": p.riesgo_social ? "SI" : "NO",
         "Seguimiento Telefónico": (() => {
           const dc = getParsedDataClinica(p.data_clinica);
           if (dc?.seguimiento_telefonico) {
@@ -516,8 +512,6 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
           }
           return "NO";
         })(),
-        "Hospitalización Reciente (12m)": p.hospitalizacion_reciente ? "SI" : "NO",
-        "Consultas Urgencia (12m)": p.consultas_urgencia || 0,
         "Diagnósticos Crónicos": p.diagnosticos ? p.diagnosticos.join(", ") : "-",
         "Profesional Evaluador": p.profesional_nombre || "-",
         "Gestor Asignado": p.gestor_nombre || "-",

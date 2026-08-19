@@ -373,9 +373,24 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
                   <td className="px-6 py-4 min-w-[250px] align-top">
                     <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
                       <p className="text-sm font-bold text-slate-800 uppercase leading-none mr-1">{p.nombre_completo}</p>
-                      {p.es_naneas && <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-cyan-50 border border-cyan-100 text-cyan-600 text-[8px] font-black tracking-widest leading-none">NANEAS</span>}
-                      {p.es_caso_social && <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-green-50 border border-green-100 text-green-600 text-[8px] font-black tracking-widest leading-none">CASO SOCIAL</span>}
-                      {p.condicion_especial && <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-purple-50 border border-purple-100 text-purple-600 text-[8px] font-black tracking-widest leading-none" title={p.condicion_especial}>CONDICIÓN</span>}
+                      {p.es_naneas && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600 text-[9px] font-black tracking-widest leading-none">
+                          <ActivitySquare size={10} className="mr-1 text-cyan-600" />
+                          NANEAS
+                        </span>
+                      )}
+                      {p.es_caso_social && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600 text-[9px] font-black tracking-widest leading-none">
+                          <User size={10} className="mr-1 text-green-600" />
+                          CASO SOCIAL
+                        </span>
+                      )}
+                      {p.condicion_especial && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600 text-[9px] font-black tracking-widest leading-none" title={p.condicion_especial}>
+                          <AlertCircle size={10} className="mr-1 text-purple-600" />
+                          CONDICIÓN
+                        </span>
+                      )}
                     </div>
                     <div className="flex flex-wrap items-center text-[10px] text-slate-500 gap-x-2 gap-y-1">
                       <span className="font-mono font-bold bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">{p.rut}-{p.dv}</span>

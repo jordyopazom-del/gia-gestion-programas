@@ -85,10 +85,10 @@ export async function guardarControlInfantil(data: {
     let uDental = data.ultimo_control_dental || null;
 
     if (data.atencion_hoy) {
-      if (profesion === 'MÉDICO' || profesion === 'MEDICO') uMedico = hoy;
-      else if (profesion === 'ENFERMERA') uEnfermera = hoy;
-      else if (profesion === 'NUTRICIONISTA') uNutri = hoy;
-      else if (profesion === 'ODONTÓLOGO' || profesion === 'DENTISTA' || profesion === 'ODONTOLOGO') uDental = hoy;
+      if (profesion.includes('MEDIC') || profesion.includes('MÉDIC')) uMedico = hoy;
+      else if (profesion.includes('ENFERMER')) uEnfermera = hoy;
+      else if (profesion.includes('NUTRI')) uNutri = hoy;
+      else if (profesion.includes('ODONT') || profesion.includes('DENTIS')) uDental = hoy;
     }
 
     await sql`
