@@ -509,6 +509,13 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
           }
           return "NO";
         })(),
+        "Gestión de Caso": (() => {
+          const dc = getParsedDataClinica(p.data_clinica);
+          if (dc?.gestion_caso) {
+            return dc?.estamento_gestion ? `SI - ${dc.estamento_gestion}` : "SI";
+          }
+          return "NO";
+        })(),
         "Hospitalización Reciente (12m)": p.hospitalizacion_reciente ? "SI" : "NO",
         "Consultas Urgencia (12m)": p.consultas_urgencia || 0,
         "Diagnósticos Crónicos": p.diagnosticos ? p.diagnosticos.join(", ") : "-",
@@ -545,7 +552,15 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
         "Edad": age,
         "Sexo": p.sexo || "SIN REGISTRO",
         "Sector": p.sector || "SIN SECTOR",
-        "Teléfono": p.telefono || "-"
+        "Teléfono": p.telefono || "-",
+        "Profesional Evaluador": p.profesional_nombre || "-",
+        "Gestión de Caso": (() => {
+          const dc = getParsedDataClinica(p.data_clinica);
+          if (dc?.gestion_caso) {
+            return dc?.estamento_gestion ? `SI - ${dc.estamento_gestion}` : "SI";
+          }
+          return "NO";
+        })()
       };
     });
 
