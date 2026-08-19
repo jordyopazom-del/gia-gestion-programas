@@ -688,6 +688,30 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
                     if (!detalle) return null;
                     return (
                       <div className="mt-2 space-y-2 pt-2 border-t border-slate-200">
+                        {detalle.lenguaje && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs text-slate-500">Lenguaje</span>
+                            <span className={`text-xs font-bold ${detalle.lenguaje === 'Normal' ? 'text-emerald-700' : 'text-red-600'}`}>{detalle.lenguaje}</span>
+                          </div>
+                        )}
+                        {detalle.social && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs text-slate-500">Social</span>
+                            <span className={`text-xs font-bold ${detalle.social === 'Normal' ? 'text-emerald-700' : 'text-red-600'}`}>{detalle.social}</span>
+                          </div>
+                        )}
+                        {detalle.coordinacion && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs text-slate-500">Coordinación</span>
+                            <span className={`text-xs font-bold ${detalle.coordinacion === 'Normal' ? 'text-emerald-700' : 'text-red-600'}`}>{detalle.coordinacion}</span>
+                          </div>
+                        )}
+                        {detalle.motricidad && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs text-slate-500">Motricidad</span>
+                            <span className={`text-xs font-bold ${detalle.motricidad === 'Normal' ? 'text-emerald-700' : 'text-red-600'}`}>{detalle.motricidad}</span>
+                          </div>
+                        )}
                         {detalle.presion_arterial && (
                           <div className="flex justify-between items-center">
                             <span className="text-xs text-slate-500">Presión Arterial</span>
