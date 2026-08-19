@@ -158,6 +158,7 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
 
   const [planAtenciones, setPlanAtenciones] = useState<any[]>([]);
   const [seguimientoTelefonico, setSeguimientoTelefonico] = useState(false);
+  const [estamentoSeguimiento, setEstamentoSeguimiento] = useState("");
   const [gestionCaso, setGestionCaso] = useState(false);
   const [estamentoGestion, setEstamentoGestion] = useState("");
   const [saving, setSaving] = useState(false);
