@@ -642,6 +642,10 @@ export default function NuevoEcicep() {
                               <span className="text-[10px] font-bold text-slate-600">⚕️ Perfil PA</span>
                             </label>
                             <label className="flex items-center space-x-1.5 cursor-pointer bg-white px-2 py-1 rounded border border-slate-200 hover:bg-slate-50">
+                              <input type="checkbox" className="h-3 w-3 text-purple-600 rounded border-slate-300" checked={item.perfilGlicemia || false} onChange={e => updatePlanRow(idx, 'perfilGlicemia', e.target.checked)} />
+                              <span className="text-[10px] font-bold text-slate-600">🩸 Glicemia</span>
+                            </label>
+                            <label className="flex items-center space-x-1.5 cursor-pointer bg-white px-2 py-1 rounded border border-slate-200 hover:bg-slate-50">
                               <input type="checkbox" className="h-3 w-3 text-slate-600 rounded border-slate-300" checked={item.otros || false} onChange={e => updatePlanRow(idx, 'otros', e.target.checked)} />
                               <span className="text-[10px] font-bold text-slate-600">➕ Otros</span>
                             </label>

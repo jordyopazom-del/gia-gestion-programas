@@ -1484,6 +1484,10 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
                               <span className="text-[10px] font-bold text-slate-600">⚕️ Perfil PA</span>
                             </label>
                             <label className="flex items-center space-x-1.5 cursor-pointer bg-white px-2 py-1 rounded border border-slate-200 hover:bg-slate-50">
+                              <input type="checkbox" className="h-3 w-3 text-purple-600 rounded border-slate-300" checked={item.perfilGlicemia || false} onChange={e => updatePlanRow(idx, 'perfilGlicemia', e.target.checked)} />
+                              <span className="text-[10px] font-bold text-slate-600">🩸 Glicemia</span>
+                            </label>
+                            <label className="flex items-center space-x-1.5 cursor-pointer bg-white px-2 py-1 rounded border border-slate-200 hover:bg-slate-50">
                               <input type="checkbox" className="h-3 w-3 text-slate-600 rounded border-slate-300" checked={item.otros || false} onChange={e => updatePlanRow(idx, 'otros', e.target.checked)} />
                               <span className="text-[10px] font-bold text-slate-600">➕ Otros</span>
                             </label>
@@ -1622,6 +1626,16 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
                                setExamsModalPlan(newPlan);
                              }} className="h-4 w-4 text-amber-600 rounded border-slate-300" />
                              <span className="text-xs font-bold text-slate-700 select-none">👁️ Fondo Ojo</span>
+                           </label>
+                         )}
+                         {cita.perfilGlicemia && (
+                           <label className="flex items-center space-x-2 cursor-pointer bg-white px-3 py-2 rounded-lg border border-slate-200 hover:bg-purple-50 hover:border-purple-200 transition">
+                             <input type="checkbox" checked={cita.perfilGlicemia} onChange={e => {
+                               const newPlan = [...examsModalPlan];
+                               newPlan[idx].perfilGlicemia = e.target.checked;
+                               setExamsModalPlan(newPlan);
+                             }} className="h-4 w-4 text-purple-600 rounded border-slate-300" />
+                             <span className="text-xs font-bold text-slate-700 select-none">🩸 Glicemia</span>
                            </label>
                          )}
                          {cita.perfilGlicemia && (
