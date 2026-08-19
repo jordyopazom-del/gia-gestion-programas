@@ -21,6 +21,12 @@ export default function NuevoControlInfantilPage() {
   const [dsmResultado, setDsmResultado] = useState("");
   const [tipoEvaluacionDsm, setTipoEvaluacionDsm] = useState("");
   
+  // DSM Extended states
+  const [eedpLenguaje, setEedpLenguaje] = useState("Normal");
+  const [eedpSocial, setEedpSocial] = useState("Normal");
+  const [eedpCoordinacion, setEedpCoordinacion] = useState("Normal");
+  const [eedpMotricidad, setEedpMotricidad] = useState("Normal");
+  
   const [tepsiLenguaje, setTepsiLenguaje] = useState("Normal");
   const [tepsiCoordinacion, setTepsiCoordinacion] = useState("Normal");
   const [tepsiMotricidad, setTepsiMotricidad] = useState("Normal");
@@ -76,17 +82,23 @@ export default function NuevoControlInfantilPage() {
     
     setGuardando(true);
     try {
-      let dsmDetalle: any = null;
+      let dsmDetalle: any = {};
+      
       if (tipoEvaluacionDsm === "TEPSI") {
         dsmDetalle = {
           lenguaje: tepsiLenguaje,
           coordinacion: tepsiCoordinacion,
           motricidad: tepsiMotricidad
         };
-      } else if (tipoEvaluacionDsm === "M-CHAT-R") {
+      } else if (tipoEvaluacionDsm === "EEDP") {
+        const reqMchat = eedpLenguaje === "Alterado" || eedpSocial === "Alterado";
         dsmDetalle = {
-          riesgo_tea: mchatResultado,
-          observacion: obsTea
+          lenguaje: eedpLenguaje,
+          social: eedpSocial,
+          coordinacion: eedpCoordinacion,
+          motricidad: eedpMotricidad,
+          mchat: reqMchat ? mchatResultado : null,
+          obsTea: reqMchat ? obsTea : false
         };
       }
 
@@ -292,16 +304,56 @@ export default function NuevoControlInfantilPage() {
                 <label className="block text-xs font-bold text-slate-500 mb-2">Evaluación o Test Realizado</label>
                 <select 
                   value={tipoEvaluacionDsm} 
-                  onChange={(e) => setTipoEvaluacionDsm(e.target.value)} 
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setTipoEvaluacionDsm(val);
+                    if (val === "Pauta Breve" && !["Normal", "Alterado"].includes(dsmResultado)) {
+                      setDsmResultado("");
+                    } else if (val !== "Pauta Breve" && dsmResultado === "Alterado") {
+                      setDsmResultado("");
+                    }
+                  }} 
                   className="w-full rounded-xl border-slate-200"
                 >
                   <option value="">No Evaluado / Sin Registro de Instrumento</option>
-                  <option value="EEDP">EEDP (Pauta Breve)</option>
+                  <option value="Pauta Breve">Pauta Breve</option>
+                  <option value="EEDP">EEDP</option>
                   <option value="TEPSI">TEPSI</option>
-                  <option value="M-CHAT-R">M-CHAT-R (Autismo)</option>
-                  <option value="EDAD_CLINICO">Por edad clínica (Sin test)</option>
                 </select>
               </div>
+
+              {tipoEvaluacionDsm === "EEDP" && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 mb-1">Lenguaje</label>
+                    <select value={eedpLenguaje} onChange={e => setEedpLenguaje(e.target.value)} className="w-full text-sm rounded-lg border-slate-200 py-1.5">
+                      <option value="Normal">Normal</option>
+                      <option value="Alterado">Alterado</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 mb-1">Social</label>
+                    <select value={eedpSocial} onChange={e => setEedpSocial(e.target.value)} className="w-full text-sm rounded-lg border-slate-200 py-1.5">
+                      <option value="Normal">Normal</option>
+                      <option value="Alterado">Alterado</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 mb-1">Coordinación</label>
+                    <select value={eedpCoordinacion} onChange={e => setEedpCoordinacion(e.target.value)} className="w-full text-sm rounded-lg border-slate-200 py-1.5">
+                      <option value="Normal">Normal</option>
+                      <option value="Alterado">Alterado</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 mb-1">Motricidad</label>
+                    <select value={eedpMotricidad} onChange={e => setEedpMotricidad(e.target.value)} className="w-full text-sm rounded-lg border-slate-200 py-1.5">
+                      <option value="Normal">Normal</option>
+                      <option value="Alterado">Alterado</option>
+                    </select>
+                  </div>
+                </div>
+              )}
 
               {tipoEvaluacionDsm === "TEPSI" && (
                 <div className="grid grid-cols-3 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
@@ -332,21 +384,27 @@ export default function NuevoControlInfantilPage() {
                 </div>
               )}
 
-              {tipoEvaluacionDsm === "M-CHAT-R" && (
-                <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-2">Riesgo TEA</label>
-                    <select value={mchatResultado} onChange={e => setMchatResultado(e.target.value)} className="w-full text-sm rounded-lg border-slate-200">
-                      <option value="Bajo">Bajo (0-2 puntos)</option>
-                      <option value="Medio">Medio (3-7 puntos)</option>
-                      <option value="Alto">Alto (8-20 puntos)</option>
-                    </select>
-                  </div>
-                  <div className="flex items-center mt-6">
-                    <label className="flex items-center cursor-pointer">
-                      <input type="checkbox" checked={obsTea} onChange={e => setObsTea(e.target.checked)} className="rounded border-slate-300 text-blue-600 mr-2" />
-                      <span className="text-sm font-semibold text-slate-700">Derivar a Confirmación</span>
-                    </label>
+              {tipoEvaluacionDsm === "EEDP" && (eedpLenguaje === "Alterado" || eedpSocial === "Alterado") && (
+                <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl space-y-4">
+                  <h4 className="text-xs font-bold text-amber-800 flex items-center">
+                    <AlertCircle size={14} className="mr-1.5" /> 
+                    Corresponde aplicar M-CHAT-R
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-bold text-amber-700 mb-1">Riesgo TEA (Puntaje M-CHAT-R)</label>
+                      <select value={mchatResultado} onChange={e => setMchatResultado(e.target.value)} className="w-full text-sm rounded-lg border-amber-200 bg-white py-1.5 text-amber-900">
+                        <option value="Bajo">Bajo (0-2 puntos)</option>
+                        <option value="Medio">Medio (3-7 puntos)</option>
+                        <option value="Alto">Alto (8-20 puntos)</option>
+                      </select>
+                    </div>
+                    <div className="flex items-center pt-5">
+                      <label className="flex items-center cursor-pointer">
+                        <input type="checkbox" checked={obsTea} onChange={e => setObsTea(e.target.checked)} className="rounded border-amber-300 text-amber-600 mr-2" />
+                        <span className="text-sm font-semibold text-amber-900">Derivar a Confirmación (Observación TEA)</span>
+                      </label>
+                    </div>
                   </div>
                 </div>
               )}
@@ -365,9 +423,15 @@ export default function NuevoControlInfantilPage() {
                 >
                   <option value="">Seleccionar Resultado DSM...</option>
                   <option value="Normal">Desarrollo Normal</option>
-                  <option value="Rezago">Rezago del Desarrollo</option>
-                  <option value="Riesgo">Riesgo de Retraso</option>
-                  <option value="Retraso">Retraso del Desarrollo</option>
+                  {tipoEvaluacionDsm === "Pauta Breve" ? (
+                    <option value="Alterado">Alterado</option>
+                  ) : tipoEvaluacionDsm ? (
+                    <>
+                      <option value="Rezago">Rezago del Desarrollo</option>
+                      <option value="Riesgo">Riesgo de Retraso</option>
+                      <option value="Retraso">Retraso del Desarrollo</option>
+                    </>
+                  ) : null}
                 </select>
               </div>
             </div>
