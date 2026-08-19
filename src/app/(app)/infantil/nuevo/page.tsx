@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { buscarPacienteInfantilPorRut, guardarControlInfantil } from "@/actions/infantilActions";
-import { Baby, Search, ArrowLeft, Save, AlertCircle } from "lucide-react";
+import { Baby, Search, ArrowLeft, Save, AlertCircle, ShieldCheck } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function NuevoControlInfantilPage() {
@@ -12,6 +12,7 @@ export default function NuevoControlInfantilPage() {
   const [buscando, setBuscando] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [pacienteInfo, setPacienteInfo] = useState<any>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   // Form states
   const [proximoControl, setProximoControl] = useState("");
@@ -19,12 +20,6 @@ export default function NuevoControlInfantilPage() {
   
   const [dsmResultado, setDsmResultado] = useState("");
   const [tipoEvaluacionDsm, setTipoEvaluacionDsm] = useState("");
-  
-  // DSM Extended states
-  const [eedpLenguaje, setEedpLenguaje] = useState("Normal");
-  const [eedpSocial, setEedpSocial] = useState("Normal");
-  const [eedpCoordinacion, setEedpCoordinacion] = useState("Normal");
-  const [eedpMotricidad, setEedpMotricidad] = useState("Normal");
   
   const [tepsiLenguaje, setTepsiLenguaje] = useState("Normal");
   const [tepsiCoordinacion, setTepsiCoordinacion] = useState("Normal");
@@ -59,22 +54,16 @@ export default function NuevoControlInfantilPage() {
         setErrorBusqueda(res.error || "Paciente no encontrado");
       } else {
         const p = res.data;
-        // Postgres EXTRACT devuelve numeric (string en JS), así que los convertimos a Number
-        p.edad_anios = Number(p.edad_anios);
-        p.edad_meses = Number(p.edad_meses);
-        p.edad_dias = Number(p.edad_dias);
-        
-        if (p.edad_anios >= 10) {
-          setErrorBusqueda(`El paciente ${p.nombre_completo} tiene ${p.edad_anios} años y ya no corresponde al programa infantil.`);
-          return;
-        }
         setPacienteInfo(p);
+        
+        // Cargar flags actuales
         setEsNaneas(p.es_naneas || false);
         setEsCasoSocial(p.es_caso_social || false);
-        toast.success("Paciente encontrado");
+        setCondicionEspecial(p.condicion_especial || "");
       }
     } catch (error) {
       toast.error("Error al buscar paciente");
+      setErrorBusqueda("Error de red");
     } finally {
       setBuscando(false);
     }
@@ -82,32 +71,36 @@ export default function NuevoControlInfantilPage() {
 
   const handleGuardar = async () => {
     if (!pacienteInfo) return;
+    
     setGuardando(true);
-
     try {
-      let dsmDetalle: any = {
-        score_ira: (pacienteInfo.edad_anios === 0) ? (scoreIra || null) : null,
-        lme: (pacienteInfo.edad_anios === 0 && (pacienteInfo.edad_meses === 6 || pacienteInfo.edad_meses === 7)) ? lme : null,
-        presion_arterial: (pacienteInfo.edad_anios >= 3) ? presionArterial : null
-      };
-
-      if (tipoEvaluacionDsm === "EEDP") {
-        const reqMchat = eedpLenguaje === "Alterado" || eedpSocial === "Alterado";
+      let dsmDetalle: any = null;
+      if (tipoEvaluacionDsm === "TEPSI") {
         dsmDetalle = {
-          ...dsmDetalle,
-          lenguaje: eedpLenguaje,
-          social: eedpSocial,
-          coordinacion: eedpCoordinacion,
-          motricidad: eedpMotricidad,
-          mchat: reqMchat ? mchatResultado : null,
-          obsTea: reqMchat ? obsTea : false
-        };
-      } else if (tipoEvaluacionDsm === "TEPSI") {
-        dsmDetalle = {
-          ...dsmDetalle,
           lenguaje: tepsiLenguaje,
           coordinacion: tepsiCoordinacion,
           motricidad: tepsiMotricidad
+        };
+      } else if (tipoEvaluacionDsm === "M-CHAT-R") {
+        dsmDetalle = {
+          riesgo_tea: mchatResultado,
+          observacion: obsTea
+        };
+      }
+
+      // Payload dinámico
+      if (pacienteInfo.edad_anios === 0 && pacienteInfo.edad_meses <= 6) {
+        dsmDetalle = {
+          ...dsmDetalle,
+          score_ira: scoreIra,
+          lme: lme
+        };
+      }
+
+      if (pacienteInfo.edad_anios >= 3) {
+        dsmDetalle = {
+          ...dsmDetalle,
+          presion_arterial: presionArterial
         };
       }
 
@@ -134,9 +127,16 @@ export default function NuevoControlInfantilPage() {
       if (resControl.error) {
         toast.error(resControl.error);
       } else {
-        toast.success("Registro guardado exitosamente");
-        router.push("/infantil");
-        router.refresh();
+        setShowSuccessModal(true);
+        // Limpiar el form para el proximo registro
+        setRutBusqueda("");
+        setPacienteInfo(null);
+        setDsmResultado("");
+        setTipoEvaluacionDsm("");
+        setEstadoNutricional("Normal");
+        setProximoControl("");
+        setEstamentoProximoControl("");
+        setObservaciones("");
       }
     } catch (error) {
       toast.error("Ocurrió un error inesperado");
@@ -146,327 +146,332 @@ export default function NuevoControlInfantilPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto pb-10">
-      <div className="flex items-center mb-6">
-        <button 
-          onClick={() => router.push('/infantil')} 
-          className="mr-4 p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-full transition"
-        >
-          <ArrowLeft size={20} />
-        </button>
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">Registrar Control Infantil</h1>
-          <p className="text-slate-500">Actualizar hitos y datos de niño sano</p>
+    <div className="max-w-4xl mx-auto pb-12">
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center">
+          <button 
+            onClick={() => router.push('/infantil')}
+            className="mr-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition"
+          >
+            <ArrowLeft size={24} />
+          </button>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-800 flex items-center">
+              <Baby className="mr-3 text-pink-600" size={28} />
+              Registrar Control Infantil
+            </h1>
+            <p className="text-slate-500 mt-1">Ingresa el RUT para cargar el historial y registrar una nueva atención</p>
+          </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-6">
-        <div className="p-6 border-b border-slate-100 bg-slate-50 flex gap-4 items-end">
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-slate-700 mb-1">RUT del Paciente</label>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Ej: 21.123.456-7"
-                className="w-full pl-3 pr-10 py-2 border border-slate-300 rounded-md shadow-sm focus:ring-pink-500 focus:border-pink-500 font-mono"
-                value={rutBusqueda}
-                onChange={(e) => setRutBusqueda(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleBuscar()}
-              />
-            </div>
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-8">
+        <div className="flex gap-4 max-w-2xl">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+            <input 
+              type="text"
+              placeholder="RUT del paciente (ej: 12345678-9)"
+              className="w-full pl-10 pr-4 py-3 bg-slate-50 border-slate-200 rounded-xl font-mono text-lg focus:ring-pink-500 focus:border-pink-500"
+              value={rutBusqueda}
+              onChange={(e) => setRutBusqueda(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleBuscar()}
+            />
           </div>
           <button
             onClick={handleBuscar}
             disabled={buscando || !rutBusqueda}
-            className="bg-slate-800 hover:bg-slate-900 text-white px-6 py-2 rounded-md font-medium disabled:opacity-50 transition flex items-center h-[42px]"
+            className="bg-slate-800 hover:bg-slate-900 text-white px-8 rounded-xl font-bold transition disabled:opacity-50 whitespace-nowrap"
           >
-            {buscando ? "Buscando..." : <><Search size={18} className="mr-2" /> Buscar</>}
+            {buscando ? "Buscando..." : "Buscar"}
           </button>
         </div>
 
-        {pacienteInfo && (
-          <div className="p-6 border-b border-slate-100">
-            <div className="flex items-center gap-4 bg-pink-50 text-pink-800 p-4 rounded-lg border border-pink-100">
-              <Baby size={32} className="text-pink-400" />
-              <div>
-                <h3 className="font-bold text-lg">{pacienteInfo.nombre_completo}</h3>
-                <p className="text-sm font-mono opacity-80">{pacienteInfo.rut}-{pacienteInfo.dv} • {pacienteInfo.edad_anios} años, {pacienteInfo.edad_meses} meses, {pacienteInfo.edad_dias} días</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {errorBusqueda && !pacienteInfo && (
-          <div className="p-6 border-b border-slate-100">
-            <div className="flex items-center gap-4 bg-amber-50 text-amber-800 p-4 rounded-lg border border-amber-200">
-              <AlertCircle size={32} className="text-amber-500 flex-shrink-0" />
-              <div>
-                <h3 className="font-bold text-lg">Atención Requerida</h3>
-                <p className="text-sm opacity-90">{errorBusqueda}</p>
-              </div>
+        {errorBusqueda && (
+          <div className="mt-4 p-4 bg-red-50 border border-red-100 rounded-xl flex items-start text-red-600">
+            <AlertCircle size={20} className="mr-2 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold">No se encontró el paciente</p>
+              <p className="text-sm opacity-80">Verifica el RUT ingresado o asegúrate de que esté registrado en el Directorio Maestro.</p>
             </div>
           </div>
         )}
       </div>
 
       {pacienteInfo && (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-            
-            {/* Banderas Especiales */}
-            <div className="col-span-1 md:col-span-2">
-              <h3 className="text-lg font-semibold text-slate-800 border-b pb-2 mb-4">Banderas Clínicas</h3>
-              <div className="flex gap-8 mb-4">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={esNaneas} onChange={(e) => setEsNaneas(e.target.checked)} className="w-5 h-5 text-cyan-600 border-slate-300 rounded focus:ring-cyan-500" />
-                  <span className="font-medium text-slate-700">Paciente NANEAS</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={esCasoSocial} onChange={(e) => setEsCasoSocial(e.target.checked)} className="w-5 h-5 text-green-600 border-slate-300 rounded focus:ring-green-500" />
-                  <span className="font-medium text-slate-700">Caso Social</span>
-                </label>
-              </div>
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          
+          {/* Tarjeta Resumen del Paciente */}
+          <div className="bg-gradient-to-br from-pink-50 to-white p-6 rounded-2xl border border-pink-100 shadow-sm">
+            <div className="flex justify-between items-start">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Condición Especial (Ej: Prematurez, Síndrome)</label>
-                <input type="text" placeholder="Describir condición si aplica..." value={condicionEspecial} onChange={(e) => setCondicionEspecial(e.target.value)} className="w-full border-slate-300 rounded-md shadow-sm text-sm" />
+                <h2 className="text-xl font-black text-slate-800 uppercase mb-1">{pacienteInfo.nombre_completo}</h2>
+                <div className="flex items-center text-sm text-slate-500 gap-4 font-medium">
+                  <span className="font-mono bg-white px-2 py-1 rounded border border-slate-200">{pacienteInfo.rut}-{pacienteInfo.dv}</span>
+                  <span>{pacienteInfo.edad_anios} Años, {pacienteInfo.edad_meses} Meses</span>
+                  <span className="uppercase text-pink-600 font-bold bg-pink-100 px-2 py-0.5 rounded">{pacienteInfo.sector}</span>
+                </div>
               </div>
             </div>
 
-            {/* Indicadores por Edad */}
-            {(pacienteInfo.edad_anios === 0 || pacienteInfo.edad_anios >= 3) && (
-              <div className="col-span-1 md:col-span-2">
-                <h3 className="text-lg font-semibold text-slate-800 border-b pb-2 mb-4">Indicadores Específicos por Edad</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Para Lactantes */}
-                  {pacienteInfo.edad_anios === 0 && (
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Score IRA</label>
-                        <select value={scoreIra} onChange={(e) => setScoreIra(e.target.value)} className="w-full border-slate-300 rounded-md shadow-sm text-sm">
-                          <option value="">Sin Score</option>
-                          <option value="Leve">Leve</option>
-                          <option value="Moderado">Moderado</option>
-                          <option value="Grave">Grave</option>
-                        </select>
-                      </div>
-                      
-                      {(pacienteInfo.edad_meses === 6 || pacienteInfo.edad_meses === 7) && (
-                        <div className="flex items-center pt-0 md:pt-6">
-                          <label className="flex items-center gap-2 cursor-pointer bg-white px-4 py-2 border border-slate-300 rounded-md shadow-sm w-full">
-                            <input type="checkbox" checked={lme} onChange={(e) => setLme(e.target.checked)} className="w-5 h-5 text-fuchsia-600 border-slate-300 rounded focus:ring-fuchsia-500" />
-                            <span className="font-medium text-slate-700 text-sm">Lactancia Materna Exclusiva (LME)</span>
-                          </label>
-                        </div>
-                      )}
-                    </>
-                  )}
-
-                  {/* Para 3 años o más */}
-                  {pacienteInfo.edad_anios >= 3 && (
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Presión Arterial (PA)</label>
-                      <select value={presionArterial} onChange={(e) => setPresionArterial(e.target.value)} className="w-full border-slate-300 rounded-md shadow-sm text-sm">
-                        <option>Normal (PA menor al percentil 90)</option>
-                        <option>PA elevada</option>
-                        <option>HTA estadio I</option>
-                        <option>HTA estadio II</option>
-                      </select>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Evaluaciones */}
-            <div className="col-span-1 md:col-span-2">
-              <h3 className="text-lg font-semibold text-slate-800 border-b pb-2 mb-4">Desarrollo Psicomotor (DSM)</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Tipo de Evaluación</label>
-                  <select value={tipoEvaluacionDsm} onChange={(e) => {
-                      const val = e.target.value;
-                      setTipoEvaluacionDsm(val);
-                      if (val === "Pauta Breve" && !["Normal", "Alterado"].includes(dsmResultado)) {
-                        setDsmResultado("");
-                      } else if (val !== "Pauta Breve" && dsmResultado === "Alterado") {
-                        setDsmResultado("");
-                      }
-                    }} className="w-full border-slate-300 rounded-md shadow-sm text-sm">
-                    <option value="">Seleccionar...</option>
-                    <option>Pauta Breve</option>
-                    <option>EEDP</option>
-                    <option>TEPSI</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Resultado DSM Global</label>
-                  <select value={dsmResultado} onChange={(e) => setDsmResultado(e.target.value)} disabled={!tipoEvaluacionDsm} className="w-full border-slate-300 rounded-md shadow-sm text-sm">
-                    <option value="">Seleccionar...</option>
-                    <option>Normal</option>
-                    {tipoEvaluacionDsm === "Pauta Breve" ? (
-                      <option>Alterado</option>
-                    ) : tipoEvaluacionDsm ? (
-                      <>
-                        <option>Riesgo</option>
-                        <option>Rezago</option>
-                        <option>Retraso</option>
-                      </>
-                    ) : null}
-                  </select>
-                </div>
-              </div>
-
-              {/* Detalle EEDP */}
-              {tipoEvaluacionDsm === "EEDP" && (
-                <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-md">
-                  <h4 className="text-sm font-semibold text-slate-700 mb-3">Detalle de Áreas EEDP</h4>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div>
-                      <label className="block text-xs text-slate-500 mb-1">Lenguaje</label>
-                      <select value={eedpLenguaje} onChange={(e) => setEedpLenguaje(e.target.value)} className="w-full border-slate-300 text-sm rounded">
-                        <option>Normal</option>
-                        <option>Alterado</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs text-slate-500 mb-1">Social</label>
-                      <select value={eedpSocial} onChange={(e) => setEedpSocial(e.target.value)} className="w-full border-slate-300 text-sm rounded">
-                        <option>Normal</option>
-                        <option>Alterado</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs text-slate-500 mb-1">Coordinación</label>
-                      <select value={eedpCoordinacion} onChange={(e) => setEedpCoordinacion(e.target.value)} className="w-full border-slate-300 text-sm rounded">
-                        <option>Normal</option>
-                        <option>Alterado</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs text-slate-500 mb-1">Motricidad</label>
-                      <select value={eedpMotricidad} onChange={(e) => setEedpMotricidad(e.target.value)} className="w-full border-slate-300 text-sm rounded">
-                        <option>Normal</option>
-                        <option>Alterado</option>
-                      </select>
-                    </div>
+            <div className="grid grid-cols-3 gap-6 mt-6">
+              <div className="bg-white p-4 rounded-xl border border-slate-100">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 block">Últimos Controles Registrados</label>
+                <div className="space-y-2 text-xs">
+                  <div className="flex justify-between border-b border-slate-50 pb-1">
+                    <span className="font-semibold text-slate-600">Enfermera</span>
+                    <span className="font-mono text-slate-400">{pacienteInfo.hist_enfermera || '-'}</span>
                   </div>
-
-                  {(eedpLenguaje === "Alterado" || eedpSocial === "Alterado") && (
-                    <div className="mt-4 pt-4 border-t border-slate-200">
-                      <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
-                        <div className="flex-1 w-full">
-                          <label className="block text-sm font-medium text-amber-700 mb-1">
-                            <AlertCircle className="inline-block w-4 h-4 mr-1 mb-1" />
-                            Resultado M-CHAT (Requerido por alteración Lenguaje/Social)
-                          </label>
-                          <select value={mchatResultado} onChange={(e) => setMchatResultado(e.target.value)} className="w-full border-amber-300 bg-amber-50 text-amber-900 rounded-md shadow-sm text-sm focus:ring-amber-500 focus:border-amber-500">
-                            <option>Bajo</option>
-                            <option>Moderado</option>
-                            <option>Alto</option>
-                          </select>
-                        </div>
-                        <div className="flex items-center gap-2 mt-4 md:mt-0 pt-0 md:pt-6">
-                          <label className="flex items-center gap-2 cursor-pointer bg-white px-4 py-2 border border-slate-300 rounded-md shadow-sm">
-                            <input type="checkbox" checked={obsTea} onChange={(e) => setObsTea(e.target.checked)} className="w-5 h-5 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500" />
-                            <span className="font-medium text-slate-700 text-sm">Obs. TEA</span>
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  <div className="flex justify-between border-b border-slate-50 pb-1">
+                    <span className="font-semibold text-slate-600">Médico</span>
+                    <span className="font-mono text-slate-400">{pacienteInfo.hist_medico || '-'}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-50 pb-1">
+                    <span className="font-semibold text-slate-600">Nutricionista</span>
+                    <span className="font-mono text-slate-400">{pacienteInfo.hist_nutri || '-'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-semibold text-slate-600">Dental</span>
+                    <span className="font-mono text-slate-400">{pacienteInfo.hist_dental || '-'}</span>
+                  </div>
                 </div>
-              )}
+              </div>
 
-              {/* Detalle TEPSI */}
+              <div className="col-span-2 bg-white p-4 rounded-xl border border-slate-100">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 block">Alertas Clínicas Actuales</label>
+                <div className="grid grid-cols-2 gap-4">
+                  <label className="flex items-center p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 transition">
+                    <input type="checkbox" checked={esNaneas} onChange={(e) => setEsNaneas(e.target.checked)} className="rounded border-slate-300 text-pink-600 w-5 h-5 mr-3" />
+                    <div>
+                      <div className="font-bold text-sm text-slate-700">NANEAS</div>
+                      <div className="text-[10px] text-slate-500">Necesidades Especiales</div>
+                    </div>
+                  </label>
+                  <label className="flex items-center p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 transition">
+                    <input type="checkbox" checked={esCasoSocial} onChange={(e) => setEsCasoSocial(e.target.checked)} className="rounded border-slate-300 text-pink-600 w-5 h-5 mr-3" />
+                    <div>
+                      <div className="font-bold text-sm text-slate-700">Caso Social</div>
+                      <div className="text-[10px] text-slate-500">Alerta de seguimiento</div>
+                    </div>
+                  </label>
+                  <div className="col-span-2">
+                    <input 
+                      type="text" 
+                      placeholder="Condición Especial (Ej: Alergia a la proteína de leche de vaca)" 
+                      value={condicionEspecial} 
+                      onChange={(e) => setCondicionEspecial(e.target.value)} 
+                      className="w-full text-sm border-slate-200 rounded-lg"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-6">
+            
+            {/* Desarrollo Psicomotor */}
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5">
+              <h3 className="font-black text-slate-800 uppercase flex items-center border-b pb-3">
+                <span className="bg-blue-100 text-blue-600 w-6 h-6 rounded-md flex items-center justify-center mr-2 text-xs">1</span>
+                Desarrollo Psicomotor (DSM)
+              </h3>
+              
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-2">Evaluación o Test Realizado</label>
+                <select 
+                  value={tipoEvaluacionDsm} 
+                  onChange={(e) => setTipoEvaluacionDsm(e.target.value)} 
+                  className="w-full rounded-xl border-slate-200"
+                >
+                  <option value="">No Evaluado / Sin Registro de Instrumento</option>
+                  <option value="EEDP">EEDP (Pauta Breve)</option>
+                  <option value="TEPSI">TEPSI</option>
+                  <option value="M-CHAT-R">M-CHAT-R (Autismo)</option>
+                  <option value="EDAD_CLINICO">Por edad clínica (Sin test)</option>
+                </select>
+              </div>
+
               {tipoEvaluacionDsm === "TEPSI" && (
-                <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-md">
-                  <h4 className="text-sm font-semibold text-slate-700 mb-3">Detalle de Áreas TEPSI</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-3 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 mb-1">Lenguaje</label>
+                    <select value={tepsiLenguaje} onChange={e => setTepsiLenguaje(e.target.value)} className="w-full text-sm rounded-lg border-slate-200 py-1.5">
+                      <option value="Normal">Normal</option>
+                      <option value="Riesgo">Riesgo</option>
+                      <option value="Retraso">Retraso</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 mb-1">Coordinación</label>
+                    <select value={tepsiCoordinacion} onChange={e => setTepsiCoordinacion(e.target.value)} className="w-full text-sm rounded-lg border-slate-200 py-1.5">
+                      <option value="Normal">Normal</option>
+                      <option value="Riesgo">Riesgo</option>
+                      <option value="Retraso">Retraso</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 mb-1">Motricidad</label>
+                    <select value={tepsiMotricidad} onChange={e => setTepsiMotricidad(e.target.value)} className="w-full text-sm rounded-lg border-slate-200 py-1.5">
+                      <option value="Normal">Normal</option>
+                      <option value="Riesgo">Riesgo</option>
+                      <option value="Retraso">Retraso</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {tipoEvaluacionDsm === "M-CHAT-R" && (
+                <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-2">Riesgo TEA</label>
+                    <select value={mchatResultado} onChange={e => setMchatResultado(e.target.value)} className="w-full text-sm rounded-lg border-slate-200">
+                      <option value="Bajo">Bajo (0-2 puntos)</option>
+                      <option value="Medio">Medio (3-7 puntos)</option>
+                      <option value="Alto">Alto (8-20 puntos)</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center mt-6">
+                    <label className="flex items-center cursor-pointer">
+                      <input type="checkbox" checked={obsTea} onChange={e => setObsTea(e.target.checked)} className="rounded border-slate-300 text-blue-600 mr-2" />
+                      <span className="text-sm font-semibold text-slate-700">Derivar a Confirmación</span>
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-2">Resultado Global DSM</label>
+                <select 
+                  value={dsmResultado} 
+                  onChange={(e) => setDsmResultado(e.target.value)} 
+                  className={`w-full rounded-xl font-medium ${
+                    !dsmResultado ? 'border-slate-200 text-slate-500' :
+                    dsmResultado === "Normal" ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 
+                    dsmResultado === "Rezago" ? 'border-amber-300 bg-amber-50 text-amber-700' : 
+                    'border-red-300 bg-red-50 text-red-700'
+                  }`}
+                >
+                  <option value="">Seleccionar Resultado DSM...</option>
+                  <option value="Normal">Desarrollo Normal</option>
+                  <option value="Rezago">Rezago del Desarrollo</option>
+                  <option value="Riesgo">Riesgo de Retraso</option>
+                  <option value="Retraso">Retraso del Desarrollo</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Nutricional y Físico */}
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5 flex flex-col">
+              <h3 className="font-black text-slate-800 uppercase flex items-center border-b pb-3">
+                <span className="bg-emerald-100 text-emerald-600 w-6 h-6 rounded-md flex items-center justify-center mr-2 text-xs">2</span>
+                Estado Nutricional
+              </h3>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-2">Diagnóstico Nutricional Integrado</label>
+                <select 
+                  value={estadoNutricional} 
+                  onChange={(e) => setEstadoNutricional(e.target.value)} 
+                  className={`w-full rounded-xl font-medium ${
+                    estadoNutricional === "Normal" ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 
+                    estadoNutricional === "Sobrepeso" || estadoNutricional.includes("Riesgo") ? 'border-amber-300 bg-amber-50 text-amber-700' : 
+                    'border-red-300 bg-red-50 text-red-700'
+                  }`}
+                >
+                  <option value="Normal">Eutrófico (Normal)</option>
+                  <option value="Riesgo Desnutrir">Riesgo de Desnutrir</option>
+                  <option value="Desnutrición">Desnutrición</option>
+                  <option value="Sobrepeso">Sobrepeso</option>
+                  <option value="Obesidad">Obesidad</option>
+                  <option value="Obesidad Severa">Obesidad Severa</option>
+                </select>
+              </div>
+
+              {/* Controles Condicionales por Edad */}
+              {pacienteInfo.edad_anios === 0 && pacienteInfo.edad_meses <= 6 && (
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 mt-auto">
+                  <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Controles Lactante Menor</h4>
+                  <div className="space-y-3">
+                    <label className="flex items-center justify-between cursor-pointer">
+                      <span className="text-sm font-semibold text-slate-700">Lactancia Materna Exclusiva (LME)</span>
+                      <input type="checkbox" checked={lme} onChange={e => setLme(e.target.checked)} className="rounded border-slate-300 text-pink-600 w-5 h-5" />
+                    </label>
                     <div>
-                      <label className="block text-xs text-slate-500 mb-1">Lenguaje</label>
-                      <select value={tepsiLenguaje} onChange={(e) => setTepsiLenguaje(e.target.value)} className="w-full border-slate-300 text-sm rounded">
-                        <option>Normal</option>
-                        <option>Alterado</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs text-slate-500 mb-1">Coordinación</label>
-                      <select value={tepsiCoordinacion} onChange={(e) => setTepsiCoordinacion(e.target.value)} className="w-full border-slate-300 text-sm rounded">
-                        <option>Normal</option>
-                        <option>Alterado</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs text-slate-500 mb-1">Motricidad</label>
-                      <select value={tepsiMotricidad} onChange={(e) => setTepsiMotricidad(e.target.value)} className="w-full border-slate-300 text-sm rounded">
-                        <option>Normal</option>
-                        <option>Alterado</option>
+                      <label className="block text-xs font-medium text-slate-500 mb-1">Score IRA</label>
+                      <select value={scoreIra} onChange={e => setScoreIra(e.target.value)} className="w-full text-sm rounded-lg border-slate-200">
+                        <option value="">Seleccionar...</option>
+                        <option value="Leve">Leve</option>
+                        <option value="Moderado">Moderado</option>
+                        <option value="Grave">Grave</option>
                       </select>
                     </div>
                   </div>
                 </div>
               )}
-            </div>
 
-            <div className="col-span-1">
-              <h3 className="text-lg font-semibold text-slate-800 border-b pb-2 mb-4">Estado Nutricional</h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Diagnóstico Nutricional</label>
-                  <select value={estadoNutricional} onChange={(e) => setEstadoNutricional(e.target.value)} className="w-full border-slate-300 rounded-md shadow-sm text-sm">
-                    <option>Normal</option>
-                    <option>Riesgo de Desnutrición</option>
-                    <option>Desnutrición</option>
-                    <option>Sobrepeso</option>
-                    <option>Obesidad</option>
-                    <option>Obesidad Severa</option>
+              {pacienteInfo.edad_anios >= 3 && (
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 mt-auto">
+                  <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Control Presión Arterial (Desde 3 años)</h4>
+                  <select value={presionArterial} onChange={e => setPresionArterial(e.target.value)} className="w-full text-sm rounded-lg border-slate-200">
+                    <option value="Normal (PA menor al percentil 90)">Normal (PA &lt; p90)</option>
+                    <option value="Pre HTA (PA entre p90 y p95)">Pre HTA (PA entre p90 y p95)</option>
+                    <option value="HTA (PA mayor al percentil 95)">HTA (PA &gt; p95)</option>
                   </select>
                 </div>
-              </div>
-            </div>
+              )}
 
-            {/* Agendamiento */}
-            <div className="col-span-1 md:col-span-2 bg-slate-50 p-4 rounded-lg border border-slate-200 mt-2">
-              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4 flex items-center"><AlertCircle size={16} className="mr-2 text-slate-500" /> Próximo Control</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Mes y Año (Correspondiente)</label>
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5">
+            <h3 className="font-black text-slate-800 uppercase flex items-center border-b pb-3">
+              <span className="bg-purple-100 text-purple-600 w-6 h-6 rounded-md flex items-center justify-center mr-2 text-xs">3</span>
+              Agendamiento y Observaciones
+            </h3>
+            
+            <div className="grid grid-cols-2 gap-6">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-2">Próximo Control Programado</label>
+                <div className="flex gap-3">
                   <input 
                     type="month" 
                     min={new Date().toISOString().substring(0, 7)}
                     value={proximoControl} 
                     onChange={(e) => setProximoControl(e.target.value)} 
-                    className="w-full border-slate-300 rounded-md shadow-sm text-sm" 
+                    className="flex-1 rounded-xl border-slate-200"
                   />
+                  <select 
+                    value={estamentoProximoControl} 
+                    onChange={(e) => setEstamentoProximoControl(e.target.value)} 
+                    className="flex-1 rounded-xl border-slate-200"
+                  >
+                    <option value="">Estamento...</option>
+                    <option value="MEDICO">Médico</option>
+                    <option value="ENFERMERA">Enfermera</option>
+                    <option value="NUTRICIONISTA">Nutricionista</option>
+                    <option value="DENTAL">Dental</option>
+                  </select>
                 </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Estamento</label>
-                    <select value={estamentoProximoControl} onChange={(e) => setEstamentoProximoControl(e.target.value)} className="w-full border-slate-300 rounded-md shadow-sm text-sm">
-                      <option value="">Sin asignar / Seleccionar...</option>
-                      <option value="MEDICO">MEDICO</option>
-                      <option value="ENFERMERA">ENFERMERA</option>
-                      <option value="NUTRICIONISTA">NUTRICIONISTA</option>
-                      <option value="DENTAL">DENTAL</option>
-                    </select>
-                  </div>
+                <p className="text-[10px] text-slate-400 mt-2 italic">Opcional. Si el paciente queda de alta o requiere interconsulta, puedes omitir la fecha de próximo control.</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-2">Observaciones Clínicas (Opcional)</label>
+                <textarea 
+                  value={observaciones} 
+                  onChange={(e) => setObservaciones(e.target.value)} 
+                  rows={3} 
+                  placeholder="Detalles relevantes de la atención, indicaciones especiales..."
+                  className="w-full rounded-xl border-slate-200"
+                ></textarea>
               </div>
             </div>
-
-            <div className="col-span-1 md:col-span-2">
-              <label className="block text-sm font-medium text-slate-700 mb-1">Observaciones</label>
-              <textarea 
-                rows={3} 
-                value={observaciones} 
-                onChange={(e) => setObservaciones(e.target.value)} 
-                className="w-full border-slate-300 rounded-md shadow-sm text-sm p-3"
-                placeholder="Indique si hay derivaciones o aspectos relevantes del control..."
-              />
-            </div>
-
           </div>
-          
-          <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
-            <button
+
+          {/* Action Bar */}
+          <div className="flex justify-end gap-3 pt-6">
+            <button 
               onClick={() => router.push('/infantil')}
               className="px-5 py-2.5 rounded-lg font-medium text-slate-700 hover:bg-slate-200 transition"
             >
@@ -479,6 +484,43 @@ export default function NuevoControlInfantilPage() {
             >
               {guardando ? "Guardando..." : <><Save size={18} className="mr-2" /> Guardar Control</>}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Éxito Moderno */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="p-8 text-center">
+              <div className="mx-auto w-20 h-20 bg-pink-100 rounded-full flex items-center justify-center text-pink-600 mb-6 animate-bounce">
+                <ShieldCheck size={40} />
+              </div>
+              <h3 className="text-2xl font-black text-slate-800 mb-2 uppercase tracking-tight">¡Registro Exitoso!</h3>
+              <p className="text-slate-500 text-sm leading-relaxed mb-8">
+                El control infantil ha sido procesado y guardado correctamente en el historial clínico del paciente.
+              </p>
+              <div className="space-y-3">
+                <button 
+                  onClick={() => setShowSuccessModal(false)}
+                  className="w-full bg-pink-600 text-white py-4 rounded-2xl font-bold text-sm shadow-lg shadow-pink-200 hover:bg-pink-700 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  Entendido, Continuar Registrando
+                </button>
+                <button 
+                   onClick={() => {
+                     router.push("/infantil");
+                     router.refresh();
+                   }}
+                   className="w-full bg-slate-50 text-slate-600 py-4 rounded-2xl font-bold text-sm hover:bg-slate-100 transition-all"
+                >
+                  Volver al Tarjetero
+                </button>
+              </div>
+            </div>
+            <div className="bg-slate-50 py-4 px-8 border-t border-slate-100 text-[10px] text-slate-400 font-bold uppercase tracking-widest text-center">
+              GIA Belarmina • Gestión Integral APS
+            </div>
           </div>
         </div>
       )}
