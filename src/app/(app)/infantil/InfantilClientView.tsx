@@ -85,8 +85,8 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
   // Edit Modal
   const [showEditModal, setShowEditModal] = useState(false);
   const [editPaciente, setEditPaciente] = useState<InfantilData | null>(null);
-  const [editDsm, setEditDsm] = useState("Normal");
-  const [editNutri, setEditNutri] = useState("Normal");
+  const [editDsm, setEditDsm] = useState("");
+  const [editNutri, setEditNutri] = useState("");
   const [editNaneas, setEditNaneas] = useState(false);
   const [editSocial, setEditSocial] = useState(false);
   const [editCondicion, setEditCondicion] = useState("");
@@ -119,14 +119,14 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
     setIsSavingEdit(true);
     const res = await editarPacienteInfantilAdmin({
       rut_paciente: editPaciente.rut,
-      dsm_resultado: editDsm,
-      estado_nutricional: editNutri,
+      dsm_resultado: editDsm || null,
+      estado_nutricional: editNutri || null,
       es_naneas: editNaneas,
       es_caso_social: editSocial,
-      condicion_especial: editCondicion,
+      condicion_especial: editCondicion || null,
       proximo_control: editProxControl ? `${editProxControl}-01` : null,
       estamento_proximo_control: editProxEstamento,
-      observaciones: editObs
+      observaciones: editObs || null
     });
     setIsSavingEdit(false);
     if (res.error) {
@@ -465,8 +465,8 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
                             onClick={(e) => {
                               e.stopPropagation();
                               setEditPaciente(p);
-                              setEditDsm(p.dsm_resultado || "Normal");
-                              setEditNutri(p.estado_nutricional || "Normal");
+                              setEditDsm(p.dsm_resultado || "");
+                              setEditNutri(p.estado_nutricional || "");
                               setEditNaneas(p.es_naneas || false);
                               setEditSocial(p.es_caso_social || false);
                               setEditCondicion(p.condicion_especial || "");
@@ -766,23 +766,25 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
                   <div>
                     <label className="block text-xs font-bold text-slate-500 mb-1">Desarrollo Psicomotor (DSM)</label>
                     <select value={editDsm} onChange={e => setEditDsm(e.target.value)} className="w-full text-sm border-slate-300 rounded-lg">
-                      <option>Normal</option>
-                      <option>Normal con Rezago</option>
-                      <option>Riesgo</option>
-                      <option>Retraso</option>
-                      <option>Déficit</option>
+                      <option value="">Sin registro / No evaluado</option>
+                      <option value="Normal">Normal</option>
+                      <option value="Normal con Rezago">Normal con Rezago</option>
+                      <option value="Riesgo">Riesgo</option>
+                      <option value="Retraso">Retraso</option>
+                      <option value="Déficit">Déficit</option>
                     </select>
                   </div>
                   
                   <div>
                     <label className="block text-xs font-bold text-slate-500 mb-1">Estado Nutricional</label>
                     <select value={editNutri} onChange={e => setEditNutri(e.target.value)} className="w-full text-sm border-slate-300 rounded-lg">
-                      <option>Normal</option>
-                      <option>Riesgo de Desnutrición</option>
-                      <option>Desnutrición</option>
-                      <option>Sobrepeso</option>
-                      <option>Obesidad</option>
-                      <option>Obesidad Severa</option>
+                      <option value="">Sin registro / No evaluado</option>
+                      <option value="Normal">Normal</option>
+                      <option value="Riesgo de Desnutrición">Riesgo de Desnutrición</option>
+                      <option value="Desnutrición">Desnutrición</option>
+                      <option value="Sobrepeso">Sobrepeso</option>
+                      <option value="Obesidad">Obesidad</option>
+                      <option value="Obesidad Severa">Obesidad Severa</option>
                     </select>
                   </div>
 
