@@ -489,9 +489,10 @@ export default function NuevoControlInfantilPage() {
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 mt-auto">
                   <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Control Presión Arterial (Desde 3 años)</h4>
                   <select value={presionArterial} onChange={e => setPresionArterial(e.target.value)} className="w-full text-sm rounded-lg border-slate-200">
-                    <option value="Normal (PA menor al percentil 90)">Normal (PA &lt; p90)</option>
-                    <option value="Pre HTA (PA entre p90 y p95)">Pre HTA (PA entre p90 y p95)</option>
-                    <option value="HTA (PA mayor al percentil 95)">HTA (PA &gt; p95)</option>
+                    <option value="Normal (PA menor al percentil 90)">Normal (PA menor al percentil 90)</option>
+                    <option value="PA elevada">PA elevada</option>
+                    <option value="HTA estadio I">HTA estadio I</option>
+                    <option value="HTA estadio II">HTA estadio II</option>
                   </select>
                 </div>
               )}
