@@ -373,32 +373,37 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
                   <td className="px-6 py-4 min-w-[250px] align-top">
                     <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
                       <p className="text-sm font-bold text-slate-800 uppercase leading-none mr-1">{p.nombre_completo}</p>
-                      {p.es_naneas && (
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600 text-[9px] font-black tracking-widest leading-none">
-                          <ActivitySquare size={10} className="mr-1 text-cyan-600" />
-                          NANEAS
-                        </span>
-                      )}
-                      {p.es_caso_social && (
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600 text-[9px] font-black tracking-widest leading-none">
-                          <User size={10} className="mr-1 text-green-600" />
-                          CASO SOCIAL
-                        </span>
-                      )}
-                      {p.condicion_especial && (
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600 text-[9px] font-black tracking-widest leading-none" title={p.condicion_especial}>
-                          <AlertCircle size={10} className="mr-1 text-purple-600" />
-                          CONDICIÓN
-                        </span>
-                      )}
                     </div>
-                    <div className="flex flex-wrap items-center text-[10px] text-slate-500 gap-x-2 gap-y-1">
+                    <div className="flex flex-wrap items-center text-[10px] text-slate-500 gap-x-2 gap-y-1 mb-1.5">
                       <span className="font-mono font-bold bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">{p.rut}-{p.dv}</span>
                       <span>•</span>
                       <span className="font-bold">{p.edad_anios} Años, {p.edad_meses} M</span>
                       <span>•</span>
                       <span className="flex items-center font-bold uppercase"><MapPin size={10} className="mr-1 text-slate-400"/> {p.sector}</span>
                     </div>
+                    {/* Banderas Clínicas en Listado */}
+                    {(p.es_naneas || p.es_caso_social || p.condicion_especial) && (
+                      <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                        {p.es_naneas && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600 text-[9px] font-black tracking-widest leading-none">
+                            <ActivitySquare size={10} className="mr-1 text-cyan-600" />
+                            NANEAS
+                          </span>
+                        )}
+                        {p.es_caso_social && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600 text-[9px] font-black tracking-widest leading-none">
+                            <User size={10} className="mr-1 text-green-600" />
+                            CASO SOCIAL
+                          </span>
+                        )}
+                        {p.condicion_especial && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600 text-[9px] font-black tracking-widest leading-none" title={p.condicion_especial}>
+                            <AlertCircle size={10} className="mr-1 text-purple-600" />
+                            CONDICIÓN
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </td>
                   <td className="px-6 py-4 align-top">
                      <div className="flex flex-col space-y-1.5 min-w-[140px]">
