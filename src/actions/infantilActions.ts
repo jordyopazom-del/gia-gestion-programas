@@ -61,16 +61,16 @@ export async function guardarControlInfantil(data: {
   ultimo_control_dental?: string | null,
   atencion_hoy?: boolean,
   proximo_control?: string | null,
-  estamento_proximo_control?: string,
+  estamento_proximo_control?: string | null,
   es_naneas?: boolean,
   es_caso_social?: boolean,
-  condicion_especial?: string,
-  estado_nutricional?: string,
-  dsm_resultado?: string,
-  tipo_evaluacion_dsm?: string,
+  condicion_especial?: string | null,
+  estado_nutricional?: string | null,
+  dsm_resultado?: string | null,
+  tipo_evaluacion_dsm?: string | null,
   dsm_detalle?: any,
-  estado_programa?: string,
-  observaciones?: string
+  estado_programa?: string | null,
+  observaciones?: string | null
 }) {
   try {
     const user = await getCurrentUser();
@@ -200,14 +200,14 @@ export async function registrarNspInfantil(data: {
 
 export async function editarPacienteInfantilAdmin(data: {
   rut_paciente: string;
-  dsm_resultado: string;
-  estado_nutricional: string;
-  es_naneas: boolean;
-  es_caso_social: boolean;
-  condicion_especial: string;
-  proximo_control: string | null;
-  estamento_proximo_control: string;
-  observaciones: string;
+  dsm_resultado?: string | null;
+  estado_nutricional?: string | null;
+  es_naneas?: boolean;
+  es_caso_social?: boolean;
+  condicion_especial?: string | null;
+  proximo_control?: string | null;
+  estamento_proximo_control?: string | null;
+  observaciones?: string | null;
 }) {
   try {
     // Obtenemos el ID del último registro para actualizarlo y no alterar historiales
@@ -238,14 +238,14 @@ export async function editarPacienteInfantilAdmin(data: {
     await sql`
       UPDATE gia_infantil
       SET 
-        dsm_resultado = ${data.dsm_resultado},
-        estado_nutricional = ${data.estado_nutricional},
-        es_naneas = ${data.es_naneas},
-        es_caso_social = ${data.es_caso_social},
-        condicion_especial = ${data.condicion_especial},
-        proximo_control = ${data.proximo_control || null},
-        estamento_proximo_control = ${data.estamento_proximo_control},
-        observaciones = ${data.observaciones}
+        dsm_resultado = ${data.dsm_resultado ?? null},
+        estado_nutricional = ${data.estado_nutricional ?? null},
+        es_naneas = ${data.es_naneas ?? false},
+        es_caso_social = ${data.es_caso_social ?? false},
+        condicion_especial = ${data.condicion_especial ?? null},
+        proximo_control = ${data.proximo_control ?? null},
+        estamento_proximo_control = ${data.estamento_proximo_control ?? null},
+        observaciones = ${data.observaciones ?? null}
       WHERE id = ${lastId}
     `;
     return { success: true };
