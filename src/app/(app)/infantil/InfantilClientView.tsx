@@ -91,7 +91,7 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
   const [editSocial, setEditSocial] = useState(false);
   const [editCondicion, setEditCondicion] = useState("");
   const [editProxControl, setEditProxControl] = useState("");
-  const [editProxEstamento, setEditProxEstamento] = useState("ENFERMERA");
+  const [editProxEstamento, setEditProxEstamento] = useState("");
   const [editObs, setEditObs] = useState("");
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [selectedPaciente, setSelectedPaciente] = useState<InfantilData | null>(null);
@@ -125,7 +125,7 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
       es_caso_social: editSocial,
       condicion_especial: editCondicion || null,
       proximo_control: editProxControl ? `${editProxControl}-01` : null,
-      estamento_proximo_control: editProxEstamento,
+      estamento_proximo_control: editProxEstamento || null,
       observaciones: editObs || null
     });
     setIsSavingEdit(false);
@@ -471,7 +471,7 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
                               setEditSocial(p.es_caso_social || false);
                               setEditCondicion(p.condicion_especial || "");
                               setEditProxControl(p.proximo_control ? p.proximo_control.substring(0, 7) : "");
-                              setEditProxEstamento(p.estamento_proximo_control || "ENFERMERA");
+                              setEditProxEstamento(p.estamento_proximo_control || "");
                               setEditObs(p.observaciones || "");
                               setShowEditModal(true);
                             }}
@@ -822,6 +822,7 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
                   <div>
                     <label className="block text-xs font-bold text-slate-500 mb-1">Estamento Próx. Control</label>
                     <select value={editProxEstamento} onChange={e => setEditProxEstamento(e.target.value)} className="w-full text-sm border-slate-300 rounded-lg">
+                      <option value="">Sin asignar / Seleccionar...</option>
                       <option value="MEDICO">Médico</option>
                       <option value="ENFERMERA">Enfermera</option>
                       <option value="NUTRICIONISTA">Nutricionista</option>

@@ -15,7 +15,7 @@ export default function NuevoControlInfantilPage() {
 
   // Form states
   const [proximoControl, setProximoControl] = useState("");
-  const [estamentoProximoControl, setEstamentoProximoControl] = useState("ENFERMERA");
+  const [estamentoProximoControl, setEstamentoProximoControl] = useState("");
   
   const [dsmResultado, setDsmResultado] = useState("");
   const [tipoEvaluacionDsm, setTipoEvaluacionDsm] = useState("");
@@ -119,7 +119,7 @@ export default function NuevoControlInfantilPage() {
         ultimo_control_dental: pacienteInfo.hist_dental || null,
         atencion_hoy: true,
         proximo_control: proximoControl ? `${proximoControl}-01` : null,
-        estamento_proximo_control: estamentoProximoControl,
+        estamento_proximo_control: estamentoProximoControl || null,
         es_naneas: esNaneas,
         es_caso_social: esCasoSocial,
         condicion_especial: condicionEspecial || null,
@@ -439,15 +439,16 @@ export default function NuevoControlInfantilPage() {
                     className="w-full border-slate-300 rounded-md shadow-sm text-sm" 
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Estamento</label>
-                  <select value={estamentoProximoControl} onChange={(e) => setEstamentoProximoControl(e.target.value)} className="w-full border-slate-300 rounded-md shadow-sm text-sm">
-                    <option>MEDICO</option>
-                    <option>ENFERMERA</option>
-                    <option>NUTRICIONISTA</option>
-                    <option>DENTAL</option>
-                  </select>
-                </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Estamento</label>
+                    <select value={estamentoProximoControl} onChange={(e) => setEstamentoProximoControl(e.target.value)} className="w-full border-slate-300 rounded-md shadow-sm text-sm">
+                      <option value="">Sin asignar / Seleccionar...</option>
+                      <option value="MEDICO">MEDICO</option>
+                      <option value="ENFERMERA">ENFERMERA</option>
+                      <option value="NUTRICIONISTA">NUTRICIONISTA</option>
+                      <option value="DENTAL">DENTAL</option>
+                    </select>
+                  </div>
               </div>
             </div>
 
