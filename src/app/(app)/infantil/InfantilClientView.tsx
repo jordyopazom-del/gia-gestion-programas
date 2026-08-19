@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { UserProfile } from "@/actions/userActions";
-import { Search, Info, CheckCircle2, AlertCircle, Phone, Calendar, Stethoscope, Carrot, ActivitySquare, AlertTriangle, ShieldAlert, Baby, X, User, Map, MapPin, CalendarX, Edit } from "lucide-react";
+import { Search, Info, CheckCircle2, AlertCircle, Phone, Calendar, Stethoscope, Carrot, ActivitySquare, AlertTriangle, ShieldAlert, Baby, X, User, Map, MapPin, CalendarX, Edit, Puzzle } from "lucide-react";
 import toast from "react-hot-toast";
 import { registrarNspInfantil, editarPacienteInfantilAdmin } from "@/actions/infantilActions";
 
@@ -47,6 +47,7 @@ type InfantilData = {
   motivo_egreso: string;
   es_naneas: boolean;
   es_caso_social: boolean;
+  en_sala_estimulacion: boolean;
   edad_anios: number;
   edad_meses: number;
   edad_dias: number;
@@ -89,6 +90,7 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
   const [editNutri, setEditNutri] = useState("");
   const [editNaneas, setEditNaneas] = useState(false);
   const [editSocial, setEditSocial] = useState(false);
+  const [editSala, setEditSala] = useState(false);
   const [editCondicion, setEditCondicion] = useState("");
   const [editProxControl, setEditProxControl] = useState("");
   const [editProxEstamento, setEditProxEstamento] = useState("");
@@ -108,7 +110,7 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
     if (res.error) {
       toast.error(res.error);
     } else {
-      toast.success("Inasistencia registrada");
+      toast.success("NSP Registrado");
       setShowNspModal(false);
       window.location.reload();
     }
@@ -123,6 +125,7 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
       estado_nutricional: editNutri || null,
       es_naneas: editNaneas,
       es_caso_social: editSocial,
+      en_sala_estimulacion: editSala,
       condicion_especial: editCondicion || null,
       proximo_control: editProxControl ? `${editProxControl}-01` : null,
       estamento_proximo_control: editProxEstamento || null,
@@ -382,7 +385,7 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
                       <span className="flex items-center font-bold uppercase"><MapPin size={10} className="mr-1 text-slate-400"/> {p.sector}</span>
                     </div>
                     {/* Banderas Clínicas en Listado */}
-                    {(p.es_naneas || p.es_caso_social || p.condicion_especial) && (
+                    {(p.es_naneas || p.es_caso_social || p.en_sala_estimulacion || p.condicion_especial) && (
                       <div className="flex flex-wrap items-center gap-1.5 mt-2">
                         {p.es_naneas && (
                           <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600 text-[9px] font-black tracking-widest leading-none">
@@ -394,6 +397,12 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
                           <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600 text-[9px] font-black tracking-widest leading-none">
                             <User size={10} className="mr-1 text-green-600" />
                             CASO SOCIAL
+                          </span>
+                        )}
+                        {p.en_sala_estimulacion && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600 text-[9px] font-black tracking-widest leading-none">
+                            <Puzzle size={10} className="mr-1 text-pink-600" />
+                            SALA ESTIMULACIÓN
                           </span>
                         )}
                         {p.condicion_especial && (
@@ -489,6 +498,7 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
                               setEditNutri(p.estado_nutricional || "");
                               setEditNaneas(p.es_naneas || false);
                               setEditSocial(p.es_caso_social || false);
+                              setEditSala(p.en_sala_estimulacion || false);
                               setEditCondicion(p.condicion_especial || "");
                               setEditProxControl(p.proximo_control ? p.proximo_control.substring(0, 7) : "");
                               setEditProxEstamento(p.estamento_proximo_control || "");
@@ -572,7 +582,7 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
               </div>
 
               {/* Banderas Clínicas */}
-              {(selectedPaciente.es_naneas || selectedPaciente.es_caso_social || selectedPaciente.condicion_especial) && (
+              {(selectedPaciente.es_naneas || selectedPaciente.es_caso_social || selectedPaciente.en_sala_estimulacion || selectedPaciente.condicion_especial) && (
                 <div className="space-y-3">
                   <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center">
                     <AlertTriangle size={12} className="mr-2" /> Banderas Clínicas
@@ -581,6 +591,7 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
                     <div className="flex flex-wrap gap-2">
                       {selectedPaciente.es_naneas && <span className="px-2 py-1 bg-cyan-100 text-cyan-800 text-xs font-bold rounded">NANEAS</span>}
                       {selectedPaciente.es_caso_social && <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-bold rounded">CASO SOCIAL</span>}
+                      {selectedPaciente.en_sala_estimulacion && <span className="px-2 py-1 bg-pink-100 text-pink-800 text-xs font-bold rounded">SALA ESTIMULACIÓN</span>}
                     </div>
                     {selectedPaciente.condicion_especial && (
                       <p className="text-sm text-slate-700 mt-2"><strong>Condición:</strong> {selectedPaciente.condicion_especial}</p>
@@ -808,7 +819,7 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
                     </select>
                   </div>
 
-                  <div className="flex gap-4">
+                  <div className="flex gap-4 flex-wrap">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" checked={editNaneas} onChange={e => setEditNaneas(e.target.checked)} className="rounded border-slate-300 text-blue-600" />
                       <span className="text-xs font-bold text-slate-700">NANEAS</span>
@@ -816,6 +827,10 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" checked={editSocial} onChange={e => setEditSocial(e.target.checked)} className="rounded border-slate-300 text-blue-600" />
                       <span className="text-xs font-bold text-slate-700">Caso Social</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={editSala} onChange={e => setEditSala(e.target.checked)} className="rounded border-slate-300 text-blue-600" />
+                      <span className="text-xs font-bold text-slate-700">Sala Estimulación</span>
                     </label>
                   </div>
 

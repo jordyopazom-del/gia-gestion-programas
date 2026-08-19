@@ -9,7 +9,7 @@ export async function getInfantilDashboardData() {
       WITH UltimoControl AS (
         SELECT rut_paciente, 
                ultimo_control_medico, ultimo_control_enfermera, ultimo_control_nutri, ultimo_control_dental,
-               proximo_control, estamento_proximo_control, es_naneas, es_caso_social, condicion_especial,
+               proximo_control, estamento_proximo_control, es_naneas, es_caso_social, en_sala_estimulacion, condicion_especial,
                estado_nutricional, dsm_resultado, tipo_evaluacion_dsm, dsm_detalle, estado_programa, observaciones,
                ROW_NUMBER() OVER(PARTITION BY rut_paciente ORDER BY fecha_registro DESC) as rn
         FROM gia_infantil
@@ -18,7 +18,7 @@ export async function getInfantilDashboardData() {
         p.rut, p.dv, p.nombre_completo, TO_CHAR(p.fecha_nacimiento, 'YYYY-MM-DD') as fecha_nacimiento, 
         p.sector, p.telefono, p.direccion, p.estado, p.motivo_egreso, p.fecha_egreso, 
         p.es_pad,
-        inf.es_naneas, inf.es_caso_social,
+        inf.es_naneas, inf.es_caso_social, inf.en_sala_estimulacion,
         -- Extraer edad en años y meses para frontend
         EXTRACT(YEAR FROM age(CURRENT_DATE, p.fecha_nacimiento)) as edad_anios,
         EXTRACT(MONTH FROM age(CURRENT_DATE, p.fecha_nacimiento)) as edad_meses,
@@ -64,6 +64,7 @@ export async function guardarControlInfantil(data: {
   estamento_proximo_control?: string | null,
   es_naneas?: boolean,
   es_caso_social?: boolean,
+  en_sala_estimulacion?: boolean,
   condicion_especial?: string | null,
   estado_nutricional?: string | null,
   dsm_resultado?: string | null,
@@ -95,7 +96,7 @@ export async function guardarControlInfantil(data: {
       INSERT INTO gia_infantil (
         rut_paciente, 
         ultimo_control_medico, ultimo_control_enfermera, ultimo_control_nutri, ultimo_control_dental,
-        proximo_control, estamento_proximo_control, es_naneas, es_caso_social, condicion_especial,
+        proximo_control, estamento_proximo_control, es_naneas, es_caso_social, en_sala_estimulacion, condicion_especial,
         estado_nutricional, dsm_resultado, tipo_evaluacion_dsm, dsm_detalle, estado_programa, observaciones,
         profesional_rut
       )
@@ -104,7 +105,7 @@ export async function guardarControlInfantil(data: {
         ${uMedico}, ${uEnfermera}, 
         ${uNutri}, ${uDental},
         ${data.proximo_control || null}, ${data.estamento_proximo_control || null}, 
-        ${data.es_naneas || false}, ${data.es_caso_social || false}, ${data.condicion_especial || null},
+        ${data.es_naneas || false}, ${data.es_caso_social || false}, ${data.en_sala_estimulacion || false}, ${data.condicion_especial || null},
         ${data.estado_nutricional || null}, ${data.dsm_resultado || null}, ${data.tipo_evaluacion_dsm || null}, 
         ${data.dsm_detalle ? sql.json(data.dsm_detalle) : null},
         ${data.estado_programa || 'ACTIVO'}, ${data.observaciones || ''},
@@ -130,6 +131,7 @@ export async function buscarPacienteInfantilPorRut(rutInput: string) {
       WITH UltimoControl AS (
         SELECT rut_paciente, 
                ultimo_control_medico, ultimo_control_enfermera, ultimo_control_nutri, ultimo_control_dental,
+               en_sala_estimulacion,
                ROW_NUMBER() OVER(PARTITION BY rut_paciente ORDER BY fecha_registro DESC) as rn
         FROM gia_infantil
       )
@@ -140,7 +142,8 @@ export async function buscarPacienteInfantilPorRut(rutInput: string) {
         TO_CHAR(inf.ultimo_control_medico, 'YYYY-MM-DD') as hist_medico,
         TO_CHAR(inf.ultimo_control_enfermera, 'YYYY-MM-DD') as hist_enfermera,
         TO_CHAR(inf.ultimo_control_nutri, 'YYYY-MM-DD') as hist_nutri,
-        TO_CHAR(inf.ultimo_control_dental, 'YYYY-MM-DD') as hist_dental
+        TO_CHAR(inf.ultimo_control_dental, 'YYYY-MM-DD') as hist_dental,
+        inf.en_sala_estimulacion
       FROM gia_pacientes p
       LEFT JOIN UltimoControl inf ON p.rut = inf.rut_paciente AND inf.rn = 1
       WHERE p.rut = ${rutNum}
@@ -204,6 +207,7 @@ export async function editarPacienteInfantilAdmin(data: {
   estado_nutricional?: string | null;
   es_naneas?: boolean;
   es_caso_social?: boolean;
+  en_sala_estimulacion?: boolean;
   condicion_especial?: string | null;
   proximo_control?: string | null;
   estamento_proximo_control?: string | null;
@@ -226,6 +230,7 @@ export async function editarPacienteInfantilAdmin(data: {
         estado_nutricional: data.estado_nutricional,
         es_naneas: data.es_naneas,
         es_caso_social: data.es_caso_social,
+        en_sala_estimulacion: data.en_sala_estimulacion,
         condicion_especial: data.condicion_especial,
         proximo_control: data.proximo_control,
         estamento_proximo_control: data.estamento_proximo_control,
@@ -242,6 +247,7 @@ export async function editarPacienteInfantilAdmin(data: {
         estado_nutricional = ${data.estado_nutricional ?? null},
         es_naneas = ${data.es_naneas ?? false},
         es_caso_social = ${data.es_caso_social ?? false},
+        en_sala_estimulacion = ${data.en_sala_estimulacion ?? false},
         condicion_especial = ${data.condicion_especial ?? null},
         proximo_control = ${data.proximo_control ?? null},
         estamento_proximo_control = ${data.estamento_proximo_control ?? null},

@@ -37,6 +37,7 @@ export default function NuevoControlInfantilPage() {
   
   const [esNaneas, setEsNaneas] = useState(false);
   const [esCasoSocial, setEsCasoSocial] = useState(false);
+  const [enSalaEstimulacion, setEnSalaEstimulacion] = useState(false);
   const [condicionEspecial, setCondicionEspecial] = useState("");
   const [observaciones, setObservaciones] = useState("");
 
@@ -59,6 +60,7 @@ export default function NuevoControlInfantilPage() {
         // Cargar flags actuales
         setEsNaneas(p.es_naneas || false);
         setEsCasoSocial(p.es_caso_social || false);
+        setEnSalaEstimulacion(p.en_sala_estimulacion || false);
         setCondicionEspecial(p.condicion_especial || "");
       }
     } catch (error) {
@@ -115,6 +117,7 @@ export default function NuevoControlInfantilPage() {
         estamento_proximo_control: estamentoProximoControl || null,
         es_naneas: esNaneas,
         es_caso_social: esCasoSocial,
+        en_sala_estimulacion: enSalaEstimulacion,
         condicion_especial: condicionEspecial || null,
         estado_nutricional: estadoNutricional,
         dsm_resultado: dsmResultado || null,
@@ -137,6 +140,7 @@ export default function NuevoControlInfantilPage() {
         setProximoControl("");
         setEstamentoProximoControl("");
         setObservaciones("");
+        setEnSalaEstimulacion(false);
       }
     } catch (error) {
       toast.error("Ocurrió un error inesperado");
@@ -239,22 +243,29 @@ export default function NuevoControlInfantilPage() {
 
               <div className="col-span-2 bg-white p-4 rounded-xl border border-slate-100">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 block">Alertas Clínicas Actuales</label>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <label className="flex items-center p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 transition">
                     <input type="checkbox" checked={esNaneas} onChange={(e) => setEsNaneas(e.target.checked)} className="rounded border-slate-300 text-pink-600 w-5 h-5 mr-3" />
                     <div>
                       <div className="font-bold text-sm text-slate-700">NANEAS</div>
-                      <div className="text-[10px] text-slate-500">Necesidades Especiales</div>
+                      <div className="text-[10px] text-slate-500">N. Especiales</div>
                     </div>
                   </label>
                   <label className="flex items-center p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 transition">
                     <input type="checkbox" checked={esCasoSocial} onChange={(e) => setEsCasoSocial(e.target.checked)} className="rounded border-slate-300 text-pink-600 w-5 h-5 mr-3" />
                     <div>
-                      <div className="font-bold text-sm text-slate-700">Caso Social</div>
-                      <div className="text-[10px] text-slate-500">Alerta de seguimiento</div>
+                      <div className="font-bold text-sm text-slate-700">Social</div>
+                      <div className="text-[10px] text-slate-500">Alerta seguim.</div>
                     </div>
                   </label>
-                  <div className="col-span-2">
+                  <label className="flex items-center p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 transition">
+                    <input type="checkbox" checked={enSalaEstimulacion} onChange={(e) => setEnSalaEstimulacion(e.target.checked)} className="rounded border-slate-300 text-pink-600 w-5 h-5 mr-3" />
+                    <div>
+                      <div className="font-bold text-sm text-slate-700">Sala Estimulación</div>
+                      <div className="text-[10px] text-slate-500">Activo</div>
+                    </div>
+                  </label>
+                  <div className="col-span-3">
                     <input 
                       type="text" 
                       placeholder="Condición Especial (Ej: Alergia a la proteína de leche de vaca)" 
