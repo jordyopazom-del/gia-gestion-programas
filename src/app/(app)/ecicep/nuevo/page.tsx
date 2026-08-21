@@ -549,6 +549,39 @@ export default function NuevoEcicep() {
                     )}
                   </div>
                 </div>
+                
+                <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 pt-4 border-t border-slate-100">
+                  <label className="flex items-center space-x-2.5 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      className="h-4.5 w-4.5 text-indigo-600 focus:ring-indigo-500 border-slate-300 rounded"
+                      checked={gestionCaso}
+                      onChange={e => {
+                        setGestionCaso(e.target.checked);
+                        if (!e.target.checked) setEstamentoGestion("");
+                      }}
+                    />
+                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wide select-none">
+                      📋 Requiere Gestión de Caso
+                    </span>
+                  </label>
+
+                  {gestionCaso && (
+                    <div className="mt-3 sm:mt-0 animate-in fade-in slide-in-from-left-4 duration-200">
+                      <select
+                        required
+                        value={estamentoGestion}
+                        onChange={e => setEstamentoGestion(e.target.value)}
+                        className="bg-slate-50 border border-slate-200 rounded-md px-3 py-1.5 text-xs font-bold text-indigo-700 outline-none focus:ring-2 focus:ring-indigo-500"
+                      >
+                        <option value="">-- Asignar a Estamento --</option>
+                        {ROLES_DISPONIBLES.map(r => (
+                          <option key={r} value={r}>{r}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Plan de Cuidado Anual (Próximas Citas) */}
