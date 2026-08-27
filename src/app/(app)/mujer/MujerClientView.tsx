@@ -5,7 +5,7 @@ import { Search, HeartPulse, User, ShieldCheck, Download, Plus, FileText, AlertT
 import * as XLSX from "xlsx";
 import { UserProfile } from "@/actions/userActions";
 import Link from "next/link";
-import { guardarHisterectomia, guardarPap, getHistorialExamenesPaciente } from "@/actions/mujerActions";
+import { guardarHisterectomia, guardarPap, getHistorialExamenesPaciente, ingresarEmbarazo } from "@/actions/mujerActions";
 
 type PacienteMujer = {
   rut: string;
