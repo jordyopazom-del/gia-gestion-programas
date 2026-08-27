@@ -810,39 +810,40 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                         <>
                           <td className="px-6 py-4 text-sm text-slate-600 truncate">
                             {p.ultima_fecha_pap ? (
-                              <div className="flex flex-col gap-1">
-                                <div className="flex items-center gap-1.5">
-                                  <span className="font-bold text-slate-700">
-                                    {new Date(p.ultima_fecha_pap).toLocaleDateString('es-CL')}
-                                  </span>
-                                  <span className="text-[9px] text-slate-400 uppercase font-black bg-slate-100 px-1.5 py-0.5 rounded">
-                                    {p.ultimo_tipo_examen || "PAP"}
-                                  </span>
-                                </div>
-                                {p.ultimo_codigo_lab && (
-                                  <span className="font-mono text-[9px] font-black bg-pink-50 text-pink-700 px-1.5 py-0.5 rounded border border-pink-200 uppercase w-fit tracking-wider">
-                                    {p.ultimo_codigo_lab}
-                                  </span>
-                                )}
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-bold text-slate-700">
+                                  {new Date(p.ultima_fecha_pap).toLocaleDateString('es-CL')}
+                                </span>
+                                <span className="text-[9px] text-slate-400 uppercase font-black bg-slate-100 px-1.5 py-0.5 rounded">
+                                  {p.ultimo_tipo_examen || "PAP"}
+                                </span>
                               </div>
                             ) : "—"}
                           </td>
-                          <td className="px-6 py-4 text-xs font-bold text-slate-700 uppercase truncate" title={p.ultimo_resultado_pap || "—"}>
-                            {p.ultimo_resultado_pap ? (
-                              <div className="flex flex-col gap-1">
-                                <span className={p.ultimo_resultado_pap !== "NEGATIVO" && p.ultimo_resultado_pap !== "NORMAL" && p.ultimo_resultado_pap !== "PENDIENTE" ? "text-red-600" : ""}>
-                                  {p.ultimo_resultado_pap}
-                                </span>
-                                {p.ultima_periodicidad_meses === 12 && (
-                                  <span className="text-[8px] font-black text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 uppercase w-fit">
-                                    Control Anual
+                          <td className="px-6 py-4">
+                            {(p.ultimo_codigo_lab || p.ultimo_resultado_pap) ? (
+                              <div className="flex flex-col gap-1.5">
+                                {p.ultimo_codigo_lab ? (
+                                  <span className="font-mono text-sm font-black bg-pink-50 text-pink-700 px-2.5 py-1 rounded-md border border-pink-200 uppercase w-fit tracking-widest shadow-sm" title="Código de Laboratorio">
+                                    {p.ultimo_codigo_lab}
+                                  </span>
+                                ) : (
+                                  <span className={`text-xs font-bold uppercase truncate ${p.ultimo_resultado_pap !== "NEGATIVO" && p.ultimo_resultado_pap !== "NORMAL" && p.ultimo_resultado_pap !== "PENDIENTE" ? "text-red-600" : "text-slate-700"}`}>
+                                    {p.ultimo_resultado_pap}
                                   </span>
                                 )}
-                                {p.ultima_periodicidad_meses === 6 && (
-                                  <span className="text-[8px] font-black text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 uppercase w-fit">
-                                    Control 6 Meses
-                                  </span>
-                                )}
+                                <div className="flex gap-1">
+                                  {p.ultima_periodicidad_meses === 12 && (
+                                    <span className="text-[8px] font-black text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 uppercase w-fit">
+                                      Control Anual
+                                    </span>
+                                  )}
+                                  {p.ultima_periodicidad_meses === 6 && (
+                                    <span className="text-[8px] font-black text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 uppercase w-fit">
+                                      Control 6 Meses
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             ) : "—"}
                           </td>
