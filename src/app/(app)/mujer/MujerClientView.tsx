@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Search, HeartPulse, User, ShieldCheck, Download, Plus, FileText, AlertTriangle, CheckCircle2, HelpCircle, Eye, Settings, X, PlusCircle, MapPin, Calendar, Clock } from "lucide-react";
+import { Search, HeartPulse, User, ShieldCheck, Download, Plus, FileText, AlertTriangle, CheckCircle2, HelpCircle, Eye, Settings, X, PlusCircle, MapPin, Calendar, Clock, Phone, ChevronRight, Activity, AlertOctagon } from "lucide-react";
 import * as XLSX from "xlsx";
 import { UserProfile } from "@/actions/userActions";
 import Link from "next/link";
@@ -552,6 +552,25 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
     }
   };
 
+
+  // Métricas del Dashboard PAP (Gestión de Demanda y Brechas)
+  const papMetrics = useMemo(() => {
+    const papPob = data.filter(p => {
+      const age = calculateAge(p.fecha_nacimiento);
+      return age !== null && age >= 25 && age <= 64 && (!p.estado || p.estado === 'ACTIVO');
+    });
+
+    const total = papPob.length;
+    const vigentes = papPob.filter(p => !p.histerectomizada && getTamizajeStatus(p).estado === "VIGENTE").length;
+    const porVencer = papPob.filter(p => !p.histerectomizada && getTamizajeStatus(p).label.includes("POR VENCER")).length;
+    const vencidos = papPob.filter(p => !p.histerectomizada && (getTamizajeStatus(p).estado === "VENCIDO" || getTamizajeStatus(p).estado === "SIN_REGISTRO")).length;
+    const patologicos = papPob.filter(p => getTamizajeStatus(p).estado === "ALTERADO").length;
+    const excluidas = papPob.filter(p => p.histerectomizada).length;
+    const cob = (total - excluidas) > 0 ? (((vigentes + porVencer) / (total - excluidas)) * 100).toFixed(1) : "0.0";
+
+    return { total, vigentes, porVencer, vencidos, patologicos, excluidas, cob };
+  }, [data]);
+
   const exportToExcel = () => {
     const exportData = filteredData.map(p => {
       const age = calculateAge(p.fecha_nacimiento);
@@ -641,6 +660,103 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
         </button>
       </div>
 
+      {/* Indicadores Clave del Dashboard PAP (Gestión de Demanda) */}
+      {activeTab === "pap" && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          <div 
+            onClick={() => { setSelectedStatus("TODOS"); setCurrentPage(1); }}
+            className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+              selectedStatus === "TODOS" 
+                ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-slate-400' 
+                : 'bg-white text-slate-800 border-slate-200 hover:border-slate-300 shadow-xs'
+            }`}
+          >
+            <span className={`block text-[10px] font-black uppercase tracking-wider ${selectedStatus === "TODOS" ? 'text-slate-400' : 'text-slate-400'}`}>
+              Población Objetivo (25-64a)
+            </span>
+            <span className="text-2xl font-black mt-1 block">
+              {papMetrics.total.toLocaleString("es-CL")}
+            </span>
+            <span className={`text-[10px] font-semibold block mt-0.5 ${selectedStatus === "TODOS" ? 'text-slate-300' : 'text-slate-500'}`}>
+              Meta CaCu MINSAL
+            </span>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs">
+            <span className="block text-[10px] font-black text-slate-400 uppercase tracking-wider">
+              Cobertura Vigente
+            </span>
+            <span className="text-2xl font-black text-emerald-600 mt-1 block">
+              {papMetrics.cob}%
+            </span>
+            <div className="w-full bg-slate-100 h-1.5 rounded-full mt-1.5 overflow-hidden">
+              <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${Math.min(parseFloat(papMetrics.cob), 100)}%` }} />
+            </div>
+          </div>
+
+          <div 
+            onClick={() => { setSelectedStatus("VIGENTES"); setCurrentPage(1); }}
+            className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+              selectedStatus === "VIGENTES" 
+                ? 'bg-emerald-600 text-white border-emerald-600 shadow-md ring-2 ring-emerald-300' 
+                : 'bg-white text-slate-800 border-slate-200 hover:border-emerald-300 shadow-xs'
+            }`}
+          >
+            <span className={`block text-[10px] font-black uppercase tracking-wider ${selectedStatus === "VIGENTES" ? 'text-emerald-100' : 'text-emerald-600'}`}>
+              Vigentes
+            </span>
+            <span className={`text-2xl font-black mt-1 block ${selectedStatus === "VIGENTES" ? 'text-white' : 'text-emerald-600'}`}>
+              {papMetrics.vigentes.toLocaleString("es-CL")}
+            </span>
+            <span className={`text-[10px] font-semibold block mt-0.5 ${selectedStatus === "VIGENTES" ? 'text-emerald-100' : 'text-slate-500'}`}>
+              Examen al día
+            </span>
+          </div>
+
+          <div 
+            onClick={() => { setSelectedStatus("VENCIDOS"); setCurrentPage(1); }}
+            className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+              selectedStatus === "VENCIDOS" 
+                ? 'bg-red-600 text-white border-red-600 shadow-md ring-2 ring-red-300' 
+                : 'bg-red-50/50 text-red-950 border-red-200 hover:border-red-300 shadow-xs'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className={`block text-[10px] font-black uppercase tracking-wider ${selectedStatus === "VENCIDOS" ? 'text-red-100' : 'text-red-600'}`}>
+                Brecha de Rescate
+              </span>
+              <span className={`h-2 w-2 rounded-full ${selectedStatus === "VENCIDOS" ? 'bg-white' : 'bg-red-500 animate-pulse'}`} />
+            </div>
+            <span className={`text-2xl font-black mt-1 block ${selectedStatus === "VENCIDOS" ? 'text-white' : 'text-red-600'}`}>
+              {papMetrics.vencidos.toLocaleString("es-CL")}
+            </span>
+            <span className={`text-[10px] font-semibold block mt-0.5 ${selectedStatus === "VENCIDOS" ? 'text-red-100' : 'text-red-700/80'}`}>
+              Vencidas o sin registro
+            </span>
+          </div>
+
+          <div 
+            onClick={() => { setSelectedStatus("CRITICOS_SIN_DERIVACION"); setCurrentPage(1); }}
+            className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+              selectedStatus === "CRITICOS_SIN_DERIVACION" 
+                ? 'bg-purple-900 text-white border-purple-900 shadow-md ring-2 ring-purple-400' 
+                : 'bg-white text-slate-800 border-slate-200 hover:border-purple-300 shadow-xs'
+            }`}
+          >
+            <span className={`block text-[10px] font-black uppercase tracking-wider ${selectedStatus === "CRITICOS_SIN_DERIVACION" ? 'text-purple-200' : 'text-purple-700'}`}>
+              Alertas UPC / Alteradas
+            </span>
+            <span className={`text-2xl font-black mt-1 block ${selectedStatus === "CRITICOS_SIN_DERIVACION" ? 'text-white' : 'text-purple-700'}`}>
+              {papMetrics.patologicos.toLocaleString("es-CL")}
+            </span>
+            <span className={`text-[10px] font-semibold block mt-0.5 ${selectedStatus === "CRITICOS_SIN_DERIVACION" ? 'text-purple-200' : 'text-slate-500'}`}>
+              Seguimiento de patología
+            </span>
+          </div>
+        </div>
+      )}
+
+
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="p-6 border-b border-slate-100 bg-slate-50/50">
           <div className="flex flex-col lg:flex-row justify-between lg:items-center gap-4">
@@ -712,12 +828,11 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                   </>
                 ) : activeTab === "pap" ? (
                   <>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-[32%] min-w-[280px]">Identificación</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-[13%] min-w-[110px]">Último Examen</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-[13%] min-w-[110px]">Resultado</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-[13%] min-w-[120px]">Estado Tamizaje</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-[22%] min-w-[220px]">Conducta Clínica Sugerida</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right w-[7%] min-w-[80px]">Acciones</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-[30%] min-w-[260px]">Identificación</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-[18%] min-w-[150px]">Contacto (SOME)</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-[18%] min-w-[150px]">Último Tamizaje</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-[16%] min-w-[140px]">Próximo Control</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right w-[18%] min-w-[150px]">Estado Tamizaje</th>
                   </>
                 ) : (
                   <>
@@ -808,76 +923,100 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                         </>
                       ) : activeTab === "pap" ? (
                         <>
-                          <td className="px-6 py-4 text-sm text-slate-600 truncate">
-                            {p.ultima_fecha_pap ? (
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-bold text-slate-700">
-                                  {new Date(p.ultima_fecha_pap).toLocaleDateString('es-CL')}
-                                </span>
-                                <span className="text-[9px] text-slate-400 uppercase font-black bg-slate-100 px-1.5 py-0.5 rounded">
-                                  {p.ultimo_tipo_examen || "PAP"}
-                                </span>
-                              </div>
-                            ) : "—"}
-                          </td>
+                          {/* CONTACTO (SOME) */}
                           <td className="px-6 py-4">
-                            {(p.ultimo_codigo_lab || p.ultimo_resultado_pap) ? (
-                              <div className="flex flex-col gap-1.5">
+                            <div className="flex flex-col gap-0.5">
+                              {p.telefono ? (
+                                <a 
+                                  href={`tel:${p.telefono}`} 
+                                  className="flex items-center text-xs font-mono font-bold text-slate-700 hover:text-pink-600 transition-colors"
+                                  title="Llamar para rescate / citación"
+                                >
+                                  <Phone size={12} className="mr-1.5 text-pink-500 shrink-0" />
+                                  {p.telefono}
+                                </a>
+                              ) : (
+                                <span className="text-xs text-slate-400 font-medium italic">Sin Teléfono</span>
+                              )}
+                              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                                {p.sector || "SECTOR GENERAL"}
+                              </span>
+                            </div>
+                          </td>
+
+                          {/* ÚLTIMO TAMIZAJE */}
+                          <td className="px-6 py-4">
+                            {p.ultima_fecha_pap ? (
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-bold text-slate-800 text-xs">
+                                    {new Date(p.ultima_fecha_pap).toLocaleDateString('es-CL')}
+                                  </span>
+                                  <span className="text-[9px] text-slate-500 uppercase font-black bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                                    {p.ultimo_tipo_examen || "PAP"}
+                                  </span>
+                                </div>
                                 {p.ultimo_codigo_lab ? (
-                                  <span className="font-mono text-sm font-black bg-pink-50 text-pink-700 px-2.5 py-1 rounded-md border border-pink-200 uppercase w-fit tracking-widest shadow-sm" title="Código de Laboratorio">
+                                  <span className="font-mono text-xs font-black bg-pink-50 text-pink-700 px-2 py-0.5 rounded border border-pink-200 uppercase w-fit tracking-wider shadow-2xs">
                                     {p.ultimo_codigo_lab}
                                   </span>
                                 ) : (
-                                  <span className={`text-xs font-bold uppercase truncate ${p.ultimo_resultado_pap !== "NEGATIVO" && p.ultimo_resultado_pap !== "NORMAL" && p.ultimo_resultado_pap !== "PENDIENTE" ? "text-red-600" : "text-slate-700"}`}>
+                                  <span className={`text-[10px] font-bold uppercase truncate ${p.ultimo_resultado_pap !== "NEGATIVO" && p.ultimo_resultado_pap !== "NORMAL" && p.ultimo_resultado_pap !== "PENDIENTE" ? "text-red-600" : "text-slate-600"}`}>
                                     {p.ultimo_resultado_pap}
                                   </span>
                                 )}
-                                <div className="flex gap-1">
-                                  {p.ultima_periodicidad_meses === 12 && (
-                                    <span className="text-[8px] font-black text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 uppercase w-fit">
-                                      Control Anual
-                                    </span>
-                                  )}
-                                  {p.ultima_periodicidad_meses === 6 && (
-                                    <span className="text-[8px] font-black text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 uppercase w-fit">
-                                      Control 6 Meses
-                                    </span>
-                                  )}
-                                </div>
                               </div>
-                            ) : "—"}
+                            ) : (
+                              <span className="text-xs text-slate-400 font-medium italic">Sin Examen Previo</span>
+                            )}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-black tracking-wider border uppercase ${tamizaje.color}`}>
-                              {tamizaje.label}
-                            </span>
+
+                          {/* PRÓXIMO CONTROL / VENCIMIENTO */}
+                          <td className="px-6 py-4">
+                            {p.histerectomizada ? (
+                              <span className="text-xs text-purple-600 font-bold">Excluida</span>
+                            ) : p.ultima_fecha_proximo_control ? (
+                              <div className="flex flex-col gap-1">
+                                <span className="font-bold text-slate-800 text-xs">
+                                  {new Date(p.ultima_fecha_proximo_control).toLocaleDateString('es-CL')}
+                                </span>
+                                {p.ultima_periodicidad_meses === 12 && (
+                                  <span className="text-[8px] font-black text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 uppercase w-fit">
+                                    Control Anual
+                                  </span>
+                                )}
+                                {p.ultima_periodicidad_meses === 6 && (
+                                  <span className="text-[8px] font-black text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 uppercase w-fit">
+                                    Control 6 Meses
+                                  </span>
+                                )}
+                              </div>
+                            ) : p.ultima_fecha_pap ? (
+                              <span className="text-xs text-slate-600 font-medium">
+                                {(() => {
+                                  const d = new Date(p.ultima_fecha_pap);
+                                  d.setFullYear(d.getFullYear() + (p.ultimo_tipo_examen === "VPH" ? 5 : 3));
+                                  return d.toLocaleDateString('es-CL');
+                                })()}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-red-500 font-bold">Inmediato (Brecha)</span>
+                            )}
                           </td>
-                          <td className="px-6 py-4 text-xs font-medium text-slate-600 whitespace-normal break-words">
-                            {tamizaje.conducta}
-                          </td>
+
+                          {/* ESTADO TAMIZAJE & ACCIÓN DIRECTA */}
                           <td className="px-6 py-4 text-right whitespace-nowrap">
-                            <div className="flex justify-end gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
+                            <div className="flex items-center justify-end gap-2">
+                              <span className={`inline-flex px-2.5 py-1 rounded-lg text-[10px] font-black tracking-wider border uppercase shadow-2xs ${tamizaje.color}`}>
+                                {tamizaje.label}
+                              </span>
                               <button
-                                onClick={() => openExamenModal(p)}
-                                title="Ingresar Examen PAP / VPH"
-                                className="p-1.5 hover:bg-slate-100 text-slate-500 hover:text-pink-600 rounded-lg transition-colors border border-transparent hover:border-slate-200 cursor-pointer"
+                                onClick={() => openHistorialDrawer(p)}
+                                className="p-1.5 bg-slate-50 hover:bg-pink-50 text-slate-400 hover:text-pink-600 rounded-lg transition-all border border-slate-200 hover:border-pink-200 cursor-pointer"
+                                title="Abrir Historial Clínico y Acciones"
                               >
-                                <PlusCircle size={15} />
+                                <ChevronRight size={16} />
                               </button>
-                              <button
-                                onClick={() => openHisterectomiaModal(p)}
-                                title="Registrar Antecedentes Histerectomía"
-                                className="p-1.5 hover:bg-slate-100 text-slate-500 hover:text-purple-600 rounded-lg transition-colors border border-transparent hover:border-slate-200 cursor-pointer"
-                              >
-                                <Settings size={15} />
-                              </button>
-                              <Link
-                                href={`/pacientes?search=${p.rut}`}
-                                title="Ver Ficha Clínica"
-                                className="p-1.5 hover:bg-slate-100 text-slate-500 hover:text-slate-800 rounded-lg transition-colors border border-transparent hover:border-slate-200"
-                              >
-                                <Eye size={15} />
-                              </Link>
                             </div>
                           </td>
                         </>
@@ -892,28 +1031,15 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                             ) : "NO"}
                           </td>
                           <td className="px-6 py-4 text-right whitespace-nowrap">
-                            <div className="flex justify-end gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
+                            <div className="flex justify-end gap-1.5">
                               <button
-                                onClick={() => openExamenModal(p)}
-                                title="Ingresar Examen PAP / VPH"
-                                className="p-1.5 hover:bg-slate-100 text-slate-500 hover:text-pink-600 rounded-lg transition-colors border border-transparent hover:border-slate-200 cursor-pointer"
+                                onClick={() => openHistorialDrawer(p)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-slate-50 hover:bg-pink-50 text-slate-600 hover:text-pink-700 rounded-lg text-xs font-bold transition-colors border border-slate-200 hover:border-pink-200 cursor-pointer"
+                                title="Abrir Historial Clínico y Acciones"
                               >
-                                <PlusCircle size={15} />
+                                <span>Historial</span>
+                                <ChevronRight size={14} />
                               </button>
-                              <button
-                                onClick={() => openHisterectomiaModal(p)}
-                                title="Registrar Histerectomía"
-                                className="p-1.5 hover:bg-slate-100 text-slate-500 hover:text-purple-600 rounded-lg transition-colors border border-transparent hover:border-slate-200 cursor-pointer"
-                              >
-                                <Settings size={15} />
-                              </button>
-                              <Link
-                                href={`/pacientes?search=${p.rut}`}
-                                className="p-1.5 hover:bg-slate-100 text-slate-500 hover:text-slate-800 rounded-lg transition-colors border border-transparent hover:border-slate-200"
-                                title="Ver Ficha Clínica"
-                              >
-                                <Eye size={15} />
-                              </Link>
                             </div>
                           </td>
                         </>
@@ -1345,6 +1471,27 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                       placeholder="Antecedentes adicionales, tratamientos o indicaciones del profesional..."
                     />
                   </div>
+
+                  {/* Opción Protegida de Histerectomía */}
+                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-slate-400 text-[10px]">
+                      <ShieldCheck size={12} className="text-slate-400" />
+                      <span>¿La paciente cuenta con Histerectomía Total?</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (selectedPacienteExamen) {
+                          const pac = selectedPacienteExamen;
+                          setShowExamenModal(false);
+                          openHisterectomiaModal(pac);
+                        }
+                      }}
+                      className="text-[10px] font-bold text-purple-600 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 px-2.5 py-1 rounded-lg border border-purple-200 transition-colors cursor-pointer"
+                    >
+                      Configurar Histerectomía
+                    </button>
+                  </div>
                 </form>
               )}
               
@@ -1453,6 +1600,33 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
 
             {/* Cuerpo del Drawer */}
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {/* Botonera de Acción Centralizada en el Drawer */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => {
+                    const p = selectedPacienteHistorial;
+                    setSelectedPacienteHistorial(null);
+                    setTipoIngreso("PAP");
+                    openExamenModal(p);
+                  }}
+                  className="flex items-center justify-center gap-1.5 bg-pink-600 text-white px-3 py-2.5 rounded-xl font-bold hover:bg-pink-700 transition-colors text-xs shadow-xs cursor-pointer"
+                >
+                  <Plus size={15} />
+                  <span>Ingresar PAP / VPH</span>
+                </button>
+                <button
+                  onClick={() => {
+                    const p = selectedPacienteHistorial;
+                    setSelectedPacienteHistorial(null);
+                    openHisterectomiaModal(p);
+                  }}
+                  className="flex items-center justify-center gap-1.5 bg-purple-50 text-purple-700 border border-purple-200 px-3 py-2.5 rounded-xl font-bold hover:bg-purple-100 transition-colors text-xs cursor-pointer"
+                >
+                  <Settings size={15} />
+                  <span>Histerectomía</span>
+                </button>
+              </div>
+
               {/* Resumen Ficha Rápida */}
               <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
                 <div>
@@ -1469,14 +1643,43 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                 </div>
               </div>
 
-              {/* Antecedentes Críticos */}
-              {selectedPacienteHistorial.histerectomizada && (
-                <div className="p-4 rounded-xl bg-purple-50 border border-purple-100 text-purple-800 text-xs flex items-start space-x-2">
-                  <AlertTriangle size={16} className="text-purple-600 shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-bold uppercase tracking-wider block text-[9px] text-purple-700 mb-0.5">Paciente Excluida (HST)</span>
-                    Paciente histerectomizada el {selectedPacienteHistorial.fecha_histerectomia ? new Date(selectedPacienteHistorial.fecha_histerectomia).toLocaleDateString('es-CL') : '—'} debido a causa {selectedPacienteHistorial.causa_histerectomia || "BENIGNA"}. Excluida del tamizaje estándar.
+              {/* Antecedentes Quirúrgicos / Tamizaje */}
+              {selectedPacienteHistorial.histerectomizada ? (
+                <div className="p-4 rounded-xl bg-purple-50 border border-purple-200 text-purple-900 text-xs flex items-start justify-between gap-3">
+                  <div className="flex items-start space-x-2">
+                    <AlertTriangle size={16} className="text-purple-600 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-black uppercase tracking-wider block text-[9px] text-purple-700 mb-0.5">Paciente Excluida por Histerectomía</span>
+                      Registrada el {selectedPacienteHistorial.fecha_histerectomia ? new Date(selectedPacienteHistorial.fecha_histerectomia).toLocaleDateString('es-CL') : '—'} por causa {selectedPacienteHistorial.causa_histerectomia || "BENIGNA"}. Excluida del tamizaje estándar.
+                    </div>
                   </div>
+                  <button
+                    onClick={() => {
+                      const p = selectedPacienteHistorial;
+                      setSelectedPacienteHistorial(null);
+                      openHisterectomiaModal(p);
+                    }}
+                    className="shrink-0 px-2 py-1 bg-white border border-purple-200 rounded-lg text-[10px] font-bold text-purple-700 hover:bg-purple-100 transition-colors cursor-pointer"
+                  >
+                    Modificar
+                  </button>
+                </div>
+              ) : (
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
+                  <div className="flex items-center space-x-2">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                    <span className="font-semibold text-slate-700 text-[11px]">Útero Presente (Población Objetivo Activa)</span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const p = selectedPacienteHistorial;
+                      setSelectedPacienteHistorial(null);
+                      openHisterectomiaModal(p);
+                    }}
+                    className="text-[10px] font-bold text-slate-500 hover:text-purple-700 underline cursor-pointer"
+                  >
+                    Registrar HST
+                  </button>
                 </div>
               )}
 
