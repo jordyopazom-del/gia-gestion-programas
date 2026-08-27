@@ -288,7 +288,7 @@ export default function RespiratorioClientView({ data, user }: { data: any[], us
     setIsSavingEdit(false);
   };
 
-  const canManage = user.rol === "ADMINISTRADOR" || user.rol === "REFERENTE";
+  const canManage = user.rol === "ADMINISTRADOR" || user.referencias?.includes("respiratorio");
 
   const handleEgreso = async () => {
     if (!selectedPaciente) return;
