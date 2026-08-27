@@ -42,6 +42,21 @@ export async function getMujerDashboardData() {
   }
 }
 
+export async function obtenerProfesionalesMatroneria() {
+  try {
+    const users = await sql`
+      SELECT rut, nombre, profesion, rol 
+      FROM gia_usuarios 
+      WHERE rol != 'INACTIVO'
+      ORDER BY nombre ASC
+    `;
+    return { success: true, profesionales: users as any[] };
+  } catch (error: any) {
+    console.error("Error al obtener lista de profesionales:", error);
+    return { error: "Error de base de datos al cargar profesionales." };
+  }
+}
+
 export async function guardarPap(data: { 
   rut_paciente: string, 
   fecha_pap: string, 
@@ -55,11 +70,12 @@ export async function guardarPap(data: {
   fecha_derivacion_upc?: string,
   codigo_lab?: string,
   periodicidad_meses?: number,
-  fecha_proximo_control?: string
+  fecha_proximo_control?: string,
+  profesional_rut?: string
 }) {
   try {
     const user = await getCurrentUser();
-    const profesional_rut = user ? user.rut : '12345678-5';
+    const profesional_rut = data.profesional_rut || (user ? user.rut : '12345678-5');
 
     await sql`
       INSERT INTO gia_mujer_pap (
@@ -130,23 +146,25 @@ export async function getHistorialExamenesPaciente(rut: string) {
   try {
     const result = await sql`
       SELECT 
-        id, 
-        TO_CHAR(fecha_pap, 'YYYY-MM-DD') as fecha_pap, 
-        resultado, 
-        tipo_examen, 
-        adecuacion_muestra, 
-        motivo_insatisfactoria, 
-        TO_CHAR(fecha_resultado, 'YYYY-MM-DD') as fecha_resultado, 
-        derivado_upc, 
-        TO_CHAR(fecha_derivacion_upc, 'YYYY-MM-DD') as fecha_derivacion_upc,
-        observaciones,
-        profesional_rut,
-        codigo_lab,
-        periodicidad_meses,
-        TO_CHAR(fecha_proximo_control, 'YYYY-MM-DD') as fecha_proximo_control
-      FROM gia_mujer_pap
-      WHERE rut_paciente = ${rut}
-      ORDER BY fecha_pap DESC
+        m.id, 
+        TO_CHAR(m.fecha_pap, 'YYYY-MM-DD') as fecha_pap, 
+        m.resultado, 
+        m.tipo_examen, 
+        m.adecuacion_muestra, 
+        m.motivo_insatisfactoria, 
+        TO_CHAR(m.fecha_resultado, 'YYYY-MM-DD') as fecha_resultado, 
+        m.derivado_upc, 
+        TO_CHAR(m.fecha_derivacion_upc, 'YYYY-MM-DD') as fecha_derivacion_upc,
+        m.observaciones,
+        m.profesional_rut,
+        u.nombre as profesional_nombre,
+        m.codigo_lab,
+        m.periodicidad_meses,
+        TO_CHAR(m.fecha_proximo_control, 'YYYY-MM-DD') as fecha_proximo_control
+      FROM gia_mujer_pap m
+      LEFT JOIN gia_usuarios u ON m.profesional_rut = u.rut
+      WHERE m.rut_paciente = ${rut}
+      ORDER BY m.fecha_pap DESC
     `;
     return { success: true, examenes: result as any[] };
   } catch (error: any) {

@@ -5,7 +5,8 @@ import { Search, HeartPulse, User, ShieldCheck, Download, Plus, FileText, AlertT
 import * as XLSX from "xlsx";
 import { UserProfile } from "@/actions/userActions";
 import Link from "next/link";
-import { guardarHisterectomia, guardarPap, getHistorialExamenesPaciente, ingresarEmbarazo } from "@/actions/mujerActions";
+import { guardarHisterectomia, guardarPap, getHistorialExamenesPaciente, ingresarEmbarazo, obtenerProfesionalesMatroneria } from "@/actions/mujerActions";
+import { useEffect } from "react";
 import { decodificarCodigoPap, DecodificacionPap } from "@/lib/decodificadorPap";
 
 type PacienteMujer = {
@@ -56,6 +57,18 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
   const [histerectomiaError, setHisterectomiaError] = useState("");
 
   // Estados para Modal de Ingreso Rápido de Examen PAP/VPH y Decodificador Inteligente
+  const [profesionalesList, setProfesionalesList] = useState<{ rut: string; nombre: string; profesion: string; rol: string }[]>([]);
+  const [profesionalRutForm, setProfesionalRutForm] = useState<string>(user?.rut || "");
+  const [modoProfesionalForm, setModoProfesionalForm] = useState<"PROPIO" | "MANUAL">("PROPIO");
+
+  useEffect(() => {
+    obtenerProfesionalesMatroneria().then(res => {
+      if (res.profesionales) {
+        setProfesionalesList(res.profesionales);
+      }
+    });
+  }, []);
+
   const [selectedPacienteExamen, setSelectedPacienteExamen] = useState<PacienteMujer | null>(null);
   const [showExamenModal, setShowExamenModal] = useState(false);
   const [tipoExamenForm, setTipoExamenForm] = useState("PAP");
@@ -200,6 +213,8 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
 
   const openExamenModal = (paciente: PacienteMujer) => {
     setSelectedPacienteExamen(paciente);
+    setModoProfesionalForm("PROPIO");
+    setProfesionalRutForm(user?.rut || "");
     setTipoIngreso("SELECCION");
     setTipoExamenForm("PAP");
     
@@ -238,6 +253,7 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
     const res = await guardarPap({
       rut_paciente: selectedPacienteExamen.rut,
       fecha_pap: fechaExamenForm,
+      profesional_rut: modoProfesionalForm === "PROPIO" ? (user?.rut || undefined) : profesionalRutForm,
       tipo_examen: tipoExamenForm,
       adecuacion_muestra: isInsatisfactoria ? "INSATISFACTORIA" : "SATISFACTORIA",
       motivo_insatisfactoria: isInsatisfactoria ? (motivoInsatisfactoriaForm || decodificacion.motivoInsatisfactoria) : undefined,
@@ -929,7 +945,7 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                               {p.telefono ? (
                                 <a 
                                   href={`tel:${p.telefono}`} 
-                                  className="flex items-center text-xs font-mono font-bold text-slate-700 hover:text-pink-600 transition-colors"
+                                  className="flex items-center text-xs font-mono font-bold text-slate-700 hover:text-pink-600 transition-colors w-fit"
                                   title="Llamar para rescate / citación"
                                 >
                                   <Phone size={12} className="mr-1.5 text-pink-500 shrink-0" />
@@ -938,9 +954,6 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                               ) : (
                                 <span className="text-xs text-slate-400 font-medium italic">Sin Teléfono</span>
                               )}
-                              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                                {p.sector || "SECTOR GENERAL"}
-                              </span>
                             </div>
                           </td>
 
@@ -1774,7 +1787,7 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
 
                             <div className="flex items-center text-[9px] text-slate-400 border-t border-slate-50 pt-2 font-medium">
                               <Clock size={10} className="mr-1" />
-                              <span>Registrado por Profesional RUT: {ex.profesional_rut}</span>
+                              <span>Registrado por: <strong className="text-slate-600 font-bold">{ex.profesional_nombre || ex.profesional_rut}</strong></span>
                             </div>
                           </div>
                         </div>
