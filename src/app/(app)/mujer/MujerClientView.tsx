@@ -1485,26 +1485,7 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                     />
                   </div>
 
-                  {/* Opción Protegida de Histerectomía */}
-                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-slate-400 text-[10px]">
-                      <ShieldCheck size={12} className="text-slate-400" />
-                      <span>¿La paciente cuenta con Histerectomía Total?</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (selectedPacienteExamen) {
-                          const pac = selectedPacienteExamen;
-                          setShowExamenModal(false);
-                          openHisterectomiaModal(pac);
-                        }
-                      }}
-                      className="text-[10px] font-bold text-purple-600 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 px-2.5 py-1 rounded-lg border border-purple-200 transition-colors cursor-pointer"
-                    >
-                      Configurar Histerectomía
-                    </button>
-                  </div>
+
                 </form>
               )}
               
@@ -1613,8 +1594,8 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
 
             {/* Cuerpo del Drawer */}
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              {/* Botonera de Acción Centralizada en el Drawer */}
-              <div className="grid grid-cols-2 gap-2">
+              {/* Botón de Ingreso en el Drawer */}
+              <div>
                 <button
                   onClick={() => {
                     const p = selectedPacienteHistorial;
@@ -1622,21 +1603,10 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                     setTipoIngreso("PAP");
                     openExamenModal(p);
                   }}
-                  className="flex items-center justify-center gap-1.5 bg-pink-600 text-white px-3 py-2.5 rounded-xl font-bold hover:bg-pink-700 transition-colors text-xs shadow-xs cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 bg-pink-600 text-white px-4 py-2.5 rounded-xl font-bold hover:bg-pink-700 transition-colors text-xs shadow-xs cursor-pointer"
                 >
-                  <Plus size={15} />
-                  <span>Ingresar PAP / VPH</span>
-                </button>
-                <button
-                  onClick={() => {
-                    const p = selectedPacienteHistorial;
-                    setSelectedPacienteHistorial(null);
-                    openHisterectomiaModal(p);
-                  }}
-                  className="flex items-center justify-center gap-1.5 bg-purple-50 text-purple-700 border border-purple-200 px-3 py-2.5 rounded-xl font-bold hover:bg-purple-100 transition-colors text-xs cursor-pointer"
-                >
-                  <Settings size={15} />
-                  <span>Histerectomía</span>
+                  <Plus size={16} />
+                  <span>Ingresar Examen PAP / VPH</span>
                 </button>
               </div>
 
