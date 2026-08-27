@@ -347,6 +347,7 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
             </label>
             <input
               type="text"
+              maxLength={50}
               placeholder="Ej: 12345678 o Juan"
               className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 transition-shadow"
               value={searchTerm}
@@ -977,7 +978,7 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
 
                   <div>
                     <label className="block text-xs font-bold text-slate-500 mb-1">Condición Especial</label>
-                    <input type="text" value={editCondicion} onChange={e => setEditCondicion(e.target.value)} placeholder="Ej: Alergia alimentaria" className="w-full text-sm border-slate-300 rounded-lg" />
+                    <input type="text" maxLength={100} value={editCondicion} onChange={e => setEditCondicion(e.target.value)} placeholder="Ej: Alergia alimentaria" className="w-full text-sm border-slate-300 rounded-lg" />
                   </div>
                 </div>
 
@@ -1008,7 +1009,7 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
 
                   <div>
                     <label className="block text-xs font-bold text-slate-500 mb-1">Observaciones</label>
-                    <textarea value={editObs} onChange={e => setEditObs(e.target.value)} rows={3} className="w-full text-sm border-slate-300 rounded-lg font-mono" placeholder="Notas internas..."></textarea>
+                    <textarea maxLength={500} value={editObs} onChange={e => setEditObs(e.target.value)} rows={3} className="w-full text-sm border-slate-300 rounded-lg font-mono" placeholder="Notas internas..."></textarea>
                   </div>
                 </div>
               </div>

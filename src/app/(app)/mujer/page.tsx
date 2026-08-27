@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { getMujerDashboardData } from "@/actions/mujerActions";
+import { getMujerDashboardData, getEmbarazadasData } from "@/actions/mujerActions";
 import { getCurrentUser, UserProfile } from "@/lib/currentUser";
 import MujerClientView from "./MujerClientView";
 import SkeletonDashboard from "@/components/SkeletonDashboard";
@@ -9,7 +9,8 @@ export const dynamic = 'force-dynamic';
 
 async function MujerDataWrapper({ user }: { user: UserProfile }) {
   const data = await getMujerDashboardData();
-  return <MujerClientView initialData={data.data || []} user={user} />;
+  const embarazadasData = await getEmbarazadasData();
+  return <MujerClientView initialData={data.data || []} initialEmbarazadasData={embarazadasData.data || []} user={user} />;
 }
 
 export default async function MujerPage() {

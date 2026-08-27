@@ -197,6 +197,7 @@ export default function NuevoControlInfantilPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
             <input 
               type="text"
+              maxLength={12}
               placeholder="RUT del paciente (ej: 12345678-9)"
               className="w-full pl-10 pr-4 py-3 bg-slate-50 border-slate-200 rounded-xl font-mono text-lg focus:ring-pink-500 focus:border-pink-500"
               value={rutBusqueda}
@@ -290,6 +291,7 @@ export default function NuevoControlInfantilPage() {
                   <div className="col-span-3">
                     <input 
                       type="text" 
+                      maxLength={100}
                       placeholder="Condición Especial (Ej: Alergia a la proteína de leche de vaca)" 
                       value={condicionEspecial} 
                       onChange={(e) => setCondicionEspecial(e.target.value)} 
@@ -550,6 +552,7 @@ export default function NuevoControlInfantilPage() {
                   value={observaciones} 
                   onChange={(e) => setObservaciones(e.target.value)} 
                   rows={3} 
+                  maxLength={500}
                   placeholder="Detalles relevantes de la atención, indicaciones especiales..."
                   className="w-full rounded-xl border-slate-200"
                 ></textarea>

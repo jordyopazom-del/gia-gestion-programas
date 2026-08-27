@@ -1,0 +1,4 @@
+Implementar Embarazadas en MujerClientView:
+1. Agregar estado 'embarazadas' a activeTab
+2. Agregar 'embarazoForm' states: rut, fum, fechaUltimoControl, fechaProximoControl, estadoNutricional, observaciones
+3. Agregar función en action para registrarEmbarazo y obtenerEmbarazadas

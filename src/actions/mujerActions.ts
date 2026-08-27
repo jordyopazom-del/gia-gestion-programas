@@ -144,3 +144,75 @@ export async function getHistorialExamenesPaciente(rut: string) {
   }
 }
 
+
+export async function getEmbarazadasData() {
+  try {
+    const result = await sql`
+      WITH EmbarazoActivo AS (
+        SELECT id, rut, TO_CHAR(fum, 'YYYY-MM-DD') as fum, TO_CHAR(fpp, 'YYYY-MM-DD') as fpp,
+               TO_CHAR(fecha_ultimo_control, 'YYYY-MM-DD') as fecha_ultimo_control, 
+               TO_CHAR(fecha_proximo_control, 'YYYY-MM-DD') as fecha_proximo_control,
+               estado_nutricional, observaciones, estado
+        FROM gia_mujer_embarazos
+        WHERE estado = 'EMBARAZO'
+      )
+      SELECT 
+        p.rut, p.dv, p.nombre_completo, TO_CHAR(p.fecha_nacimiento, 'YYYY-MM-DD') as fecha_nacimiento, 
+        p.sector, p.telefono, p.direccion,
+        p.estado, p.es_pad,
+        e.id as embarazo_id,
+        e.fum, e.fpp, e.fecha_ultimo_control, e.fecha_proximo_control,
+        e.estado_nutricional, e.observaciones, e.estado as estado_embarazo
+      FROM gia_pacientes p
+      INNER JOIN EmbarazoActivo e ON p.rut = e.rut
+      WHERE p.sexo = 'FEMENINO'
+      ORDER BY p.nombre_completo ASC
+    `;
+    return { data: result as any[] };
+  } catch (error: any) {
+    console.error("Error al obtener datos de Embarazadas:", error);
+    return { error: "Error de conexión con la base de datos." };
+  }
+}
+
+export async function ingresarEmbarazo(data: {
+  rut_paciente: string,
+  fum: string,
+  fpp: string,
+  fecha_ultimo_control?: string,
+  fecha_proximo_control?: string,
+  estado_nutricional?: string,
+  observaciones?: string
+}) {
+  try {
+    await sql`
+      INSERT INTO gia_mujer_embarazos (
+        rut, fum, fpp, fecha_ultimo_control, fecha_proximo_control,
+        estado_nutricional, observaciones, estado
+      )
+      VALUES (
+        ${data.rut_paciente}, ${data.fum}, ${data.fpp}, 
+        ${data.fecha_ultimo_control || null}, ${data.fecha_proximo_control || null},
+        ${data.estado_nutricional || null}, ${data.observaciones || null}, 'EMBARAZO'
+      )
+    `;
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error al guardar Embarazo:", error);
+    return { error: "Error de base de datos al guardar el embarazo." };
+  }
+}
+
+export async function cambiarEstadoEmbarazo(id: number, nuevoEstado: string) {
+  try {
+    await sql`
+      UPDATE gia_mujer_embarazos
+      SET estado = ${nuevoEstado}, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ${id}
+    `;
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error al actualizar estado del embarazo:", error);
+    return { error: "Error al actualizar estado del embarazo." };
+  }
+}

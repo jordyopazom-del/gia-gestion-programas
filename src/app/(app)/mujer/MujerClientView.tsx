@@ -30,13 +30,15 @@ type PacienteMujer = {
   ultima_fecha_derivacion_upc?: string;
 };
 
-export default function MujerClientView({ initialData, user }: { initialData: PacienteMujer[], user: UserProfile }) {
+export default function MujerClientView({ initialData, initialEmbarazadasData, user }: { initialData: PacienteMujer[], initialEmbarazadasData?: any[], user: UserProfile }) {
   const [data, setData] = useState<PacienteMujer[]>(initialData);
+  const [embarazadasData, setEmbarazadasData] = useState<any[]>(initialEmbarazadasData || []);
   const [searchRut, setSearchRut] = useState("");
   const [selectedSector, setSelectedSector] = useState("TODOS");
   const [selectedStatus, setSelectedStatus] = useState("TODOS");
   const [onlyPad, setOnlyPad] = useState(false);
-  const [activeTab, setActiveTab] = useState("general"); // "general" o "pap"
+  const [activeTab, setActiveTab] = useState("general"); // "general", "pap", "embarazadas"
+  const [tipoIngreso, setTipoIngreso] = useState("SELECCION"); // "SELECCION", "PAP", "EMBARAZO"
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
 
@@ -58,6 +60,39 @@ export default function MujerClientView({ initialData, user }: { initialData: Pa
   const [motivoInsatisfactoriaForm, setMotivoInsatisfactoriaForm] = useState("");
   const [resultadoForm, setResultadoForm] = useState("PENDIENTE");
   const [fechaResultadoForm, setFechaResultadoForm] = useState("");
+
+  // Estados Formulario Embarazo
+  const [fumForm, setFumForm] = useState("");
+  const [fppForm, setFppForm] = useState("");
+  const [fechaUltimoControlForm, setFechaUltimoControlForm] = useState("");
+  const [fechaProximoControlForm, setFechaProximoControlForm] = useState("");
+  const [estadoNutricionalForm, setEstadoNutricionalForm] = useState("");
+  const [observacionesEmbarazoForm, setObservacionesEmbarazoForm] = useState("");
+  
+  // Auto-calcular FPP cuando cambia FUM
+  const handleFumChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fumDate = e.target.value;
+    setFumForm(fumDate);
+    if (fumDate) {
+      const date = new Date(fumDate);
+      date.setDate(date.getDate() + 280); // 40 semanas
+      setFppForm(date.toISOString().split('T')[0]);
+    } else {
+      setFppForm("");
+    }
+  };
+
+  const calcularSemanasGestacion = (fumStr: string) => {
+    if(!fumStr) return "-";
+    const fumDate = new Date(fumStr);
+    const today = new Date();
+    const diffTime = Math.abs(today.getTime() - fumDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const weeks = Math.floor(diffDays / 7);
+    const days = diffDays % 7;
+    return `${weeks}+${days}`;
+  };
+
   const [derivadoUpcForm, setDerivadoUpcForm] = useState(false);
   const [fechaDerivacionUpcForm, setFechaDerivacionUpcForm] = useState("");
   const [observacionesExamenForm, setObservacionesExamenForm] = useState("");
@@ -268,7 +303,7 @@ export default function MujerClientView({ initialData, user }: { initialData: Pa
   }, [data]);
 
   const filteredData = useMemo(() => {
-    let result = data;
+    let result = activeTab === "embarazadas" ? embarazadasData : data;
 
     // Solo activos por defecto
     result = result.filter(p => !p.estado || p.estado === 'ACTIVO');
@@ -438,6 +473,16 @@ export default function MujerClientView({ initialData, user }: { initialData: Pa
         >
           Tamizaje PAP / VPH (25-64 años)
         </button>
+        <button
+          onClick={() => { setActiveTab("embarazadas"); setCurrentPage(1); setSelectedStatus("TODOS"); }}
+          className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${
+            activeTab === "embarazadas" 
+            ? "bg-white text-purple-600 shadow-sm" 
+            : "text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          Embarazadas
+        </button>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
@@ -498,10 +543,18 @@ export default function MujerClientView({ initialData, user }: { initialData: Pa
         </div>
 
         <div className="overflow-x-auto">
-          <table className={`w-full text-left border-collapse table-fixed transition-all duration-300 ${activeTab === 'pap' ? 'min-w-[1200px]' : 'min-w-[900px]'}`}>
+          <table className={`w-full text-left border-collapse table-fixed transition-all duration-300 ${activeTab === 'pap' ? 'min-w-[1200px]' : activeTab === 'embarazadas' ? 'min-w-[1100px]' : 'min-w-[900px]'}`}>
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
-                {activeTab === "pap" ? (
+                {activeTab === "embarazadas" ? (
+                  <>
+                    <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider bg-slate-50/50">Identificación</th>
+                    <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider bg-slate-50/50">Gestación</th>
+                    <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider bg-slate-50/50">Controles</th>
+                    <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider bg-slate-50/50">Nutrición / Obs.</th>
+                    <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider bg-slate-50/50 text-right">Acciones</th>
+                  </>
+                ) : activeTab === "pap" ? (
                   <>
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-[32%] min-w-[280px]">Identificación</th>
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-[13%] min-w-[110px]">Último Examen</th>
@@ -563,7 +616,41 @@ export default function MujerClientView({ initialData, user }: { initialData: Pa
                         </div>
                       </td>
                       
-                      {activeTab === "pap" ? (
+                      {activeTab === "embarazadas" ? (
+                        <>
+                          <td className="px-6 py-4">
+                            <div className="flex flex-col gap-1">
+                              <span className="text-xs font-bold text-purple-700 bg-purple-50 px-2 py-1 rounded w-fit">
+                                E.G: {p.fum ? calcularSemanasGestacion(p.fum) : "-"} semanas
+                              </span>
+                              <span className="text-[10px] font-semibold text-slate-500 uppercase">
+                                FPP: {p.fpp ? new Date(p.fpp).toLocaleDateString('es-CL') : "-"}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex flex-col gap-1 text-xs text-slate-600">
+                              <div><span className="font-semibold text-slate-400 text-[10px] uppercase">Último:</span> {p.fecha_ultimo_control ? new Date(p.fecha_ultimo_control).toLocaleDateString('es-CL') : "Sin reg"}</div>
+                              <div><span className="font-semibold text-slate-400 text-[10px] uppercase">Próximo:</span> {p.fecha_proximo_control ? new Date(p.fecha_proximo_control).toLocaleDateString('es-CL') : "Sin reg"}</div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex flex-col gap-1">
+                              <span className={`text-[10px] font-black tracking-wider uppercase px-2 py-0.5 rounded w-fit ${p.estado_nutricional === 'OBESIDAD' ? 'bg-red-50 text-red-600' : p.estado_nutricional === 'SOBREPESO' ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                                {p.estado_nutricional || "S/N"}
+                              </span>
+                              {p.observaciones && <span className="text-xs text-slate-500 line-clamp-2" title={p.observaciones}>{p.observaciones}</span>}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                             <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button onClick={() => { setTipoIngreso("EMBARAZO"); openExamenModal(p); }} className="text-purple-600 hover:text-purple-800 hover:bg-purple-50 p-1.5 rounded-lg transition-colors" title="Actualizar Embarazo">
+                                <FileText size={16} />
+                              </button>
+                             </div>
+                          </td>
+                        </>
+                      ) : activeTab === "pap" ? (
                         <>
                           <td className="px-6 py-4 text-sm text-slate-600 truncate">
                             {p.ultima_fecha_pap ? (
