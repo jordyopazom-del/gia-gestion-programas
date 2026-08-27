@@ -1067,6 +1067,48 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                 />
               </div>
 
+              </form>
+              )}
+              
+              {tipoIngreso === "EMBARAZO" && (
+                <form id="embarazo-form" onSubmit={handleEmbarazoSubmit} className="space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">F.U.M</label>
+                      <input type="date" value={fumForm} onChange={handleFumChange} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 font-semibold text-xs focus:ring-2 focus:ring-purple-500 outline-none" required />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">F.P.P (Calculada)</label>
+                      <input type="date" value={fppForm} readOnly className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-xl text-slate-500 font-semibold text-xs opacity-80" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Último Control</label>
+                      <input type="date" value={fechaUltimoControlForm} onChange={e => setFechaUltimoControlForm(e.target.value)} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 font-semibold text-xs focus:ring-2 focus:ring-purple-500 outline-none" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Próximo Control</label>
+                      <input type="date" value={fechaProximoControlForm} onChange={e => setFechaProximoControlForm(e.target.value)} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 font-semibold text-xs focus:ring-2 focus:ring-purple-500 outline-none" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Nutrición</label>
+                    <select value={estadoNutricionalForm} onChange={e => setEstadoNutricionalForm(e.target.value)} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 font-semibold text-xs focus:ring-2 focus:ring-purple-500 outline-none">
+                      <option value="">-- Seleccionar --</option>
+                      <option value="ENFLAQUECIDA">Enflaquecida</option>
+                      <option value="NORMOPESO">Normopeso</option>
+                      <option value="SOBREPESO">Sobrepeso</option>
+                      <option value="OBESIDAD">Obesidad</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Observaciones</label>
+                    <textarea value={observacionesEmbarazoForm} onChange={e => setObservacionesEmbarazoForm(e.target.value)} rows={3} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 font-semibold text-xs focus:ring-2 focus:ring-purple-500 outline-none"></textarea>
+                  </div>
+                </form>
+              )}
+
               {examenError && (
                 <div className="flex items-center gap-2 text-red-600 text-xs font-bold bg-red-50 p-3 rounded-lg border border-red-100">
                   <AlertTriangle size={14} className="shrink-0" />
@@ -1075,22 +1117,29 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
               )}
             </div>
 
-            <div className="flex justify-end gap-2 p-5 bg-slate-50 border-t border-slate-100 shrink-0">
+            <div className="flex items-center justify-end p-5 border-t border-slate-100 bg-slate-50/50 gap-3 shrink-0">
+              {tipoIngreso !== "SELECCION" && (
+                <button type="button" onClick={() => setTipoIngreso("SELECCION")} className="px-5 py-2.5 rounded-xl font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors mr-auto">
+                  Atrás
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => { setShowExamenModal(false); setSelectedPacienteExamen(null); }}
-                className="px-4 py-2 border border-slate-200 rounded-lg text-xs font-bold text-slate-500 hover:bg-white transition-colors cursor-pointer"
-              >
-                Cerrar
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveExamen}
+                className="px-5 py-2.5 rounded-xl font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 transition-colors"
                 disabled={savingExamen}
-                className="px-4 py-2 bg-pink-600 text-white rounded-lg text-xs font-bold hover:bg-pink-700 disabled:opacity-50 transition-colors cursor-pointer"
               >
-                {savingExamen ? "Guardando..." : "Ingresar Examen"}
+                Cancelar
               </button>
+              {tipoIngreso !== "SELECCION" && (
+              <button
+                onClick={tipoIngreso === "PAP" ? handleExamenSubmit : handleEmbarazoSubmit}
+                disabled={savingExamen}
+                className={`px-6 py-2.5 rounded-xl font-bold text-white transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2 ${tipoIngreso === "EMBARAZO" ? "bg-purple-600 hover:bg-purple-700" : "bg-pink-600 hover:bg-pink-700"}`}
+              >
+                {savingExamen ? "Guardando..." : "Guardar Registro"}
+              </button>
+              )}
             </div>
           </div>
         </div>
