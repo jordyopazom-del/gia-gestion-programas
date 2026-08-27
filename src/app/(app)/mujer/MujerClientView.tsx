@@ -868,7 +868,9 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
           <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden animate-in scale-in duration-200 max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-slate-50/50 shrink-0">
               <div>
-                <h3 className="font-bold text-slate-800 text-base">Registrar Tamizaje PAP / VPH</h3>
+                <h3 className="font-bold text-slate-800 text-base">
+                  {tipoIngreso === "SELECCION" ? "Seleccione Tipo de Registro" : tipoIngreso === "PAP" ? "Ingreso de Tamizaje (PAP/VPH)" : "Control de Embarazo"}
+                </h3>
                 <p className="text-xs text-slate-500 font-mono mt-0.5">Paciente: {selectedPacienteExamen.nombre_completo} (RUT: {selectedPacienteExamen.rut}-{selectedPacienteExamen.dv})</p>
               </div>
               <button 
@@ -880,6 +882,20 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
             </div>
 
             <div className="p-6 space-y-4 overflow-y-auto">
+              {tipoIngreso === "SELECCION" && (
+                <div className="grid grid-cols-2 gap-4 h-full min-h-[300px]">
+                  <button onClick={() => setTipoIngreso("PAP")} className="flex flex-col items-center justify-center p-8 bg-slate-50 hover:bg-pink-50 border-2 border-slate-100 hover:border-pink-300 rounded-2xl transition-all group">
+                    <FileText size={48} className="text-slate-300 group-hover:text-pink-500 mb-4 transition-colors" />
+                    <span className="font-bold text-slate-700 group-hover:text-pink-700 text-lg">Tamizaje PAP / VPH</span>
+                  </button>
+                  <button onClick={() => setTipoIngreso("EMBARAZO")} className="flex flex-col items-center justify-center p-8 bg-slate-50 hover:bg-purple-50 border-2 border-slate-100 hover:border-purple-300 rounded-2xl transition-all group">
+                    <HeartPulse size={48} className="text-slate-300 group-hover:text-purple-500 mb-4 transition-colors" />
+                    <span className="font-bold text-slate-700 group-hover:text-purple-700 text-lg">Control de Embarazo</span>
+                  </button>
+                </div>
+              )}
+              {tipoIngreso === "PAP" && (
+                <form id="pap-form" onSubmit={handleExamenSubmit} className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {/* Tipo Examen */}
                 <div>
