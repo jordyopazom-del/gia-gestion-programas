@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { hashPassword } from "@/lib/password";
 import { getSession } from "@/lib/auth";
 
-export type UserRole = "ADMINISTRADOR" | "ADMINISTRATIVO" | "REFERENTE" | "CLINICO" | "INACTIVO";
+export type UserRole = "ADMINISTRADOR" | "ADMINISTRATIVO" | "CLINICO" | "INACTIVO";
 
 export type UserProfile = {
   rut: string;
@@ -15,6 +15,7 @@ export type UserProfile = {
   profesion: string;
   rol: UserRole;
   accesos?: string[];
+  referencias?: string[];
 };
 
 export async function getCurrentUser() {
@@ -24,7 +25,7 @@ export async function getCurrentUser() {
   if (!rut) return null;
 
   try {
-    const result = await sql`SELECT rut, nombre, email, profesion, rol, accesos FROM gia_usuarios WHERE rut = ${rut}`;
+    const result = await sql`SELECT rut, nombre, email, profesion, rol, accesos, referencias, referencias FROM gia_usuarios WHERE rut = ${rut}`;
     return result[0] as UserProfile;
   } catch (error) {
     console.error("Error obteniendo usuario actual:", error);
@@ -40,7 +41,7 @@ export async function listarUsuarios() {
 
   try {
     const result = await sql`
-      SELECT rut, nombre, email, profesion, rol, accesos 
+      SELECT rut, nombre, email, profesion, rol, accesos, referencias 
       FROM gia_usuarios 
       WHERE UPPER(nombre) != 'MIGRACION SISTEMA' 
         AND UPPER(nombre) != 'MIGRACIÓN SISTEMA'
@@ -85,7 +86,8 @@ export async function crearUsuario(data: UserProfile & { password?: string }) {
             rol = ${data.rol},
             password = ${hashedPassword},
             debe_cambiar_password = TRUE,
-            accesos = ${data.accesos || []}
+            accesos = ${data.accesos || []},
+            referencias = ${data.referencias ? sql.json(data.referencias) : sql.json([])}
           WHERE rut = ${rutStandar}
         `;
       } else {
@@ -96,7 +98,8 @@ export async function crearUsuario(data: UserProfile & { password?: string }) {
             email = ${cleanEmail},
             profesion = ${cleanProfesion},
             rol = ${data.rol},
-            accesos = ${data.accesos || []}
+            accesos = ${data.accesos || []},
+            referencias = ${data.referencias ? sql.json(data.referencias) : sql.json([])}
           WHERE rut = ${rutStandar}
         `;
       }
@@ -104,8 +107,8 @@ export async function crearUsuario(data: UserProfile & { password?: string }) {
       // Usuario nuevo
       const hashedPassword = hashPassword(data.password || "cesfam123");
       await sql`
-        INSERT INTO gia_usuarios (rut, nombre, email, profesion, rol, password, debe_cambiar_password, accesos)
-        VALUES (${rutStandar}, ${cleanNombre}, ${cleanEmail}, ${cleanProfesion}, ${data.rol}, ${hashedPassword}, TRUE, ${data.accesos || []})
+        INSERT INTO gia_usuarios (rut, nombre, email, profesion, rol, password, debe_cambiar_password, accesos, referencias)
+        VALUES (${rutStandar}, ${cleanNombre}, ${cleanEmail}, ${cleanProfesion}, ${data.rol}, ${hashedPassword}, TRUE, ${data.accesos || []}, ${data.referencias ? sql.json(data.referencias) : sql.json([])})
       `;
     }
     revalidatePath("/admin/usuarios");

@@ -2,7 +2,7 @@ import { cache } from "react";
 import { sql } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 
-export type UserRole = "ADMINISTRADOR" | "ADMINISTRATIVO" | "REFERENTE" | "CLINICO" | "INACTIVO";
+export type UserRole = "ADMINISTRADOR" | "ADMINISTRATIVO" | "CLINICO" | "INACTIVO";
 
 export type UserProfile = {
   rut: string;
@@ -11,6 +11,7 @@ export type UserProfile = {
   profesion: string;
   rol: UserRole;
   accesos?: string[];
+  referencias?: string[];
 };
 
 // cache() de React deduplica esta función dentro de una misma petición HTTP.
@@ -23,7 +24,7 @@ export const getCurrentUser = cache(async (): Promise<UserProfile | null> => {
   if (!rut) return null;
 
   try {
-    const result = await sql`SELECT rut, nombre, email, profesion, rol, accesos FROM gia_usuarios WHERE rut = ${rut}`;
+    const result = await sql`SELECT rut, nombre, email, profesion, rol, accesos, referencias FROM gia_usuarios WHERE rut = ${rut}`;
     return result[0] as UserProfile;
   } catch (error) {
     console.error("Error obteniendo usuario actual:", error);

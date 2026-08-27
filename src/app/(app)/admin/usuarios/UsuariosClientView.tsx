@@ -25,6 +25,7 @@ export default function UsuariosClientView({
 
   // Estado para granularidad de accesos
   const [formAccesos, setFormAccesos] = useState<string[]>([]);
+  const [formReferencias, setFormReferencias] = useState<string[]>([]);
 
   const [formData, setFormData] = useState({
     rut: "",
@@ -45,6 +46,7 @@ export default function UsuariosClientView({
       password: "" 
     });
     setFormAccesos(u.accesos || []);
+    setFormReferencias(u.referencias || []);
     setIsEditing(true);
     setShowModal(true);
   };
@@ -59,8 +61,18 @@ export default function UsuariosClientView({
       password: ""
     });
     setFormAccesos([]);
+    setFormReferencias([]);
     setIsEditing(false);
     setShowModal(true);
+  };
+
+  
+  const handleReferenciaToggle = (key: string, checked: boolean) => {
+    if (checked) {
+      setFormReferencias([...formReferencias, key]);
+    } else {
+      setFormReferencias(formReferencias.filter(item => item !== key));
+    }
   };
 
   const handleAccesoToggle = (key: string, checked: boolean) => {
@@ -98,7 +110,8 @@ export default function UsuariosClientView({
       ...formData,
       nombre: formData.nombre.toUpperCase().trim(),
       profesion: normalizeText(formData.profesion),
-      accesos: formAccesos
+      accesos: formAccesos,
+      referencias: formReferencias
     };
 
     const res = await crearUsuario(normalizedData);
@@ -518,60 +531,138 @@ export default function UsuariosClientView({
                     <ShieldCheck size={12} className="mr-1 text-purple-600" /> Módulos Habilitados
                   </label>
                   <div className="grid grid-cols-2 gap-3">
-                    <label className="flex items-center space-x-2 text-xs font-bold text-slate-700 cursor-pointer select-none">
-                      <input 
-                        type="checkbox"
-                        checked={formAccesos.includes("respiratorio")}
-                        onChange={(e) => handleAccesoToggle("respiratorio", e.target.checked)}
-                        className="rounded border-slate-300 text-purple-600 focus:ring-purple-500 h-4 w-4"
-                      />
-                      <span>Prog. Respiratorio</span>
-                    </label>
-                    <label className="flex items-center space-x-2 text-xs font-bold text-slate-700 cursor-pointer select-none">
-                      <input 
-                        type="checkbox"
-                        checked={formAccesos.includes("empam")}
-                        onChange={(e) => handleAccesoToggle("empam", e.target.checked)}
-                        className="rounded border-slate-300 text-purple-600 focus:ring-purple-500 h-4 w-4"
-                      />
-                      <span>Adulto Mayor (EMPAM)</span>
-                    </label>
-                    <label className="flex items-center space-x-2 text-xs font-bold text-slate-700 cursor-pointer select-none">
-                      <input 
-                        type="checkbox"
-                        checked={formAccesos.includes("infantil")}
-                        onChange={(e) => handleAccesoToggle("infantil", e.target.checked)}
-                        className="rounded border-slate-300 text-purple-600 focus:ring-purple-500 h-4 w-4"
-                      />
-                      <span>Prog. Infantil</span>
-                    </label>
-                    <label className="flex items-center space-x-2 text-xs font-bold text-slate-700 cursor-pointer select-none">
-                      <input 
-                        type="checkbox"
-                        checked={formAccesos.includes("mujer")}
-                        onChange={(e) => handleAccesoToggle("mujer", e.target.checked)}
-                        className="rounded border-slate-300 text-purple-600 focus:ring-purple-500 h-4 w-4"
-                      />
-                      <span>Prog. de la Mujer</span>
-                    </label>
-                    <label className="flex items-center space-x-2 text-xs font-bold text-slate-700 cursor-pointer select-none">
-                      <input 
-                        type="checkbox"
-                        checked={formAccesos.includes("oportunidad")}
-                        onChange={(e) => handleAccesoToggle("oportunidad", e.target.checked)}
-                        className="rounded border-slate-300 text-purple-600 focus:ring-purple-500 h-4 w-4"
-                      />
-                      <span>Oport. de Atención</span>
-                    </label>
-                    <label className="flex items-center space-x-2 text-xs font-bold text-slate-700 cursor-pointer select-none">
-                      <input 
-                        type="checkbox"
-                        checked={formAccesos.includes("ecicep")}
-                        onChange={(e) => handleAccesoToggle("ecicep", e.target.checked)}
-                        className="rounded border-slate-300 text-purple-600 focus:ring-purple-500 h-4 w-4"
-                      />
-                      <span>Estratificación ECICEP</span>
-                    </label>
+                    <div className="flex flex-col space-y-2 bg-white p-2 rounded border border-slate-100">
+                      <label className="flex items-center space-x-2 text-xs font-bold text-slate-700 cursor-pointer select-none">
+                        <input 
+                          type="checkbox"
+                          checked={formAccesos.includes("respiratorio")}
+                          onChange={(e) => handleAccesoToggle("respiratorio", e.target.checked)}
+                          className="rounded border-slate-300 text-purple-600 focus:ring-purple-500 h-4 w-4"
+                        />
+                        <span>Prog. Respiratorio</span>
+                      </label>
+                      {formAccesos.includes("respiratorio") && (
+                        <label className="flex items-center space-x-2 text-[10px] font-bold text-slate-500 cursor-pointer select-none ml-6">
+                          <input 
+                            type="checkbox"
+                            checked={formReferencias.includes("respiratorio")}
+                            onChange={(e) => handleReferenciaToggle("respiratorio", e.target.checked)}
+                            className="rounded border-slate-300 text-amber-500 focus:ring-amber-500 h-3 w-3"
+                          />
+                          <span>Es Referente de este programa</span>
+                        </label>
+                      )}
+                    </div>
+                    <div className="flex flex-col space-y-2 bg-white p-2 rounded border border-slate-100">
+                      <label className="flex items-center space-x-2 text-xs font-bold text-slate-700 cursor-pointer select-none">
+                        <input 
+                          type="checkbox"
+                          checked={formAccesos.includes("empam")}
+                          onChange={(e) => handleAccesoToggle("empam", e.target.checked)}
+                          className="rounded border-slate-300 text-purple-600 focus:ring-purple-500 h-4 w-4"
+                        />
+                        <span>Adulto Mayor (EMPAM)</span>
+                      </label>
+                      {formAccesos.includes("empam") && (
+                        <label className="flex items-center space-x-2 text-[10px] font-bold text-slate-500 cursor-pointer select-none ml-6">
+                          <input 
+                            type="checkbox"
+                            checked={formReferencias.includes("empam")}
+                            onChange={(e) => handleReferenciaToggle("empam", e.target.checked)}
+                            className="rounded border-slate-300 text-amber-500 focus:ring-amber-500 h-3 w-3"
+                          />
+                          <span>Es Referente de este programa</span>
+                        </label>
+                      )}
+                    </div>
+                    <div className="flex flex-col space-y-2 bg-white p-2 rounded border border-slate-100">
+                      <label className="flex items-center space-x-2 text-xs font-bold text-slate-700 cursor-pointer select-none">
+                        <input 
+                          type="checkbox"
+                          checked={formAccesos.includes("infantil")}
+                          onChange={(e) => handleAccesoToggle("infantil", e.target.checked)}
+                          className="rounded border-slate-300 text-purple-600 focus:ring-purple-500 h-4 w-4"
+                        />
+                        <span>Prog. Infantil</span>
+                      </label>
+                      {formAccesos.includes("infantil") && (
+                        <label className="flex items-center space-x-2 text-[10px] font-bold text-slate-500 cursor-pointer select-none ml-6">
+                          <input 
+                            type="checkbox"
+                            checked={formReferencias.includes("infantil")}
+                            onChange={(e) => handleReferenciaToggle("infantil", e.target.checked)}
+                            className="rounded border-slate-300 text-amber-500 focus:ring-amber-500 h-3 w-3"
+                          />
+                          <span>Es Referente de este programa</span>
+                        </label>
+                      )}
+                    </div>
+                    <div className="flex flex-col space-y-2 bg-white p-2 rounded border border-slate-100">
+                      <label className="flex items-center space-x-2 text-xs font-bold text-slate-700 cursor-pointer select-none">
+                        <input 
+                          type="checkbox"
+                          checked={formAccesos.includes("mujer")}
+                          onChange={(e) => handleAccesoToggle("mujer", e.target.checked)}
+                          className="rounded border-slate-300 text-purple-600 focus:ring-purple-500 h-4 w-4"
+                        />
+                        <span>Prog. de la Mujer</span>
+                      </label>
+                      {formAccesos.includes("mujer") && (
+                        <label className="flex items-center space-x-2 text-[10px] font-bold text-slate-500 cursor-pointer select-none ml-6">
+                          <input 
+                            type="checkbox"
+                            checked={formReferencias.includes("mujer")}
+                            onChange={(e) => handleReferenciaToggle("mujer", e.target.checked)}
+                            className="rounded border-slate-300 text-amber-500 focus:ring-amber-500 h-3 w-3"
+                          />
+                          <span>Es Referente de este programa</span>
+                        </label>
+                      )}
+                    </div>
+                    <div className="flex flex-col space-y-2 bg-white p-2 rounded border border-slate-100">
+                      <label className="flex items-center space-x-2 text-xs font-bold text-slate-700 cursor-pointer select-none">
+                        <input 
+                          type="checkbox"
+                          checked={formAccesos.includes("oportunidad")}
+                          onChange={(e) => handleAccesoToggle("oportunidad", e.target.checked)}
+                          className="rounded border-slate-300 text-purple-600 focus:ring-purple-500 h-4 w-4"
+                        />
+                        <span>Oport. de Atención</span>
+                      </label>
+                      {formAccesos.includes("oportunidad") && (
+                        <label className="flex items-center space-x-2 text-[10px] font-bold text-slate-500 cursor-pointer select-none ml-6">
+                          <input 
+                            type="checkbox"
+                            checked={formReferencias.includes("oportunidad")}
+                            onChange={(e) => handleReferenciaToggle("oportunidad", e.target.checked)}
+                            className="rounded border-slate-300 text-amber-500 focus:ring-amber-500 h-3 w-3"
+                          />
+                          <span>Es Referente de este programa</span>
+                        </label>
+                      )}
+                    </div>
+                    <div className="flex flex-col space-y-2 bg-white p-2 rounded border border-slate-100">
+                      <label className="flex items-center space-x-2 text-xs font-bold text-slate-700 cursor-pointer select-none">
+                        <input 
+                          type="checkbox"
+                          checked={formAccesos.includes("ecicep")}
+                          onChange={(e) => handleAccesoToggle("ecicep", e.target.checked)}
+                          className="rounded border-slate-300 text-purple-600 focus:ring-purple-500 h-4 w-4"
+                        />
+                        <span>Estratificación ECICEP</span>
+                      </label>
+                      {formAccesos.includes("ecicep") && (
+                        <label className="flex items-center space-x-2 text-[10px] font-bold text-slate-500 cursor-pointer select-none ml-6">
+                          <input 
+                            type="checkbox"
+                            checked={formReferencias.includes("ecicep")}
+                            onChange={(e) => handleReferenciaToggle("ecicep", e.target.checked)}
+                            className="rounded border-slate-300 text-amber-500 focus:ring-amber-500 h-3 w-3"
+                          />
+                          <span>Es Referente de este programa</span>
+                        </label>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
