@@ -503,8 +503,10 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
         return age !== null && age >= 25 && age <= 64;
       });
 
-      // Filtro por Estado de Tamizaje (Brechas de Demanda)
-      if (selectedStatus !== "TODOS") {
+      // Excluir histerectomizadas de la lista activa de tamizaje por defecto (a menos que se filtre explícitamente por "EXCLUIDAS")
+      if (selectedStatus === "TODOS") {
+        result = result.filter(p => !p.histerectomizada);
+      } else {
         result = result.filter(p => {
           const status = getTamizajeStatus(p);
           if (selectedStatus === "VIGENTES") return status.estado === "VIGENTE";
@@ -577,14 +579,15 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
     });
 
     const total = papPob.length;
+    const excluidas = papPob.filter(p => p.histerectomizada).length;
+    const poblacionActiva = total - excluidas;
     const vigentes = papPob.filter(p => !p.histerectomizada && getTamizajeStatus(p).estado === "VIGENTE").length;
     const porVencer = papPob.filter(p => !p.histerectomizada && getTamizajeStatus(p).label.includes("POR VENCER")).length;
     const vencidos = papPob.filter(p => !p.histerectomizada && (getTamizajeStatus(p).estado === "VENCIDO" || getTamizajeStatus(p).estado === "SIN_REGISTRO")).length;
     const patologicos = papPob.filter(p => getTamizajeStatus(p).estado === "ALTERADO").length;
-    const excluidas = papPob.filter(p => p.histerectomizada).length;
-    const cob = (total - excluidas) > 0 ? (((vigentes + porVencer) / (total - excluidas)) * 100).toFixed(1) : "0.0";
+    const cob = poblacionActiva > 0 ? (((vigentes + porVencer) / poblacionActiva) * 100).toFixed(1) : "0.0";
 
-    return { total, vigentes, porVencer, vencidos, patologicos, excluidas, cob };
+    return { total, poblacionActiva, vigentes, porVencer, vencidos, patologicos, excluidas, cob };
   }, [data]);
 
   const exportToExcel = () => {
@@ -691,7 +694,7 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
               Población Objetivo (25-64a)
             </span>
             <span className="text-2xl font-black mt-1 block">
-              {papMetrics.total.toLocaleString("es-CL")}
+              {papMetrics.poblacionActiva.toLocaleString("es-CL")}
             </span>
             <span className={`text-[10px] font-semibold block mt-0.5 ${selectedStatus === "TODOS" ? 'text-slate-300' : 'text-slate-500'}`}>
               Meta CaCu MINSAL
@@ -1651,7 +1654,7 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                 <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
                   <div className="flex items-center space-x-2">
                     <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                    <span className="font-semibold text-slate-700 text-[11px]">Útero Presente (Población Objetivo Activa)</span>
+                    <span className="font-semibold text-slate-700 text-xs">Sin Antecedentes de Histerectomía</span>
                   </div>
                   <button
                     onClick={() => {
@@ -1659,9 +1662,9 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                       setSelectedPacienteHistorial(null);
                       openHisterectomiaModal(p);
                     }}
-                    className="text-[10px] font-bold text-slate-500 hover:text-purple-700 underline cursor-pointer"
+                    className="text-[10px] font-bold text-purple-700 hover:text-purple-900 bg-purple-50 hover:bg-purple-100 px-2.5 py-1 rounded-lg border border-purple-200 transition-colors cursor-pointer"
                   >
-                    Registrar HST
+                    Registrar Histerectomía
                   </button>
                 </div>
               )}
