@@ -433,7 +433,7 @@ export default function UsuariosClientView({
       {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-purple-50/50">
               <h3 className="font-bold text-slate-800 flex items-center italic">
                 {isEditing ? (
@@ -447,7 +447,7 @@ export default function UsuariosClientView({
               </button>
             </div>
             
-            <form onSubmit={handleSubmit} className="p-8 space-y-5">
+            <form onSubmit={handleSubmit} className="p-8 space-y-5 overflow-y-auto flex-1">
               <div className="grid grid-cols-2 gap-5">
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-slate-400 uppercase flex items-center tracking-widest">
