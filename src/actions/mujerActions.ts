@@ -9,6 +9,7 @@ export async function getMujerDashboardData() {
       WITH UltimoPap AS (
         SELECT rut_paciente, fecha_pap, resultado, tipo_examen, adecuacion_muestra,
                motivo_insatisfactoria, fecha_resultado, derivado_upc, fecha_derivacion_upc,
+               codigo_lab, periodicidad_meses, fecha_proximo_control,
                ROW_NUMBER() OVER(PARTITION BY rut_paciente ORDER BY fecha_pap DESC) as rn
         FROM gia_mujer_pap
       )
@@ -23,7 +24,10 @@ export async function getMujerDashboardData() {
         pap.motivo_insatisfactoria as ultimo_motivo_insatisfactoria,
         TO_CHAR(pap.fecha_resultado, 'YYYY-MM-DD') as ultima_fecha_resultado,
         pap.derivado_upc as ultimo_derivado_upc,
-        TO_CHAR(pap.fecha_derivacion_upc, 'YYYY-MM-DD') as ultima_fecha_derivacion_upc
+        TO_CHAR(pap.fecha_derivacion_upc, 'YYYY-MM-DD') as ultima_fecha_derivacion_upc,
+        pap.codigo_lab as ultimo_codigo_lab,
+        pap.periodicidad_meses as ultima_periodicidad_meses,
+        TO_CHAR(pap.fecha_proximo_control, 'YYYY-MM-DD') as ultima_fecha_proximo_control
       FROM gia_pacientes p
       LEFT JOIN UltimoPap pap ON p.rut = pap.rut_paciente AND pap.rn = 1
       WHERE p.sexo = 'FEMENINO'
@@ -48,7 +52,10 @@ export async function guardarPap(data: {
   motivo_insatisfactoria?: string,
   fecha_resultado?: string,
   derivado_upc?: boolean,
-  fecha_derivacion_upc?: string
+  fecha_derivacion_upc?: string,
+  codigo_lab?: string,
+  periodicidad_meses?: number,
+  fecha_proximo_control?: string
 }) {
   try {
     const user = await getCurrentUser();
@@ -58,12 +65,13 @@ export async function guardarPap(data: {
       INSERT INTO gia_mujer_pap (
         rut_paciente, fecha_pap, resultado, profesional_rut, observaciones,
         tipo_examen, adecuacion_muestra, motivo_insatisfactoria, fecha_resultado,
-        derivado_upc, fecha_derivacion_upc
+        derivado_upc, fecha_derivacion_upc, codigo_lab, periodicidad_meses, fecha_proximo_control
       )
       VALUES (
         ${data.rut_paciente}, ${data.fecha_pap}, ${data.resultado}, ${profesional_rut}, ${data.observaciones || ''},
         ${data.tipo_examen || 'PAP'}, ${data.adecuacion_muestra || 'SATISFACTORIA'}, ${data.motivo_insatisfactoria || null},
-        ${data.fecha_resultado || null}, ${data.derivado_upc || false}, ${data.fecha_derivacion_upc || null}
+        ${data.fecha_resultado || null}, ${data.derivado_upc || false}, ${data.fecha_derivacion_upc || null},
+        ${data.codigo_lab || null}, ${data.periodicidad_meses || 36}, ${data.fecha_proximo_control || null}
       )
     `;
     return { success: true };
@@ -132,7 +140,10 @@ export async function getHistorialExamenesPaciente(rut: string) {
         derivado_upc, 
         TO_CHAR(fecha_derivacion_upc, 'YYYY-MM-DD') as fecha_derivacion_upc,
         observaciones,
-        profesional_rut
+        profesional_rut,
+        codigo_lab,
+        periodicidad_meses,
+        TO_CHAR(fecha_proximo_control, 'YYYY-MM-DD') as fecha_proximo_control
       FROM gia_mujer_pap
       WHERE rut_paciente = ${rut}
       ORDER BY fecha_pap DESC

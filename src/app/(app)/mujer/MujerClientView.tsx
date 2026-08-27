@@ -6,6 +6,7 @@ import * as XLSX from "xlsx";
 import { UserProfile } from "@/actions/userActions";
 import Link from "next/link";
 import { guardarHisterectomia, guardarPap, getHistorialExamenesPaciente, ingresarEmbarazo } from "@/actions/mujerActions";
+import { decodificarCodigoPap, DecodificacionPap } from "@/lib/decodificadorPap";
 
 type PacienteMujer = {
   rut: string;
@@ -28,6 +29,9 @@ type PacienteMujer = {
   ultima_fecha_resultado?: string;
   ultimo_derivado_upc?: boolean;
   ultima_fecha_derivacion_upc?: string;
+  ultimo_codigo_lab?: string;
+  ultima_periodicidad_meses?: number;
+  ultima_fecha_proximo_control?: string;
 };
 
 export default function MujerClientView({ initialData, initialEmbarazadasData, user }: { initialData: PacienteMujer[], initialEmbarazadasData?: any[], user: UserProfile }) {
@@ -51,21 +55,90 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
   const [savingHisterectomia, setSavingHisterectomia] = useState(false);
   const [histerectomiaError, setHisterectomiaError] = useState("");
 
-  // Estados para Modal de Ingreso Rápido de Examen PAP/VPH
+  // Estados para Modal de Ingreso Rápido de Examen PAP/VPH y Decodificador Inteligente
   const [selectedPacienteExamen, setSelectedPacienteExamen] = useState<PacienteMujer | null>(null);
   const [showExamenModal, setShowExamenModal] = useState(false);
   const [tipoExamenForm, setTipoExamenForm] = useState("PAP");
   const [fechaExamenForm, setFechaExamenForm] = useState("");
+  const [codigoLabForm, setCodigoLabForm] = useState("IG8");
+  const [periodicidadMesesForm, setPeriodicidadMesesForm] = useState<number>(36);
+  const [fechaProximoControlForm, setFechaProximoControlForm] = useState("");
+  const [criterioPersonalizado, setCriterioPersonalizado] = useState(false);
   const [adecuacionMuestraForm, setAdecuacionMuestraForm] = useState("SATISFACTORIA");
   const [motivoInsatisfactoriaForm, setMotivoInsatisfactoriaForm] = useState("");
-  const [resultadoForm, setResultadoForm] = useState("PENDIENTE");
+  const [resultadoForm, setResultadoForm] = useState("NEGATIVO");
   const [fechaResultadoForm, setFechaResultadoForm] = useState("");
+
+  // Decodificación en tiempo real del código compuesto de citología
+  const decodificacion: DecodificacionPap = useMemo(() => {
+    if (tipoExamenForm !== "PAP") {
+      return {
+        codigoOriginal: "",
+        codigoLimpio: "",
+        diagnostico: resultadoForm === "POSITIVO_16_18" ? "POSITIVO VPH 16/18" : resultadoForm === "POSITIVO_OTROS" ? "POSITIVO Otros VPH" : resultadoForm === "NEGATIVO" ? "NEGATIVO VPH" : "PENDIENTE",
+        adecuacion: "SATISFACTORIA",
+        adecuacionDescripcion: "Muestra Satisfactoria",
+        microbiologia: [],
+        conducta: [],
+        esPatologico: resultadoForm.startsWith("POSITIVO"),
+        esInsatisfactorio: false,
+        periodicidadSugeridaMeses: resultadoForm === "NEGATIVO" ? 60 : 0,
+        textoResumen: "",
+      };
+    }
+    return decodificarCodigoPap(codigoLabForm);
+  }, [codigoLabForm, tipoExamenForm, resultadoForm]);
+
+  const handleCodigoLabChange = (val: string) => {
+    const raw = val.toUpperCase();
+    setCodigoLabForm(raw);
+    const dec = decodificarCodigoPap(raw);
+    
+    if (dec.esInsatisfactorio) {
+      setAdecuacionMuestraForm("INSATISFACTORIA");
+      setMotivoInsatisfactoriaForm(dec.motivoInsatisfactoria || "CELULARIDAD_ESCASA");
+      setResultadoForm("MUESTRA INSATISFACTORIA");
+    } else {
+      setAdecuacionMuestraForm("SATISFACTORIA");
+      setMotivoInsatisfactoriaForm("");
+      if (dec.esPatologico) {
+        setResultadoForm(dec.diagnosticoCodigo || "ASC-US");
+        setDerivadoUpcForm(true);
+      } else {
+        setResultadoForm("NEGATIVO");
+        setDerivadoUpcForm(false);
+      }
+    }
+
+    if (!criterioPersonalizado) {
+      setPeriodicidadMesesForm(dec.periodicidadSugeridaMeses);
+      if (fechaExamenForm && dec.periodicidadSugeridaMeses > 0) {
+        const d = new Date(fechaExamenForm);
+        d.setMonth(d.getMonth() + dec.periodicidadSugeridaMeses);
+        setFechaProximoControlForm(d.toISOString().split("T")[0]);
+      } else if (dec.periodicidadSugeridaMeses === 0) {
+        setFechaProximoControlForm("");
+      }
+    }
+  };
+
+  const handlePeriodicidadChange = (meses: number, manual: boolean = true) => {
+    setPeriodicidadMesesForm(meses);
+    if (manual) setCriterioPersonalizado(true);
+    if (fechaExamenForm && meses > 0) {
+      const d = new Date(fechaExamenForm);
+      d.setMonth(d.getMonth() + meses);
+      setFechaProximoControlForm(d.toISOString().split("T")[0]);
+    } else if (meses === 0) {
+      setFechaProximoControlForm("");
+    }
+  };
 
   // Estados Formulario Embarazo
   const [fumForm, setFumForm] = useState("");
   const [fppForm, setFppForm] = useState("");
-  const [fechaUltimoControlForm, setFechaUltimoControlForm] = useState("");
-  const [fechaProximoControlForm, setFechaProximoControlForm] = useState("");
+  const [fechaUltimoControlEmbarazoForm, setFechaUltimoControlEmbarazoForm] = useState("");
+  const [fechaProximoControlEmbarazoForm, setFechaProximoControlEmbarazoForm] = useState("");
   const [estadoNutricionalForm, setEstadoNutricionalForm] = useState("");
   const [observacionesEmbarazoForm, setObservacionesEmbarazoForm] = useState("");
   
@@ -127,18 +200,25 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
 
   const openExamenModal = (paciente: PacienteMujer) => {
     setSelectedPacienteExamen(paciente);
+    setTipoIngreso("SELECCION");
     setTipoExamenForm("PAP");
     
-    // Inicializar fecha con el día actual local
     const d = new Date();
     const offset = d.getTimezoneOffset() * 60000;
     const todayStr = new Date(d.getTime() - offset).toISOString().slice(0, 10);
     setFechaExamenForm(todayStr);
     
+    setCodigoLabForm("IG8");
+    setPeriodicidadMesesForm(36);
+    setCriterioPersonalizado(false);
+    const dProx = new Date(todayStr);
+    dProx.setMonth(dProx.getMonth() + 36);
+    setFechaProximoControlForm(dProx.toISOString().split("T")[0]);
+
     setAdecuacionMuestraForm("SATISFACTORIA");
     setMotivoInsatisfactoriaForm("");
-    setResultadoForm("PENDIENTE");
-    setFechaResultadoForm("");
+    setResultadoForm("NEGATIVO");
+    setFechaResultadoForm(todayStr);
     setDerivadoUpcForm(false);
     setFechaDerivacionUpcForm("");
     setObservacionesExamenForm("");
@@ -151,8 +231,8 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
     setSavingExamen(true);
     setExamenError("");
 
-    const isInsatisfactoria = tipoExamenForm === "PAP" && adecuacionMuestraForm === "INSATISFACTORIA";
-    const realResultado = isInsatisfactoria ? "MUESTRA INSATISFACTORIA" : resultadoForm;
+    const isInsatisfactoria = tipoExamenForm === "PAP" ? (adecuacionMuestraForm === "INSATISFACTORIA" || decodificacion.esInsatisfactorio) : false;
+    const realResultado = isInsatisfactoria ? "MUESTRA INSATISFACTORIA" : (tipoExamenForm === "PAP" ? (decodificacion.esPatologico ? (decodificacion.diagnosticoCodigo || resultadoForm) : "NEGATIVO") : resultadoForm);
     const isPatologico = !isInsatisfactoria && realResultado !== "NEGATIVO" && realResultado !== "NORMAL" && realResultado !== "PENDIENTE";
 
     const res = await guardarPap({
@@ -160,12 +240,15 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
       fecha_pap: fechaExamenForm,
       tipo_examen: tipoExamenForm,
       adecuacion_muestra: isInsatisfactoria ? "INSATISFACTORIA" : "SATISFACTORIA",
-      motivo_insatisfactoria: isInsatisfactoria ? motivoInsatisfactoriaForm : undefined,
+      motivo_insatisfactoria: isInsatisfactoria ? (motivoInsatisfactoriaForm || decodificacion.motivoInsatisfactoria) : undefined,
       resultado: realResultado,
       fecha_resultado: realResultado !== "PENDIENTE" ? (fechaResultadoForm || fechaExamenForm) : undefined,
       derivado_upc: isPatologico ? derivadoUpcForm : false,
       fecha_derivacion_upc: isPatologico && derivadoUpcForm ? (fechaDerivacionUpcForm || fechaExamenForm) : undefined,
-      observaciones: observacionesExamenForm
+      codigo_lab: tipoExamenForm === "PAP" ? codigoLabForm : undefined,
+      periodicidad_meses: periodicidadMesesForm,
+      fecha_proximo_control: fechaProximoControlForm || undefined,
+      observaciones: observacionesExamenForm || (tipoExamenForm === "PAP" ? decodificacion.textoResumen : undefined)
     });
 
     setSavingExamen(false);
@@ -181,10 +264,13 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
             ultimo_resultado_pap: realResultado,
             ultimo_tipo_examen: tipoExamenForm,
             ultima_adecuacion_muestra: isInsatisfactoria ? "INSATISFACTORIA" : "SATISFACTORIA",
-            ultimo_motivo_insatisfactoria: isInsatisfactoria ? motivoInsatisfactoriaForm : undefined,
+            ultimo_motivo_insatisfactoria: isInsatisfactoria ? (motivoInsatisfactoriaForm || decodificacion.motivoInsatisfactoria) : undefined,
             ultima_fecha_resultado: realResultado !== "PENDIENTE" ? (fechaResultadoForm || fechaExamenForm) : undefined,
             ultimo_derivado_upc: isPatologico ? derivadoUpcForm : false,
-            ultima_fecha_derivacion_upc: isPatologico && derivadoUpcForm ? (fechaDerivacionUpcForm || fechaExamenForm) : undefined
+            ultima_fecha_derivacion_upc: isPatologico && derivadoUpcForm ? (fechaDerivacionUpcForm || fechaExamenForm) : undefined,
+            ultimo_codigo_lab: tipoExamenForm === "PAP" ? codigoLabForm : undefined,
+            ultima_periodicidad_meses: periodicidadMesesForm,
+            ultima_fecha_proximo_control: fechaProximoControlForm || undefined
           };
         }
         return p;
@@ -204,8 +290,8 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
       rut_paciente: selectedPacienteExamen.rut,
       fum: fumForm,
       fpp: fppForm,
-      fecha_ultimo_control: fechaUltimoControlForm || undefined,
-      fecha_proximo_control: fechaProximoControlForm || undefined,
+      fecha_ultimo_control: fechaUltimoControlEmbarazoForm || undefined,
+      fecha_proximo_control: fechaProximoControlEmbarazoForm || undefined,
       estado_nutricional: estadoNutricionalForm || undefined,
       observaciones: observacionesEmbarazoForm || undefined
     });
@@ -226,8 +312,8 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
           telefono: selectedPacienteExamen.telefono,
           fum: fumForm,
           fpp: fppForm,
-          fecha_ultimo_control: fechaUltimoControlForm,
-          fecha_proximo_control: fechaProximoControlForm,
+          fecha_ultimo_control: fechaUltimoControlEmbarazoForm,
+          fecha_proximo_control: fechaProximoControlEmbarazoForm,
           estado_nutricional: estadoNutricionalForm,
           observaciones: observacionesEmbarazoForm,
           estado_embarazo: "EMBARAZO"
@@ -313,9 +399,35 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
       };
     }
 
-    // 6. Vigente o Vencido (Negativos/Normales)
-    const fechaExamen = new Date(p.ultima_fecha_pap);
+    // 6. Vigente o Vencido (con soporte dinámico de Periodicidad Anual / 6 Meses / Personalizada)
     const hoy = new Date();
+    
+    if (p.ultima_fecha_proximo_control) {
+      const proximo = new Date(p.ultima_fecha_proximo_control);
+      const esVigente = hoy <= proximo;
+      const meses = p.ultima_periodicidad_meses || 36;
+      const tipoTag = meses === 12 ? " (CONTROL ANUAL)" : meses === 6 ? " (CONTROL 6M)" : "";
+
+      if (esVigente) {
+        return {
+          estado: "VIGENTE",
+          label: `VIGENTE${tipoTag}`,
+          color: meses === 12 ? "text-blue-700 bg-blue-50 border-blue-200 font-bold" : "text-emerald-600 bg-emerald-50 border-emerald-200",
+          conducta: `Próximo control programado para el ${proximo.toLocaleDateString('es-CL')}${meses === 12 ? ' (Criterio Anual)' : ''}.`,
+          critico: false
+        };
+      } else {
+        return {
+          estado: "VENCIDO",
+          label: `VENCIDO${tipoTag}`,
+          color: "text-red-600 bg-red-50 border-red-200 font-bold",
+          conducta: `Tamizaje vencido desde el ${proximo.toLocaleDateString('es-CL')}. Citar para control prioritario.`,
+          critico: true
+        };
+      }
+    }
+
+    const fechaExamen = new Date(p.ultima_fecha_pap);
     const diffMs = hoy.getTime() - fechaExamen.getTime();
     const diffAnios = diffMs / (1000 * 60 * 60 * 24 * 365.25);
     const esVPH = p.ultimo_tipo_examen === "VPH";
@@ -698,21 +810,40 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                         <>
                           <td className="px-6 py-4 text-sm text-slate-600 truncate">
                             {p.ultima_fecha_pap ? (
-                              <div className="flex flex-col">
-                                <span className="font-bold text-slate-700">
-                                  {new Date(p.ultima_fecha_pap).toLocaleDateString('es-CL')}
-                                </span>
-                                <span className="text-[10px] text-slate-400 uppercase font-black">
-                                  {p.ultimo_tipo_examen || "PAP"}
-                                </span>
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-bold text-slate-700">
+                                    {new Date(p.ultima_fecha_pap).toLocaleDateString('es-CL')}
+                                  </span>
+                                  <span className="text-[9px] text-slate-400 uppercase font-black bg-slate-100 px-1.5 py-0.5 rounded">
+                                    {p.ultimo_tipo_examen || "PAP"}
+                                  </span>
+                                </div>
+                                {p.ultimo_codigo_lab && (
+                                  <span className="font-mono text-[9px] font-black bg-pink-50 text-pink-700 px-1.5 py-0.5 rounded border border-pink-200 uppercase w-fit tracking-wider">
+                                    {p.ultimo_codigo_lab}
+                                  </span>
+                                )}
                               </div>
                             ) : "—"}
                           </td>
                           <td className="px-6 py-4 text-xs font-bold text-slate-700 uppercase truncate" title={p.ultimo_resultado_pap || "—"}>
                             {p.ultimo_resultado_pap ? (
-                              <span className={p.ultimo_resultado_pap !== "NEGATIVO" && p.ultimo_resultado_pap !== "NORMAL" && p.ultimo_resultado_pap !== "PENDIENTE" ? "text-red-600" : ""}>
-                                {p.ultimo_resultado_pap}
-                              </span>
+                              <div className="flex flex-col gap-1">
+                                <span className={p.ultimo_resultado_pap !== "NEGATIVO" && p.ultimo_resultado_pap !== "NORMAL" && p.ultimo_resultado_pap !== "PENDIENTE" ? "text-red-600" : ""}>
+                                  {p.ultimo_resultado_pap}
+                                </span>
+                                {p.ultima_periodicidad_meses === 12 && (
+                                  <span className="text-[8px] font-black text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 uppercase w-fit">
+                                    Control Anual
+                                  </span>
+                                )}
+                                {p.ultima_periodicidad_meses === 6 && (
+                                  <span className="text-[8px] font-black text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 uppercase w-fit">
+                                    Control 6 Meses
+                                  </span>
+                                )}
+                              </div>
                             ) : "—"}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
@@ -939,179 +1070,281 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                 </div>
               )}
               {tipoIngreso === "PAP" && (
-                <form id="pap-form" onSubmit={(e) => { e.preventDefault(); handleSaveExamen(); }} className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {/* Tipo Examen */}
-                <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Tipo de Examen</label>
-                  <select
-                    value={tipoExamenForm}
-                    onChange={(e) => {
-                      setTipoExamenForm(e.target.value);
-                      setResultadoForm("PENDIENTE");
-                    }}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 font-semibold text-xs focus:ring-2 focus:ring-pink-500 outline-none cursor-pointer"
-                  >
-                    <option value="PAP">PAP (Citología)</option>
-                    <option value="VPH">Test de VPH (Molecular)</option>
-                  </select>
-                </div>
-
-                {/* Fecha Toma */}
-                <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Fecha de la Toma</label>
-                  <input
-                    type="date"
-                    value={fechaExamenForm}
-                    onChange={(e) => setFechaExamenForm(e.target.value)}
-                    max={new Date().toISOString().split("T")[0]}
-                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 font-medium text-xs focus:ring-2 focus:ring-pink-500 outline-none"
-                    required
-                  />
-                </div>
-
-                {/* Adecuación Muestra (PAP) */}
-                <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Adecuación Muestra</label>
-                  <select
-                    value={adecuacionMuestraForm}
-                    onChange={(e) => setAdecuacionMuestraForm(e.target.value)}
-                    disabled={tipoExamenForm === "VPH"}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 font-semibold text-xs focus:ring-2 focus:ring-pink-500 outline-none disabled:opacity-50 cursor-pointer"
-                  >
-                    <option value="SATISFACTORIA">Satisfactoria</option>
-                    <option value="INSATISFACTORIA">Insatisfactoria</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Motivo Insatisfactoria (PAP) */}
-              {tipoExamenForm === "PAP" && adecuacionMuestraForm === "INSATISFACTORIA" && (
-                <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-2 animate-in fade-in duration-200">
-                  <label className="block text-[10px] font-black text-amber-800 uppercase tracking-wider">Motivo de Rechazo</label>
-                  <select
-                    value={motivoInsatisfactoriaForm}
-                    onChange={(e) => setMotivoInsatisfactoriaForm(e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-amber-300 rounded-lg text-slate-700 font-semibold text-xs focus:ring-2 focus:ring-amber-500 outline-none cursor-pointer"
-                    required
-                  >
-                    <option value="">-- Seleccione Motivo --</option>
-                    <option value="CELULARIDAD_ESCASA">Celularidad Escasa</option>
-                    <option value="MALA_FIJACION">Mala Fijación</option>
-                    <option value="HEMORRAGICO">Exceso de Sangre (Hemorrágico)</option>
-                    <option value="INFLAMATORIO">Exceso de Exudado Inflamatorio</option>
-                    <option value="OTRO">Otro Motivo Clínico</option>
-                  </select>
-                </div>
-              )}
-
-              {/* Resultados */}
-              {!(tipoExamenForm === "PAP" && adecuacionMuestraForm === "INSATISFACTORIA") && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-slate-100 pt-3">
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Resultado</label>
-                    {tipoExamenForm === "PAP" ? (
+                <form id="pap-form" onSubmit={(e) => { e.preventDefault(); handleSaveExamen(); }} className="space-y-4">
+                  {/* Fila Tipo Examen y Fecha */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Tipo de Examen</label>
                       <select
-                        value={resultadoForm}
-                        onChange={(e) => setResultadoForm(e.target.value)}
+                        value={tipoExamenForm}
+                        onChange={(e) => {
+                          setTipoExamenForm(e.target.value);
+                          if (e.target.value === "VPH") {
+                            setResultadoForm("NEGATIVO");
+                            setPeriodicidadMesesForm(60);
+                          } else {
+                            handleCodigoLabChange(codigoLabForm || "IG8");
+                          }
+                        }}
                         className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 font-semibold text-xs focus:ring-2 focus:ring-pink-500 outline-none cursor-pointer"
                       >
-                        <option value="PENDIENTE">PENDIENTE DE RESULTADO</option>
-                        <option value="NEGATIVO">NEGATIVO (Normal)</option>
-                        <option value="ASC-US">ASC-US (Significado Indeterminado)</option>
-                        <option value="ASC-H">ASC-H (No descarta Alto Grado)</option>
-                        <option value="L-SIL">L-SIL / LIEBG (Bajo Grado / NIC 1)</option>
-                        <option value="H-SIL">H-SIL / LIEAG (Alto Grado / NIC 2-3)</option>
-                        <option value="AGC">AGC (Glandulares Atípicas)</option>
-                        <option value="AIS">AIS (Adenocarcinoma endocervical in situ)</option>
-                        <option value="CANCER_INVASOR">Cáncer Invasor</option>
+                        <option value="PAP">PAP (Citología Cervical)</option>
+                        <option value="VPH">Test de VPH (Molecular)</option>
                       </select>
-                    ) : (
-                      <select
-                        value={resultadoForm}
-                        onChange={(e) => setResultadoForm(e.target.value)}
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 font-semibold text-xs focus:ring-2 focus:ring-pink-500 outline-none cursor-pointer"
-                      >
-                        <option value="PENDIENTE">PENDIENTE DE RESULTADO</option>
-                        <option value="NEGATIVO">NEGATIVO (Ausencia de VPH)</option>
-                        <option value="POSITIVO_16_18">POSITIVO VPH 16 o 18</option>
-                        <option value="POSITIVO_OTROS">POSITIVO Otros VPH Alto Riesgo</option>
-                      </select>
-                    )}
-                  </div>
+                    </div>
 
-                  {resultadoForm !== "PENDIENTE" && (
-                    <div className="animate-in fade-in duration-200">
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Fecha del Resultado</label>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Fecha de Toma de Muestra</label>
                       <input
                         type="date"
-                        value={fechaResultadoForm}
-                        onChange={(e) => setFechaResultadoForm(e.target.value)}
-                        min={fechaExamenForm}
+                        value={fechaExamenForm}
+                        onChange={(e) => {
+                          setFechaExamenForm(e.target.value);
+                          if (e.target.value && periodicidadMesesForm > 0) {
+                            const d = new Date(e.target.value);
+                            d.setMonth(d.getMonth() + periodicidadMesesForm);
+                            setFechaProximoControlForm(d.toISOString().split("T")[0]);
+                          }
+                        }}
                         max={new Date().toISOString().split("T")[0]}
-                        className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 font-medium text-xs focus:ring-2 focus:ring-pink-500 outline-none"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 font-semibold text-xs focus:ring-2 focus:ring-pink-500 outline-none"
                         required
                       />
                     </div>
-                  )}
-                </div>
-              )}
-
-              {/* Alerta de Derivación UPC */}
-              {!(tipoExamenForm === "PAP" && adecuacionMuestraForm === "INSATISFACTORIA") && resultadoForm !== "NEGATIVO" && resultadoForm !== "PENDIENTE" && (
-                <div className="p-4 bg-red-50 border border-red-200 rounded-xl space-y-3 animate-in fade-in duration-200">
-                  <div className="flex items-start gap-2 text-red-700">
-                    <AlertTriangle size={16} className="shrink-0 mt-0.5" />
-                    <div className="text-xs">
-                      <span className="font-bold uppercase">Resultado Patológico:</span> Requiere seguimiento y derivación prioritaria a la **Unidad de Patología Cervical (UPC)**.
-                    </div>
                   </div>
-                  <div className="flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center border-t border-red-200 pt-2.5">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        id="modalExamenDerivadoUpc"
-                        checked={derivadoUpcForm}
-                        onChange={(e) => setDerivadoUpcForm(e.target.checked)}
-                        className="h-4 w-4 text-pink-600 focus:ring-pink-500 border-slate-300 rounded cursor-pointer"
-                      />
-                      <label htmlFor="modalExamenDerivadoUpc" className="text-xs font-bold text-slate-700 cursor-pointer select-none">
-                        ¿Fue derivada a UPC?
-                      </label>
-                    </div>
 
-                    {derivadoUpcForm && (
-                      <div className="flex items-center gap-2 animate-in fade-in duration-200 w-full sm:w-auto">
-                        <span className="text-[10px] font-black text-slate-400 uppercase font-bold">Fecha Derivación</span>
-                        <input
-                          type="date"
-                          value={fechaDerivacionUpcForm}
-                          onChange={(e) => setFechaDerivacionUpcForm(e.target.value)}
-                          min={fechaExamenForm}
-                          max={new Date().toISOString().split("T")[0]}
-                          className="px-2 py-1 bg-white border border-red-200 rounded text-xs text-slate-700 font-medium outline-none focus:ring-1 focus:ring-pink-500"
-                          required
-                        />
+                  {/* SECCIÓN PAP: DECODIFICADOR INTELIGENTE DE CÓDIGOS */}
+                  {tipoExamenForm === "PAP" ? (
+                    <div className="p-4 bg-pink-50/40 border border-pink-100 rounded-2xl space-y-3.5">
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className="block text-[10px] font-black text-pink-700 uppercase tracking-wider flex items-center gap-1.5">
+                            <span className="h-2 w-2 rounded-full bg-pink-500 animate-pulse" />
+                            Código del Laboratorio (Anatomía Patológica)
+                          </label>
+                          <span className="text-[10px] text-slate-400 font-mono">Ej: IG8, IG7, IG8J5O3, AG8T, H1G8S1</span>
+                        </div>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={codigoLabForm}
+                            onChange={(e) => handleCodigoLabChange(e.target.value)}
+                            placeholder="Ingrese código compuesto (ej: IG8, IG7, IG8J5O3, AG8T)"
+                            className="w-full px-4 py-2.5 bg-white border-2 border-pink-200 rounded-xl text-slate-900 font-mono font-black text-sm tracking-widest uppercase focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none shadow-xs"
+                            autoFocus
+                          />
+                          {codigoLabForm && (
+                            <button
+                              type="button"
+                              onClick={() => handleCodigoLabChange("")}
+                              className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 p-0.5"
+                            >
+                              <X size={16} />
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    )}
+
+                      {/* Desglose Clínico Traducido en Tiempo Real */}
+                      <div className="bg-white rounded-xl p-3.5 border border-slate-200/80 shadow-xs space-y-2.5">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Traducción Clínica Automática</span>
+                          <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${
+                            decodificacion.esPatologico ? 'bg-red-100 text-red-700' : decodificacion.esInsatisfactorio ? 'bg-orange-100 text-orange-700' : 'bg-emerald-100 text-emerald-700'
+                          }`}>
+                            {decodificacion.esPatologico ? 'PATOLÓGICO / ALTERADO' : decodificacion.esInsatisfactorio ? 'MUESTRA INADECUADA' : 'NORMAL / NEGATIVO'}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <span className="block text-[9px] font-bold text-slate-400 uppercase">Citología / Diagnóstico</span>
+                            <span className={`font-bold ${decodificacion.esPatologico ? 'text-red-600' : 'text-slate-800'}`}>
+                              {decodificacion.diagnostico}
+                            </span>
+                          </div>
+
+                          <div>
+                            <span className="block text-[9px] font-bold text-slate-400 uppercase">Adecuación de Muestra</span>
+                            <span className={`font-semibold ${decodificacion.esInsatisfactorio ? 'text-orange-600' : 'text-slate-700'}`}>
+                              {decodificacion.adecuacionDescripcion}
+                            </span>
+                          </div>
+
+                          {decodificacion.microbiologia.length > 0 && (
+                            <div className="col-span-1 sm:col-span-2 bg-amber-50/70 p-2 rounded-lg border border-amber-100">
+                              <span className="block text-[9px] font-bold text-amber-800 uppercase">Hallazgos Microbiológicos / Inflamatorios</span>
+                              <span className="text-amber-900 font-medium">{decodificacion.microbiologia.join(" • ")}</span>
+                            </div>
+                          )}
+
+                          {decodificacion.conducta.length > 0 && (
+                            <div className="col-span-1 sm:col-span-2 bg-blue-50/70 p-2 rounded-lg border border-blue-100">
+                              <span className="block text-[9px] font-bold text-blue-800 uppercase">Conducta Sugerida por Laboratorio</span>
+                              <span className="text-blue-900 font-semibold">{decodificacion.conducta.join(" • ")}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Alerta de Derivación UPC */}
+                        {decodificacion.esPatologico && (
+                          <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2 text-red-700 text-xs animate-in fade-in">
+                            <AlertTriangle size={15} className="shrink-0 mt-0.5" />
+                            <div>
+                              <span className="font-bold uppercase block text-[10px]">Alerta GES / Derivación UPC</span>
+                              Requiere ingreso a seguimiento prioritario en la Unidad de Patología Cervical.
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* SELECTOR DE PERIODICIDAD Y PRÓXIMO CONTROL */}
+                      <div className="bg-white rounded-xl p-3.5 border border-slate-200/80 shadow-xs space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <label className="block text-[10px] font-black text-slate-700 uppercase tracking-wider">
+                              Periodicidad y Próximo Control PAP
+                            </label>
+                            <p className="text-[10px] text-slate-400">Seleccione la frecuencia de citación según norma o criterio clínico:</p>
+                          </div>
+                          {criterioPersonalizado && (
+                            <span className="text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-200 uppercase">
+                              Criterio Clínico Activo
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handlePeriodicidadChange(36)}
+                            className={`px-3 py-2 rounded-xl text-xs font-bold transition-all border text-center cursor-pointer ${
+                              periodicidadMesesForm === 36
+                                ? 'bg-pink-600 text-white border-pink-600 shadow-xs ring-2 ring-pink-300'
+                                : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            3 Años
+                            <span className="block text-[8px] font-normal opacity-80">Estándar MINSAL</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handlePeriodicidadChange(12)}
+                            className={`px-3 py-2 rounded-xl text-xs font-bold transition-all border text-center cursor-pointer ${
+                              periodicidadMesesForm === 12
+                                ? 'bg-blue-600 text-white border-blue-600 shadow-xs ring-2 ring-blue-300'
+                                : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            1 Año
+                            <span className="block text-[8px] font-normal opacity-80">Criterio Clínico / G7</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handlePeriodicidadChange(6)}
+                            className={`px-3 py-2 rounded-xl text-xs font-bold transition-all border text-center cursor-pointer ${
+                              periodicidadMesesForm === 6
+                                ? 'bg-amber-600 text-white border-amber-600 shadow-xs ring-2 ring-amber-300'
+                                : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            6 Meses
+                            <span className="block text-[8px] font-normal opacity-80">Tratar / Inflamación</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handlePeriodicidadChange(0)}
+                            className={`px-3 py-2 rounded-xl text-xs font-bold transition-all border text-center cursor-pointer ${
+                              periodicidadMesesForm === 0
+                                ? 'bg-red-600 text-white border-red-600 shadow-xs ring-2 ring-red-300'
+                                : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            UPC / Repetir
+                            <span className="block text-[8px] font-normal opacity-80">Sin periodicidad</span>
+                          </button>
+                        </div>
+
+                        {periodicidadMesesForm > 0 && (
+                          <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                            <span className="text-xs font-semibold text-slate-600">Fecha calculada para próximo PAP:</span>
+                            <input
+                              type="date"
+                              value={fechaProximoControlForm}
+                              onChange={(e) => {
+                                setFechaProximoControlForm(e.target.value);
+                                setCriterioPersonalizado(true);
+                              }}
+                              className="px-3 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-pink-500"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    /* SECCIÓN TEST VPH */
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-slate-100 pt-3">
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Resultado Test VPH</label>
+                        <select
+                          value={resultadoForm}
+                          onChange={(e) => {
+                            setResultadoForm(e.target.value);
+                            if (e.target.value === "NEGATIVO") {
+                              setPeriodicidadMesesForm(60);
+                              if (fechaExamenForm) {
+                                const d = new Date(fechaExamenForm);
+                                d.setFullYear(d.getFullYear() + 5);
+                                setFechaProximoControlForm(d.toISOString().split("T")[0]);
+                              }
+                            } else {
+                              setPeriodicidadMesesForm(0);
+                              setFechaProximoControlForm("");
+                              setDerivadoUpcForm(true);
+                            }
+                          }}
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 font-semibold text-xs focus:ring-2 focus:ring-pink-500 outline-none cursor-pointer"
+                        >
+                          <option value="NEGATIVO">NEGATIVO (Ausencia de VPH)</option>
+                          <option value="POSITIVO_16_18">POSITIVO VPH 16 o 18 (UPC Directa)</option>
+                          <option value="POSITIVO_OTROS">POSITIVO Otros VPH Alto Riesgo</option>
+                          <option value="PENDIENTE">PENDIENTE DE RESULTADO</option>
+                        </select>
+                      </div>
+
+                      {resultadoForm !== "PENDIENTE" && (
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Fecha del Resultado</label>
+                          <input
+                            type="date"
+                            value={fechaResultadoForm}
+                            onChange={(e) => setFechaResultadoForm(e.target.value)}
+                            min={fechaExamenForm}
+                            max={new Date().toISOString().split("T")[0]}
+                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 font-medium text-xs focus:ring-2 focus:ring-pink-500 outline-none"
+                            required
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Observaciones */}
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Observaciones Clínicas Adicionales</label>
+                    <textarea
+                      value={observacionesExamenForm}
+                      onChange={(e) => setObservacionesExamenForm(e.target.value)}
+                      maxLength={1000}
+                      rows={2}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 font-medium text-xs focus:ring-2 focus:ring-pink-500 outline-none resize-none"
+                      placeholder="Antecedentes adicionales, tratamientos o indicaciones del profesional..."
+                    />
                   </div>
-                </div>
-              )}
-
-              {/* Observaciones */}
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Observaciones Clínicas</label>
-                <textarea
-                  value={observacionesExamenForm}
-                  onChange={(e) => setObservacionesExamenForm(e.target.value)}
-                  maxLength={1000}
-                  rows={3}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 font-medium text-xs focus:ring-2 focus:ring-pink-500 outline-none resize-none"
-                  placeholder="Ingrese antecedentes familiares, tratamientos previos u observaciones adicionales relevantes..."
-                />
-              </div>
-
-              </form>
+                </form>
               )}
               
               {tipoIngreso === "EMBARAZO" && (
@@ -1129,11 +1362,11 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Último Control</label>
-                      <input type="date" value={fechaUltimoControlForm} onChange={e => setFechaUltimoControlForm(e.target.value)} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 font-semibold text-xs focus:ring-2 focus:ring-purple-500 outline-none" />
+                      <input type="date" value={fechaUltimoControlEmbarazoForm} onChange={e => setFechaUltimoControlEmbarazoForm(e.target.value)} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 font-semibold text-xs focus:ring-2 focus:ring-purple-500 outline-none" />
                     </div>
                     <div>
                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Próximo Control</label>
-                      <input type="date" value={fechaProximoControlForm} onChange={e => setFechaProximoControlForm(e.target.value)} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 font-semibold text-xs focus:ring-2 focus:ring-purple-500 outline-none" />
+                      <input type="date" value={fechaProximoControlEmbarazoForm} onChange={e => setFechaProximoControlEmbarazoForm(e.target.value)} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 font-semibold text-xs focus:ring-2 focus:ring-purple-500 outline-none" />
                     </div>
                   </div>
                   <div>
@@ -1295,9 +1528,16 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                                 <Calendar size={12} className="mr-1.5 text-slate-400" />
                                 {new Date(ex.fecha_pap).toLocaleDateString('es-CL')}
                               </span>
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black tracking-wider bg-slate-100 text-slate-600 border border-slate-200 uppercase">
-                                {ex.tipo_examen || "PAP"}
-                              </span>
+                              <div className="flex items-center gap-1.5">
+                                {ex.codigo_lab && (
+                                  <span className="font-mono text-[9px] font-black bg-pink-100 text-pink-700 px-2 py-0.5 rounded border border-pink-200 uppercase tracking-wider">
+                                    {ex.codigo_lab}
+                                  </span>
+                                )}
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black tracking-wider bg-slate-100 text-slate-600 border border-slate-200 uppercase">
+                                  {ex.tipo_examen || "PAP"}
+                                </span>
+                              </div>
                             </div>
 
                             <div className="grid grid-cols-2 gap-2 text-xs">
