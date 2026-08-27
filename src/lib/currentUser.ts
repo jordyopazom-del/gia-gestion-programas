@@ -2,7 +2,7 @@ import { cache } from "react";
 import { sql } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 
-export type UserRole = "ADMINISTRADOR" | "ADMINISTRATIVO" | "CLINICO" | "INACTIVO";
+export type UserRole = "ADMINISTRADOR" | "ADMINISTRATIVO" | "REFERENTE" | "CLINICO" | "INACTIVO";
 
 export type UserProfile = {
   rut: string;

@@ -194,6 +194,50 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
     }
   };
 
+  const handleEmbarazoSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!selectedPacienteExamen || !fumForm || !fppForm) return;
+    setSavingExamen(true);
+    setExamenError("");
+    
+    const res = await ingresarEmbarazo({
+      rut_paciente: selectedPacienteExamen.rut,
+      fum: fumForm,
+      fpp: fppForm,
+      fecha_ultimo_control: fechaUltimoControlForm || undefined,
+      fecha_proximo_control: fechaProximoControlForm || undefined,
+      estado_nutricional: estadoNutricionalForm || undefined,
+      observaciones: observacionesEmbarazoForm || undefined
+    });
+    
+    setSavingExamen(false);
+    if (res.error) {
+      setExamenError(res.error);
+    } else {
+      setShowExamenModal(false);
+      setSelectedPacienteExamen(null);
+      setEmbarazadasData(prev => [
+        {
+          rut: selectedPacienteExamen.rut,
+          dv: selectedPacienteExamen.dv,
+          nombre_completo: selectedPacienteExamen.nombre_completo,
+          fecha_nacimiento: selectedPacienteExamen.fecha_nacimiento,
+          sector: selectedPacienteExamen.sector,
+          telefono: selectedPacienteExamen.telefono,
+          fum: fumForm,
+          fpp: fppForm,
+          fecha_ultimo_control: fechaUltimoControlForm,
+          fecha_proximo_control: fechaProximoControlForm,
+          estado_nutricional: estadoNutricionalForm,
+          observaciones: observacionesEmbarazoForm,
+          estado_embarazo: "EMBARAZO"
+        },
+        ...prev
+      ]);
+      setActiveTab("embarazadas");
+    }
+  };
+
   const calculateAge = (birthDate: string) => {
     if (!birthDate) return null;
     const birth = new Date(birthDate);
@@ -895,7 +939,7 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                 </div>
               )}
               {tipoIngreso === "PAP" && (
-                <form id="pap-form" onSubmit={handleExamenSubmit} className="space-y-6">
+                <form id="pap-form" onSubmit={(e) => { e.preventDefault(); handleSaveExamen(); }} className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {/* Tipo Examen */}
                 <div>
@@ -1133,7 +1177,7 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
               </button>
               {tipoIngreso !== "SELECCION" && (
               <button
-                onClick={tipoIngreso === "PAP" ? handleExamenSubmit : handleEmbarazoSubmit}
+                onClick={tipoIngreso === "PAP" ? handleSaveExamen : handleEmbarazoSubmit}
                 disabled={savingExamen}
                 className={`px-6 py-2.5 rounded-xl font-bold text-white transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2 ${tipoIngreso === "EMBARAZO" ? "bg-purple-600 hover:bg-purple-700" : "bg-pink-600 hover:bg-pink-700"}`}
               >
