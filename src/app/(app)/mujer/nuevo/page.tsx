@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { buscarPacienteMujerPorRut, guardarPap, ingresarEmbarazo, obtenerProfesionalesMatroneria } from "@/actions/mujerActions";
-import { Search, UserCircle, Calendar, ShieldCheck, AlertCircle, CheckCircle, FileText, ArrowLeft, HeartPulse, Sparkles, Clock, AlertTriangle, User } from "lucide-react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { buscarPacienteMujerPorRut, buscarPacientesMujerSugerencias, guardarPap, ingresarEmbarazo, obtenerProfesionalesMatroneria } from "@/actions/mujerActions";
+import { Search, UserCircle, Calendar, ShieldCheck, AlertCircle, CheckCircle, FileText, ArrowLeft, HeartPulse, Sparkles, Clock, AlertTriangle, User, Loader2, X, ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getLocalDateString } from "@/lib/dateUtils";
 import Link from "next/link";
@@ -10,19 +10,13 @@ import { decodificarCodigoPap, DecodificacionPap } from "@/lib/decodificadorPap"
 
 export default function NuevoRegistroMujer() {
   const router = useRouter();
-  const [rutInput, setRutInput] = useState("");
-  
-  const formatRut = (value: string) => {
-    let clean = value.replace(/[^0-9kK]/g, "").toUpperCase();
-    if (clean.length > 9) clean = clean.slice(0, 9);
-    if (clean.length <= 1) return clean;
-    const dv = clean.slice(-1);
-    const body = clean.slice(0, -1);
-    return `${body}-${dv}`;
-  };
+  const [searchInput, setSearchInput] = useState("");
+  const [sugerencias, setSugerencias] = useState<any[]>([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
 
   const [paciente, setPaciente] = useState<any>(null);
-  const [loadingSearch, setLoadingSearch] = useState(false);
   const [searchError, setSearchError] = useState("");
   const [tipoIngreso, setTipoIngreso] = useState<"PAP" | "EMBARAZO">("PAP");
 
@@ -38,6 +32,83 @@ export default function NuevoRegistroMujer() {
       }
     });
   }, []);
+
+  // Cerrar dropdown al hacer clic afuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Búsqueda predictiva en tiempo real (Autocompletado con Debounce)
+  useEffect(() => {
+    const clean = searchInput.trim();
+    if (clean.length < 2) {
+      setSugerencias([]);
+      setShowDropdown(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setLoadingSuggestions(true);
+      const res = await buscarPacientesMujerSugerencias(clean);
+      setLoadingSuggestions(false);
+      if (res.data && res.data.length > 0) {
+        setSugerencias(res.data);
+        setShowDropdown(true);
+      } else {
+        setSugerencias([]);
+      }
+    }, 180);
+
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  const seleccionarPaciente = (p: any) => {
+    setPaciente(p);
+    setSearchInput(`${p.nombre_completo} (${p.rut}-${p.dv})`);
+    setShowDropdown(false);
+    setSearchError("");
+
+    if (fechaPap) {
+      const d = new Date(fechaPap);
+      d.setMonth(d.getMonth() + 36);
+      setFechaProximoControl(d.toISOString().split("T")[0]);
+    }
+  };
+
+  const handleManualSearch = async () => {
+    if (!searchInput || searchInput.trim().length < 2) return;
+    setLoadingSuggestions(true);
+    setSearchError("");
+    
+    // Primero probar si es un RUT exacto
+    const resExacto = await buscarPacienteMujerPorRut(searchInput);
+    if (resExacto.data) {
+      seleccionarPaciente(resExacto.data);
+      setLoadingSuggestions(false);
+      return;
+    }
+
+    // Si no, buscar por sugerencias
+    const res = await buscarPacientesMujerSugerencias(searchInput);
+    setLoadingSuggestions(false);
+
+    if (res.data && res.data.length > 0) {
+      if (res.data.length === 1) {
+        seleccionarPaciente(res.data[0]);
+      } else {
+        setSugerencias(res.data);
+        setShowDropdown(true);
+      }
+    } else {
+      setSearchError("No se encontraron pacientes mujeres activas que coincidan con la búsqueda.");
+    }
+  };
 
   // Formulario PAP / VPH y Decodificador Inteligente
   const [tipoExamen, setTipoExamen] = useState("PAP");
@@ -143,26 +214,6 @@ export default function NuevoRegistroMujer() {
     }
   };
 
-  const handleSearch = async () => {
-    setLoadingSearch(true);
-    setSearchError("");
-    setPaciente(null);
-
-    const res = await buscarPacienteMujerPorRut(rutInput);
-    setLoadingSearch(false);
-
-    if (res.error) {
-      setSearchError(res.error);
-    } else {
-      setPaciente(res.data);
-      if (fechaPap) {
-        const d = new Date(fechaPap);
-        d.setMonth(d.getMonth() + 36);
-        setFechaProximoControl(d.toISOString().split("T")[0]);
-      }
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!paciente) return;
@@ -244,29 +295,119 @@ export default function NuevoRegistroMujer() {
         </div>
       </div>
 
-      {/* Buscador de Paciente */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Búsqueda de Paciente</label>
-        <div className="flex gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-            <input
-              type="text"
-              placeholder="Ingrese RUT de la paciente (ej: 12345678-9)..."
-              value={rutInput}
-              onChange={(e) => setRutInput(formatRut(e.target.value))}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
-              className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none transition-all font-mono font-bold text-slate-800 text-sm"
-            />
-          </div>
-          <button
-            onClick={handleSearch}
-            disabled={loadingSearch || rutInput.length < 2}
-            className="bg-slate-900 text-white px-6 py-3 rounded-xl font-bold hover:bg-slate-800 transition-colors disabled:opacity-50 shadow-sm cursor-pointer"
-          >
-            {loadingSearch ? "Buscando..." : "Buscar Paciente"}
-          </button>
+      {/* Buscador de Paciente con Sugerencias Predictivas en Tiempo Real */}
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200" ref={searchContainerRef}>
+        <div className="flex items-center justify-between mb-2">
+          <label className="block text-xs font-black text-slate-400 uppercase tracking-widest">
+            Búsqueda Inteligente de Paciente (Por Nombre o RUT)
+          </label>
+          <span className="text-[10px] text-pink-600 font-bold bg-pink-50 px-2 py-0.5 rounded border border-pink-100">
+            Autocompletado Activo
+          </span>
         </div>
+
+        <div className="relative">
+          <div className="flex gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+              <input
+                type="text"
+                placeholder="Escribe el nombre o RUT de la paciente (ej: Abigail, Castillo, 17864330)..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onFocus={() => { if (sugerencias.length > 0) setShowDropdown(true); }}
+                onKeyDown={(e) => { 
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleManualSearch(); 
+                  }
+                }}
+                className="w-full pl-10 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none transition-all font-semibold text-slate-800 text-sm shadow-2xs"
+              />
+              {loadingSuggestions && (
+                <Loader2 className="absolute right-3.5 top-1/2 -translate-y-1/2 text-pink-500 animate-spin" size={18} />
+              )}
+              {searchInput && !loadingSuggestions && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchInput("");
+                    setPaciente(null);
+                    setSugerencias([]);
+                    setShowDropdown(false);
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={handleManualSearch}
+              disabled={loadingSuggestions || searchInput.trim().length < 2}
+              className="bg-slate-900 text-white px-6 py-3 rounded-xl font-bold hover:bg-slate-800 transition-colors disabled:opacity-50 shadow-sm cursor-pointer shrink-0"
+            >
+              Buscar
+            </button>
+          </div>
+
+          {/* Menú Desplegable de Sugerencias en Tiempo Real */}
+          {showDropdown && sugerencias.length > 0 && (
+            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-slate-200 z-50 overflow-hidden divide-y divide-slate-100 animate-in fade-in slide-in-from-top-2 duration-150 max-h-80 overflow-y-auto">
+              <div className="px-4 py-2 bg-slate-50/80 text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                <span>Pacientes encontradas ({sugerencias.length})</span>
+                <span>Haz clic para seleccionar</span>
+              </div>
+              {sugerencias.map((p) => {
+                const age = p.fecha_nacimiento ? (() => {
+                  const birth = new Date(p.fecha_nacimiento);
+                  const today = new Date();
+                  let a = today.getFullYear() - birth.getFullYear();
+                  const m = today.getMonth() - birth.getMonth();
+                  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) a--;
+                  return a;
+                })() : null;
+
+                return (
+                  <button
+                    key={p.rut}
+                    type="button"
+                    onClick={() => seleccionarPaciente(p)}
+                    className="w-full px-4 py-3 text-left hover:bg-pink-50/60 transition-colors flex items-center justify-between group cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="h-9 w-9 rounded-xl bg-pink-100 text-pink-700 font-bold text-xs flex items-center justify-center shrink-0 group-hover:bg-pink-600 group-hover:text-white transition-colors">
+                        {p.nombre_completo.charAt(0)}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-800 text-sm group-hover:text-pink-700 transition-colors uppercase">
+                            {p.nombre_completo}
+                          </span>
+                          {p.histerectomizada && (
+                            <span className="text-[9px] font-black bg-purple-50 text-purple-700 px-1.5 py-0.2 rounded border border-purple-200 uppercase">
+                              HST
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
+                          <span className="font-mono font-bold bg-slate-100 px-1.5 py-0.5 rounded text-slate-700">
+                            {p.rut}-{p.dv}
+                          </span>
+                          {age !== null && <span>• {age} Años</span>}
+                          <span>• Sector: <strong className="uppercase text-slate-600">{p.sector || "General"}</strong></span>
+                        </div>
+                      </div>
+                    </div>
+                    <ChevronRight size={16} className="text-slate-300 group-hover:text-pink-600 transition-colors" />
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
         {searchError && (
           <div className="mt-3 flex items-center gap-2 text-red-600 text-sm font-bold bg-red-50 p-3 rounded-lg border border-red-100">
             <AlertCircle size={16} />
@@ -277,8 +418,8 @@ export default function NuevoRegistroMujer() {
 
       {paciente && (
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Ficha Rápida de la Paciente */}
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+          {/* Ficha Rápida de la Paciente Seleccionada */}
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 animate-in fade-in">
             <div className="flex items-center gap-4">
               <div className="h-12 w-12 bg-pink-100 rounded-2xl flex items-center justify-center text-pink-600 shrink-0">
                 <UserCircle size={28} />

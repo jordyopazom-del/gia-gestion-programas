@@ -142,6 +142,36 @@ export async function buscarPacienteMujerPorRut(rutInput: string) {
   }
 }
 
+export async function buscarPacientesMujerSugerencias(query: string) {
+  const clean = query.trim();
+  if (clean.length < 2) return { data: [] };
+
+  const cleanRut = clean.replace(/[^0-9kK]/g, "").toUpperCase();
+  const rutPattern = `%${cleanRut}%`;
+  const namePattern = `%${clean.toUpperCase()}%`;
+
+  try {
+    const rows = await sql`
+      SELECT 
+        rut, dv, nombre_completo, TO_CHAR(fecha_nacimiento, 'YYYY-MM-DD') as fecha_nacimiento,
+        sector, telefono, histerectomizada, TO_CHAR(fecha_histerectomia, 'YYYY-MM-DD') as fecha_histerectomia, causa_histerectomia
+      FROM gia_pacientes
+      WHERE sexo = 'FEMENINO'
+        AND estado = 'ACTIVO'
+        AND (
+          (LENGTH(${cleanRut}) >= 2 AND rut ILIKE ${rutPattern})
+          OR nombre_completo ILIKE ${namePattern}
+        )
+      ORDER BY nombre_completo ASC
+      LIMIT 8
+    `;
+    return { data: rows as any[] };
+  } catch (error: any) {
+    console.error("Error buscando sugerencias paciente mujer:", error);
+    return { error: "Error en la búsqueda", data: [] };
+  }
+}
+
 export async function getHistorialExamenesPaciente(rut: string) {
   try {
     const result = await sql`
