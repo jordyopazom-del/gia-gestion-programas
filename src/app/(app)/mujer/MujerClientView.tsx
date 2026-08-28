@@ -59,7 +59,24 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
   // Estados para Modal de Ingreso Rápido de Examen PAP/VPH y Decodificador Inteligente
   const [profesionalesList, setProfesionalesList] = useState<{ rut: string; nombre: string; profesion: string; rol: string }[]>([]);
   const [profesionalRutForm, setProfesionalRutForm] = useState<string>(user?.rut || "");
+  const [searchProfModalInput, setSearchProfModalInput] = useState<string>("");
+  const [showProfModalDropdown, setShowProfModalDropdown] = useState<boolean>(false);
   const [modoProfesionalForm, setModoProfesionalForm] = useState<"PROPIO" | "MANUAL">("PROPIO");
+
+  const filteredProfesionalesModal = useMemo(() => {
+    if (!searchProfModalInput.trim()) return profesionalesList;
+    const q = searchProfModalInput.toLowerCase().trim();
+    return profesionalesList.filter(p => 
+      p.nombre.toLowerCase().includes(q) || 
+      p.rut.toLowerCase().includes(q) || 
+      (p.profesion && p.profesion.toLowerCase().includes(q))
+    );
+  }, [profesionalesList, searchProfModalInput]);
+
+  const profesionalSeleccionadoModalObj = useMemo(() => {
+    if (!profesionalRutForm) return null;
+    return profesionalesList.find(p => p.rut === profesionalRutForm) || null;
+  }, [profesionalesList, profesionalRutForm]);
 
   useEffect(() => {
     obtenerProfesionalesMatroneria().then(res => {
@@ -215,6 +232,8 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
     setSelectedPacienteExamen(paciente);
     setModoProfesionalForm("PROPIO");
     setProfesionalRutForm(user?.rut || "");
+    setSearchProfModalInput("");
+    setShowProfModalDropdown(false);
     setTipoIngreso("SELECCION");
     setTipoExamenForm("PAP");
     
@@ -1226,6 +1245,148 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
               )}
               {tipoIngreso === "PAP" && (
                 <form id="pap-form" onSubmit={(e) => { e.preventDefault(); handleSaveExamen(); }} className="space-y-4">
+                  {/* Selector Predictivo de Profesional Responsable */}
+                  <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-[10px] font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                        <User size={13} className="text-pink-600" />
+                        Profesional Responsable / Matrón(a)
+                      </label>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setModoProfesionalForm("PROPIO");
+                            setProfesionalRutForm(user?.rut || "");
+                            setSearchProfModalInput("");
+                            setShowProfModalDropdown(false);
+                          }}
+                          className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                            modoProfesionalForm === "PROPIO" ? 'bg-pink-600 text-white shadow-xs' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          Mi Usuario ({user?.nombre ? user.nombre.split(" ")[0] : "Actual"})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setModoProfesionalForm("MANUAL");
+                            setSearchProfModalInput("");
+                            setShowProfModalDropdown(true);
+                          }}
+                          className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                            modoProfesionalForm === "MANUAL" ? 'bg-pink-600 text-white shadow-xs' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          Buscar Otro
+                        </button>
+                      </div>
+                    </div>
+
+                    {modoProfesionalForm === "MANUAL" ? (
+                      <div className="relative">
+                        {profesionalSeleccionadoModalObj && profesionalRutForm !== user?.rut ? (
+                          <div className="flex items-center justify-between p-2.5 bg-white border border-pink-200 rounded-xl shadow-xs">
+                            <div className="flex items-center gap-2">
+                              <div className="h-7 w-7 rounded-lg bg-pink-100 text-pink-700 font-bold text-xs flex items-center justify-center">
+                                {profesionalSeleccionadoModalObj.nombre.charAt(0)}
+                              </div>
+                              <div>
+                                <span className="font-bold text-slate-800 text-xs block uppercase">
+                                  {profesionalSeleccionadoModalObj.nombre}
+                                </span>
+                                <span className="text-[9px] text-slate-500 font-mono">
+                                  {profesionalSeleccionadoModalObj.profesion || "Profesional"} • RUT: {profesionalSeleccionadoModalObj.rut}
+                                </span>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setProfesionalRutForm("");
+                                setSearchProfModalInput("");
+                                setShowProfModalDropdown(true);
+                              }}
+                              className="text-[10px] font-bold text-pink-600 hover:text-pink-800 bg-pink-50 hover:bg-pink-100 px-2 py-0.5 rounded-lg transition-colors cursor-pointer"
+                            >
+                              Cambiar
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                            <input
+                              type="text"
+                              placeholder="Escribe nombre o RUT del matrón(a)..."
+                              value={searchProfModalInput}
+                              onChange={(e) => {
+                                setSearchProfModalInput(e.target.value);
+                                setShowProfModalDropdown(true);
+                              }}
+                              onFocus={() => setShowProfModalDropdown(true)}
+                              className="w-full pl-8 pr-7 py-2 bg-white border border-slate-300 rounded-xl text-slate-800 font-semibold text-xs focus:ring-2 focus:ring-pink-500 outline-none shadow-xs"
+                              autoFocus
+                            />
+                            {searchProfModalInput && (
+                              <button
+                                type="button"
+                                onClick={() => { setSearchProfModalInput(""); setShowProfModalDropdown(false); }}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                              >
+                                <X size={12} />
+                              </button>
+                            )}
+
+                            {/* Dropdown flotante */}
+                            {showProfModalDropdown && (
+                              <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden divide-y divide-slate-100 max-h-48 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150">
+                                <div className="px-3 py-1 bg-slate-50 text-[9px] font-black text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                                  <span>Profesionales ({filteredProfesionalesModal.length})</span>
+                                  <span>Haz clic para seleccionar</span>
+                                </div>
+                                {filteredProfesionalesModal.length > 0 ? (
+                                  filteredProfesionalesModal.map((prof) => (
+                                    <button
+                                      key={prof.rut}
+                                      type="button"
+                                      onClick={() => {
+                                        setProfesionalRutForm(prof.rut);
+                                        setSearchProfModalInput(prof.nombre);
+                                        setShowProfModalDropdown(false);
+                                      }}
+                                      className="w-full px-3 py-2 text-left hover:bg-pink-50/70 transition-colors flex items-center justify-between group cursor-pointer"
+                                    >
+                                      <div>
+                                        <span className="font-bold text-slate-800 text-xs block group-hover:text-pink-700 transition-colors uppercase">
+                                          {prof.nombre}
+                                        </span>
+                                        <span className="text-[9px] text-slate-500 font-mono">
+                                          {prof.profesion || "Profesional"} • RUT: {prof.rut}
+                                        </span>
+                                      </div>
+                                      <span className="text-[9px] font-bold text-pink-600 bg-pink-50 px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                                        Elegir
+                                      </span>
+                                    </button>
+                                  ))
+                                ) : (
+                                  <div className="p-3 text-center text-xs text-slate-500 font-medium">
+                                    No hay coincidencias para &quot;{searchProfModalInput}&quot;.
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between text-xs text-slate-700 bg-white p-2 rounded-lg border border-slate-200">
+                        <span className="font-bold">{user?.nombre || "Usuario Actual"}</span>
+                        <span className="text-[10px] font-mono text-slate-500">{user?.rut} • {user?.profesion || "Matrón(a) / Clínico"}</span>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Fila Tipo Examen y Fecha */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>

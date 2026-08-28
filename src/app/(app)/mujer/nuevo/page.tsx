@@ -20,10 +20,28 @@ export default function NuevoRegistroMujer() {
   const [searchError, setSearchError] = useState("");
   const [tipoIngreso, setTipoIngreso] = useState<"PAP" | "EMBARAZO">("PAP");
 
-  // Lista y Selección de Profesionales
+  // Lista y Selección Predictiva de Profesionales
   const [profesionalesList, setProfesionalesList] = useState<{ rut: string; nombre: string; profesion: string; rol: string }[]>([]);
   const [profesionalRut, setProfesionalRut] = useState<string>("");
+  const [searchProfInput, setSearchProfInput] = useState<string>("");
+  const [showProfDropdown, setShowProfDropdown] = useState<boolean>(false);
   const [modoProfesional, setModoProfesional] = useState<"PROPIO" | "MANUAL">("PROPIO");
+  const profSearchRef = useRef<HTMLDivElement>(null);
+
+  const filteredProfesionales = useMemo(() => {
+    if (!searchProfInput.trim()) return profesionalesList;
+    const q = searchProfInput.toLowerCase().trim();
+    return profesionalesList.filter(p => 
+      p.nombre.toLowerCase().includes(q) || 
+      p.rut.toLowerCase().includes(q) || 
+      (p.profesion && p.profesion.toLowerCase().includes(q))
+    );
+  }, [profesionalesList, searchProfInput]);
+
+  const profesionalSeleccionadoObj = useMemo(() => {
+    if (!profesionalRut) return null;
+    return profesionalesList.find(p => p.rut === profesionalRut) || null;
+  }, [profesionalesList, profesionalRut]);
 
   useEffect(() => {
     obtenerProfesionalesMatroneria().then(res => {
@@ -38,6 +56,9 @@ export default function NuevoRegistroMujer() {
     const handleClickOutside = (event: MouseEvent) => {
       if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
         setShowDropdown(false);
+      }
+      if (profSearchRef.current && !profSearchRef.current.contains(event.target as Node)) {
+        setShowProfDropdown(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -485,16 +506,22 @@ export default function NuevoRegistroMujer() {
                 Detalles del Examen PAP / VPH
               </h3>
 
-              {/* Selector de Profesional Responsable */}
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
+              {/* Selector Predictivo de Profesional Responsable / Matrón(a) */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
                 <div className="flex items-center justify-between">
-                  <label className="block text-xs font-black text-slate-500 uppercase tracking-wider">
+                  <label className="block text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                    <User size={14} className="text-pink-600" />
                     Profesional Responsable / Matrón(a)
                   </label>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <button
                       type="button"
-                      onClick={() => { setModoProfesional("PROPIO"); setProfesionalRut(""); }}
+                      onClick={() => { 
+                        setModoProfesional("PROPIO"); 
+                        setProfesionalRut(""); 
+                        setSearchProfInput("");
+                        setShowProfDropdown(false);
+                      }}
                       className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                         modoProfesional === "PROPIO" ? 'bg-pink-600 text-white shadow-xs' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
                       }`}
@@ -503,32 +530,131 @@ export default function NuevoRegistroMujer() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setModoProfesional("MANUAL")}
+                      onClick={() => {
+                        setModoProfesional("MANUAL");
+                        setSearchProfInput("");
+                        setShowProfDropdown(true);
+                      }}
                       className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                         modoProfesional === "MANUAL" ? 'bg-pink-600 text-white shadow-xs' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
                       }`}
                     >
-                      Seleccionar Otro Profesional
+                      Buscar Otro Profesional
                     </button>
                   </div>
                 </div>
 
                 {modoProfesional === "MANUAL" ? (
-                  <select
-                    value={profesionalRut}
-                    onChange={(e) => setProfesionalRut(e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-800 font-semibold text-xs focus:ring-2 focus:ring-pink-500 outline-none cursor-pointer"
-                    required
-                  >
-                    <option value="">-- Seleccione el profesional de la lista --</option>
-                    {profesionalesList.map((prof) => (
-                      <option key={prof.rut} value={prof.rut}>
-                        {prof.nombre} ({prof.profesion || "Profesional"} - RUT: {prof.rut})
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative" ref={profSearchRef}>
+                    {profesionalSeleccionadoObj ? (
+                      <div className="flex items-center justify-between p-3 bg-white border border-pink-200 rounded-xl shadow-xs">
+                        <div className="flex items-center gap-2.5">
+                          <div className="h-8 w-8 rounded-lg bg-pink-100 text-pink-700 font-bold text-xs flex items-center justify-center">
+                            {profesionalSeleccionadoObj.nombre.charAt(0)}
+                          </div>
+                          <div>
+                            <span className="font-bold text-slate-800 text-xs block uppercase">
+                              {profesionalSeleccionadoObj.nombre}
+                            </span>
+                            <span className="text-[10px] text-slate-500 font-mono">
+                              {profesionalSeleccionadoObj.profesion || "Profesional"} • RUT: {profesionalSeleccionadoObj.rut}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfesionalRut("");
+                            setSearchProfInput("");
+                            setShowProfDropdown(true);
+                          }}
+                          className="text-[10px] font-bold text-pink-600 hover:text-pink-800 bg-pink-50 hover:bg-pink-100 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                        >
+                          Cambiar
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                        <input
+                          type="text"
+                          placeholder="Escribe nombre, apellido, profesión o RUT del matrón(a)..."
+                          value={searchProfInput}
+                          onChange={(e) => {
+                            setSearchProfInput(e.target.value);
+                            setShowProfDropdown(true);
+                          }}
+                          onFocus={() => setShowProfDropdown(true)}
+                          className="w-full pl-9 pr-8 py-2.5 bg-white border border-slate-300 rounded-xl text-slate-800 font-semibold text-xs focus:ring-2 focus:ring-pink-500 outline-none shadow-xs"
+                          autoFocus
+                        />
+                        {searchProfInput && (
+                          <button
+                            type="button"
+                            onClick={() => { setSearchProfInput(""); setShowProfDropdown(false); }}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                          >
+                            <X size={14} />
+                          </button>
+                        )}
+
+                        {/* Menú de Sugerencias de Profesionales */}
+                        {showProfDropdown && (
+                          <div className="absolute top-full left-0 right-0 mt-1.5 bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden divide-y divide-slate-100 max-h-60 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150">
+                            <div className="px-3 py-1.5 bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                              <span>Profesionales ({filteredProfesionales.length})</span>
+                              <span>Haz clic para seleccionar</span>
+                            </div>
+                            {filteredProfesionales.length > 0 ? (
+                              filteredProfesionales.map((prof) => (
+                                <button
+                                  key={prof.rut}
+                                  type="button"
+                                  onClick={() => {
+                                    setProfesionalRut(prof.rut);
+                                    setSearchProfInput(prof.nombre);
+                                    setShowProfDropdown(false);
+                                  }}
+                                  className="w-full px-3.5 py-2.5 text-left hover:bg-pink-50/70 transition-colors flex items-center justify-between group cursor-pointer"
+                                >
+                                  <div className="flex items-center gap-2.5">
+                                    <div className="h-7 w-7 rounded-lg bg-pink-100 text-pink-700 font-bold text-xs flex items-center justify-center shrink-0 group-hover:bg-pink-600 group-hover:text-white transition-colors">
+                                      {prof.nombre.charAt(0)}
+                                    </div>
+                                    <div>
+                                      <span className="font-bold text-slate-800 text-xs block group-hover:text-pink-700 transition-colors uppercase">
+                                        {prof.nombre}
+                                      </span>
+                                      <span className="text-[10px] text-slate-500 font-mono">
+                                        {prof.profesion || "Profesional"} • RUT: {prof.rut}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <span className="text-[9px] font-bold text-pink-600 bg-pink-50 px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                                    Seleccionar
+                                  </span>
+                                </button>
+                              ))
+                            ) : (
+                              <div className="p-4 text-center text-xs text-slate-500 font-medium">
+                                No se encontraron profesionales que coincidan con &quot;{searchProfInput}&quot;.
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 ) : (
-                  <p className="text-xs text-slate-500">Se registrará automáticamente con la cuenta de usuario activa.</p>
+                  <div className="flex items-center justify-between text-xs text-slate-700 bg-white p-2.5 rounded-lg border border-slate-200">
+                    <div className="flex items-center gap-2">
+                      <div className="h-6 w-6 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center font-bold text-[10px]">
+                        ✓
+                      </div>
+                      <span className="font-bold">Usuario en sesión</span>
+                    </div>
+                    <span className="text-[10px] font-mono text-slate-400">Se registrará automáticamente con tu cuenta</span>
+                  </div>
                 )}
               </div>
 
