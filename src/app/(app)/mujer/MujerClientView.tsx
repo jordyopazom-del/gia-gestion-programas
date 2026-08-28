@@ -90,7 +90,7 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
   const [showExamenModal, setShowExamenModal] = useState(false);
   const [tipoExamenForm, setTipoExamenForm] = useState("PAP");
   const [fechaExamenForm, setFechaExamenForm] = useState("");
-  const [codigoLabForm, setCodigoLabForm] = useState("IG8");
+  const [codigoLabForm, setCodigoLabForm] = useState("");
   const [periodicidadMesesForm, setPeriodicidadMesesForm] = useState<number>(36);
   const [fechaProximoControlForm, setFechaProximoControlForm] = useState("");
   const [criterioPersonalizado, setCriterioPersonalizado] = useState(false);
@@ -272,7 +272,7 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
     const res = await guardarPap({
       rut_paciente: selectedPacienteExamen.rut,
       fecha_pap: fechaExamenForm,
-      profesional_rut: modoProfesionalForm === "PROPIO" ? (user?.rut || undefined) : profesionalRutForm,
+      profesional_rut: modoProfesionalForm === "MANUAL" ? (profesionalRutForm || undefined) : undefined,
       tipo_examen: tipoExamenForm,
       adecuacion_muestra: isInsatisfactoria ? "INSATISFACTORIA" : "SATISFACTORIA",
       motivo_insatisfactoria: isInsatisfactoria ? (motivoInsatisfactoriaForm || decodificacion.motivoInsatisfactoria) : undefined,
@@ -1285,7 +1285,7 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
 
                     {modoProfesionalForm === "MANUAL" ? (
                       <div className="relative">
-                        {profesionalSeleccionadoModalObj && profesionalRutForm !== user?.rut ? (
+                        {profesionalSeleccionadoModalObj ? (
                           <div className="flex items-center justify-between p-2.5 bg-white border border-pink-200 rounded-xl shadow-xs">
                             <div className="flex items-center gap-2">
                               <div className="h-7 w-7 rounded-lg bg-pink-100 text-pink-700 font-bold text-xs flex items-center justify-center">
@@ -1341,7 +1341,7 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                             {showProfModalDropdown && (
                               <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden divide-y divide-slate-100 max-h-48 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150">
                                 <div className="px-3 py-1 bg-slate-50 text-[9px] font-black text-slate-400 uppercase tracking-wider flex items-center justify-between">
-                                  <span>Profesionales ({filteredProfesionalesModal.length})</span>
+                                  <span>Profesionales disponibles ({filteredProfesionalesModal.length})</span>
                                   <span>Haz clic para seleccionar</span>
                                 </div>
                                 {filteredProfesionalesModal.length > 0 ? (
