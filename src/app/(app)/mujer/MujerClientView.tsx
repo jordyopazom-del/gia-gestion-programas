@@ -833,6 +833,18 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
           </div>
         </div>
 
+        {/* Barra Superior con Conteo de Pacientes (Estándar de la Plataforma) */}
+        <div className="px-6 py-2.5 bg-slate-50/70 border-b border-slate-100 flex items-center justify-between text-xs text-slate-500 font-medium">
+          <span>
+            Mostrando <strong className="text-slate-800 font-bold">{filteredData.length.toLocaleString("es-CL")}</strong> pacientes {searchRut || selectedSector !== "TODOS" || (activeTab === "pap" && selectedStatus !== "TODOS") || onlyPad ? "según filtros seleccionados" : "en nómina"}.
+          </span>
+          {totalPages > 1 && (
+            <span className="text-[11px] text-slate-400 font-semibold">
+              Página {currentPage} de {totalPages}
+            </span>
+          )}
+        </div>
+
         <div className="overflow-x-auto">
           <table className={`w-full text-left border-collapse table-fixed transition-all duration-300 ${activeTab === 'pap' ? 'min-w-[1200px]' : activeTab === 'embarazadas' ? 'min-w-[1100px]' : 'min-w-[900px]'}`}>
             <thead>
