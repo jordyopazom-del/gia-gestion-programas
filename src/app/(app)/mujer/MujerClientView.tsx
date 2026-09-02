@@ -888,7 +888,7 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                   <>
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-[45%] min-w-[300px]">Identificación</th>
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-[20%] min-w-[150px]">Contacto</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-[20%] min-w-[150px]">Histerectomía</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-[20%] min-w-[150px]">Estado Clínico</th>
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right w-[15%] min-w-[100px]">Acciones</th>
                   </>
                 )}
@@ -1070,12 +1070,43 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                       ) : (
                         <>
                           <td className="px-6 py-4 text-sm text-slate-500 font-medium truncate">{p.telefono || "—"}</td>
-                          <td className="px-6 py-4 text-xs font-semibold text-slate-600 uppercase truncate">
-                            {p.histerectomizada ? (
-                              <span className="text-purple-600 font-bold">
-                                SÍ ({p.causa_histerectomia || "BENIGNA"})
-                              </span>
-                            ) : "NO"}
+                          <td className="px-6 py-4">
+                            <div className="flex flex-wrap gap-1.5 items-center">
+                              {/* Embarazo */}
+                              {embarazadasData.some(e => e.rut === p.rut) && (
+                                <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase border text-purple-700 bg-purple-50 border-purple-200">
+                                  Embarazada
+                                </span>
+                              )}
+                              {/* Histerectomía */}
+                              {p.histerectomizada && (
+                                <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase border text-slate-500 bg-slate-100 border-slate-200" title={`Causa: ${p.causa_histerectomia || "BENIGNA"}`}>
+                                  Histerectomizada
+                                </span>
+                              )}
+                              {/* Tamizaje PAP */}
+                              {(() => {
+                                const age = calculateAge(p.fecha_nacimiento);
+                                const isTarget = age !== null && age >= 25 && age <= 64;
+                                if (isTarget && !p.histerectomizada) {
+                                  const tStatus = getTamizajeStatus(p);
+                                  if (tStatus.estado !== "EXCLUIDA") {
+                                    return (
+                                      <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase border ${tStatus.color.replace('bg-', 'bg-opacity-50 bg-').replace('border-', 'border-opacity-50 border-')}`}>
+                                        {tStatus.label}
+                                      </span>
+                                    );
+                                  }
+                                }
+                                return null;
+                              })()}
+                              {/* Sin antecedentes activos */}
+                              {!embarazadasData.some(e => e.rut === p.rut) && 
+                               !p.histerectomizada && 
+                               !(calculateAge(p.fecha_nacimiento) !== null && calculateAge(p.fecha_nacimiento)! >= 25 && calculateAge(p.fecha_nacimiento)! <= 64) && (
+                                <span className="text-slate-300 font-bold ml-1">-</span>
+                              )}
+                            </div>
                           </td>
                           <td className="px-6 py-4 text-right whitespace-nowrap">
                             <div className="flex justify-end gap-1.5">
