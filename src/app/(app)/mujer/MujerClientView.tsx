@@ -45,7 +45,7 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
   const [activeTab, setActiveTab] = useState("general"); // "general", "pap", "embarazadas"
   const [tipoIngreso, setTipoIngreso] = useState("SELECCION"); // "SELECCION", "PAP", "EMBARAZO"
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 20;
+  const itemsPerPage = 100;
 
   // Estados para Modal de Histerectomía
   const [selectedPaciente, setSelectedPaciente] = useState<PacienteMujer | null>(null);
