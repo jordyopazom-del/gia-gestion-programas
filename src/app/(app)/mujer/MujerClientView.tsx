@@ -499,6 +499,12 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
     // Solo activos por defecto
     result = result.filter(p => !p.estado || p.estado === 'ACTIVO');
 
+    // Excluir menores de 10 años (pertenecen al Programa Infantil)
+    result = result.filter(p => {
+      const age = calculateAge(p.fecha_nacimiento);
+      return age === null || age >= 10;
+    });
+
     if (searchRut) {
       const q = searchRut.replace(/[^0-9kK-]/g, "").toLowerCase();
       result = result.filter(p => 
