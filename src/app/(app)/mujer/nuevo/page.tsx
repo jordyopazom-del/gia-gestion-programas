@@ -255,7 +255,22 @@ export default function NuevoRegistroMujer() {
 
     if (tipoIngreso === "PAP") {
       const isInsatisfactoria = tipoExamen === "PAP" ? (adecuacionMuestra === "INSATISFACTORIA" || decodificacion.esInsatisfactorio) : false;
-      const realResultado = isInsatisfactoria ? "MUESTRA INSATISFACTORIA" : (tipoExamen === "PAP" ? (decodificacion.esPatologico ? (decodificacion.diagnosticoCodigo || resultado) : "NEGATIVO") : resultado);
+      
+      let realResultado = resultado;
+      if (tipoExamen === "PAP") {
+        if (!codigoLab.trim()) {
+          realResultado = "PENDIENTE";
+        } else if (isInsatisfactoria) {
+          realResultado = "MUESTRA INSATISFACTORIA";
+        } else if (decodificacion.esPatologico) {
+          realResultado = decodificacion.diagnosticoCodigo || resultado;
+        } else {
+          realResultado = "NEGATIVO";
+        }
+      } else {
+        realResultado = isInsatisfactoria ? "MUESTRA INSATISFACTORIA" : resultado;
+      }
+      
       const isPatologico = !isInsatisfactoria && realResultado !== "NEGATIVO" && realResultado !== "NORMAL" && realResultado !== "PENDIENTE";
 
       const res = await guardarPap({
