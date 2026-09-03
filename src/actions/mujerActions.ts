@@ -97,6 +97,38 @@ export async function guardarPap(data: {
   }
 }
 
+export async function actualizarResultadoPap(data: {
+  rut_paciente: string;
+  codigo_lab: string;
+  resultado: string;
+  adecuacion_muestra: string;
+  motivo_insatisfactoria?: string;
+  fecha_resultado: string;
+  derivado_upc: boolean;
+  periodicidad_meses: number;
+  fecha_proximo_control?: string;
+}) {
+  try {
+    await sql`
+      UPDATE gia_mujer_pap
+      SET 
+        codigo_lab = ${data.codigo_lab},
+        resultado = ${data.resultado},
+        adecuacion_muestra = ${data.adecuacion_muestra},
+        motivo_insatisfactoria = ${data.motivo_insatisfactoria || null},
+        fecha_resultado = ${data.fecha_resultado},
+        derivado_upc = ${data.derivado_upc},
+        periodicidad_meses = ${data.periodicidad_meses},
+        fecha_proximo_control = ${data.fecha_proximo_control || null}
+      WHERE rut_paciente = ${data.rut_paciente} AND resultado = 'PENDIENTE'
+    `;
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error al actualizar PAP PENDIENTE:", error);
+    return { error: "Error al registrar el resultado en la base de datos." };
+  }
+}
+
 export async function guardarHisterectomia(data: {
   rut_paciente: string;
   histerectomizada: boolean;

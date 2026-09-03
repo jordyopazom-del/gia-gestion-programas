@@ -5,7 +5,7 @@ import { Search, HeartPulse, User, ShieldCheck, Download, Plus, FileText, AlertT
 import * as XLSX from "xlsx";
 import { UserProfile } from "@/actions/userActions";
 import Link from "next/link";
-import { guardarHisterectomia, guardarPap, getHistorialExamenesPaciente, ingresarEmbarazo, obtenerProfesionalesMatroneria } from "@/actions/mujerActions";
+import { guardarHisterectomia, guardarPap, actualizarResultadoPap, getHistorialExamenesPaciente, ingresarEmbarazo, obtenerProfesionalesMatroneria } from "@/actions/mujerActions";
 import { useEffect } from "react";
 import { decodificarCodigoPap, DecodificacionPap } from "@/lib/decodificadorPap";
 
@@ -55,6 +55,12 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
   const [causaHisterectomiaForm, setCausaHisterectomiaForm] = useState("BENIGNA");
   const [savingHisterectomia, setSavingHisterectomia] = useState(false);
   const [histerectomiaError, setHisterectomiaError] = useState("");
+
+  // Estados para Digitación Rápida de PAP Pendientes
+  const [selectedPendingPap, setSelectedPendingPap] = useState<PacienteMujer | null>(null);
+  const [pendingCodeLab, setPendingCodeLab] = useState("");
+  const [savingPending, setSavingPending] = useState(false);
+  const [pendingError, setPendingError] = useState("");
 
   // Estados para Modal de Ingreso Rápido de Examen PAP/VPH y Decodificador Inteligente
   const [profesionalesList, setProfesionalesList] = useState<{ rut: string; nombre: string; profesion: string; rol: string }[]>([]);
@@ -562,6 +568,69 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
     setShowHisterectomiaModal(true);
   };
 
+  const handleUpdatePendingPap = async () => {
+    if (!selectedPendingPap || !pendingCodeLab.trim()) return;
+    setSavingPending(true);
+    setPendingError("");
+
+    const dec = decodificarCodigoPap(pendingCodeLab.toUpperCase());
+    const isInsatisfactoria = dec.esInsatisfactorio;
+    const realResultado = isInsatisfactoria ? "MUESTRA INSATISFACTORIA" : (dec.esPatologico ? (dec.diagnosticoCodigo || "ASC-US") : "NEGATIVO");
+    const isPatologico = !isInsatisfactoria && realResultado !== "NEGATIVO" && realResultado !== "NORMAL" && realResultado !== "PENDIENTE";
+    
+    // Si la toma fue hace X días, la fecha de resultado es hoy
+    const fechaResultado = new Date().toISOString().split("T")[0];
+
+    const res = await actualizarResultadoPap({
+      rut_paciente: selectedPendingPap.rut,
+      codigo_lab: pendingCodeLab.toUpperCase(),
+      resultado: realResultado,
+      adecuacion_muestra: isInsatisfactoria ? "INSATISFACTORIA" : "SATISFACTORIA",
+      motivo_insatisfactoria: isInsatisfactoria ? dec.motivoInsatisfactoria : undefined,
+      fecha_resultado: fechaResultado,
+      derivado_upc: isPatologico, // Lo dejamos como derivado_upc sugerido, aunque en la vida real la matrona tiene que confirmarlo después. Pero por velocidad lo automatizamos.
+      periodicidad_meses: dec.periodicidadSugeridaMeses,
+      fecha_proximo_control: dec.periodicidadSugeridaMeses > 0 && selectedPendingPap.ultima_fecha_pap
+        ? (() => {
+            const d = new Date(selectedPendingPap.ultima_fecha_pap);
+            d.setMonth(d.getMonth() + dec.periodicidadSugeridaMeses);
+            return d.toISOString().split("T")[0];
+          })()
+        : undefined
+    });
+
+    setSavingPending(false);
+    if (res.error) {
+      setPendingError(res.error);
+    } else {
+      // Actualizar estado local
+      const newData = data.map(p => {
+        if (p.rut === selectedPendingPap.rut) {
+          return {
+            ...p,
+            ultimo_resultado_pap: realResultado,
+            ultimo_codigo_lab: pendingCodeLab.toUpperCase(),
+            ultima_adecuacion_muestra: isInsatisfactoria ? "INSATISFACTORIA" : "SATISFACTORIA",
+            ultima_fecha_resultado: fechaResultado,
+            ultimo_derivado_upc: isPatologico,
+            ultima_periodicidad_meses: dec.periodicidadSugeridaMeses,
+            ultima_fecha_proximo_control: dec.periodicidadSugeridaMeses > 0 && p.ultima_fecha_pap
+              ? (() => {
+                  const d = new Date(p.ultima_fecha_pap!);
+                  d.setMonth(d.getMonth() + dec.periodicidadSugeridaMeses);
+                  return d.toISOString().split("T")[0];
+                })()
+              : p.ultima_fecha_proximo_control
+          };
+        }
+        return p;
+      });
+      setData(newData);
+      setSelectedPendingPap(null);
+      setPendingCodeLab("");
+    }
+  };
+
   const handleSaveHisterectomia = async () => {
     if (!selectedPaciente) return;
     setSavingHisterectomia(true);
@@ -1060,6 +1129,14 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                           {/* ESTADO TAMIZAJE & ACCIÓN DIRECTA */}
                           <td className="px-6 py-4 text-right whitespace-nowrap">
                             <div className="flex items-center justify-end gap-2">
+                              {tamizaje.estado === "PENDIENTE" && (
+                                <button
+                                  onClick={() => setSelectedPendingPap(p)}
+                                  className="text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-sm cursor-pointer border border-blue-700"
+                                >
+                                  Cargar
+                                </button>
+                              )}
                               <span className={`inline-flex px-2.5 py-1 rounded-lg text-[10px] font-black tracking-wider border uppercase shadow-2xs ${tamizaje.color}`}>
                                 {tamizaje.label}
                               </span>
@@ -1991,6 +2068,84 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                 Cerrar Historial
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DIGITACIÓN RÁPIDA RESULTADO PAP */}
+      {selectedPendingPap && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden animate-in zoom-in-95 duration-200">
+            <form 
+              onSubmit={(e) => { 
+                e.preventDefault(); 
+                handleUpdatePendingPap(); 
+              }}
+            >
+              <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <div className="flex items-center text-slate-800">
+                  <Activity className="mr-2 text-blue-600" size={18} />
+                  <h3 className="font-bold text-sm">Cargar Resultado PAP</h3>
+                </div>
+                <button type="button" onClick={() => setSelectedPendingPap(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+                  <X size={18}/>
+                </button>
+              </div>
+              
+              <div className="p-5 space-y-4">
+                <div>
+                  <span className="block text-[10px] font-black text-slate-400 uppercase">Paciente</span>
+                  <span className="block text-sm font-bold text-slate-800 truncate">{selectedPendingPap.nombre_completo}</span>
+                  <span className="block text-xs text-slate-500 font-mono mt-0.5">{selectedPendingPap.rut}</span>
+                </div>
+
+                <div className="bg-blue-50/50 border border-blue-100 p-3 rounded-xl">
+                  <label className="block text-[10px] font-black text-blue-800 uppercase tracking-wider mb-2 text-center">
+                    Código de Laboratorio
+                  </label>
+                  <input 
+                    type="text" 
+                    required 
+                    autoFocus
+                    value={pendingCodeLab} 
+                    onChange={e => setPendingCodeLab(e.target.value)}
+                    className="w-full bg-white border border-blue-200 rounded-lg px-4 py-3 text-center text-lg font-mono font-black text-blue-700 tracking-widest focus:ring-2 focus:ring-blue-500 outline-none uppercase shadow-inner"
+                    placeholder="EJ: IG8"
+                  />
+                  {pendingCodeLab.trim() && (
+                    <div className="mt-3 text-center">
+                      <span className={`inline-block px-2 py-1 rounded text-[10px] font-black uppercase tracking-wider ${
+                        decodificarCodigoPap(pendingCodeLab.toUpperCase()).esPatologico ? 'bg-red-100 text-red-700' : 
+                        decodificarCodigoPap(pendingCodeLab.toUpperCase()).esInsatisfactorio ? 'bg-orange-100 text-orange-700' : 'bg-emerald-100 text-emerald-700'
+                      }`}>
+                        {decodificarCodigoPap(pendingCodeLab.toUpperCase()).diagnostico}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {pendingError && (
+                  <div className="text-[10px] font-bold text-red-600 bg-red-50 p-2 rounded text-center border border-red-100">
+                    {pendingError}
+                  </div>
+                )}
+              </div>
+
+              <div className="p-4 bg-slate-50 border-t border-slate-100 flex space-x-2">
+                <button 
+                  type="button" onClick={() => setSelectedPendingPap(null)}
+                  className="flex-1 px-3 py-2 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-200 transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit" disabled={savingPending || !pendingCodeLab.trim()}
+                  className="flex-1 px-3 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  {savingPending ? "Cargando..." : "Guardar (Enter)"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
