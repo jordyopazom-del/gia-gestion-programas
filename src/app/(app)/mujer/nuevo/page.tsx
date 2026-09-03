@@ -296,9 +296,6 @@ export default function NuevoRegistroMujer() {
         setSaveError(res.error);
       } else {
         setSuccess(true);
-        setTimeout(() => {
-          router.push("/mujer");
-        }, 1500);
       }
     } else {
       const res = await ingresarEmbarazo({
@@ -317,11 +314,30 @@ export default function NuevoRegistroMujer() {
         setSaveError(res.error);
       } else {
         setSuccess(true);
-        setTimeout(() => {
-          router.push("/mujer");
-        }, 1500);
       }
     }
+  };
+
+  const handleResetForm = () => {
+    setSuccess(false);
+    setPaciente(null);
+    setRutInput("");
+    setSearchError("");
+    setCodigoLab("");
+    setResultado("NEGATIVO");
+    setAdecuacionMuestra("SATISFACTORIA");
+    setMotivoInsatisfactoria("");
+    setDerivadoUpc(false);
+    setObservaciones("");
+    setFum("");
+    setFpp("");
+    setFechaUltimoControl("");
+    setFechaProximoControlEmb("");
+    setEstadoNutricional("");
+    setObservacionesEmb("");
+    setFechaPap(getLocalDateString());
+    setFechaResultado(getLocalDateString());
+    setPeriodicidadMeses(36);
   };
 
   return (
@@ -343,48 +359,50 @@ export default function NuevoRegistroMujer() {
       </div>
 
       {/* Buscador de Paciente ESTÁNDAR POR RUT */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Búsqueda de Paciente</label>
-        <div className="flex gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-            <input
-              type="text"
-              placeholder="Ingrese RUT de la paciente (ej: 12345678-9)..."
-              value={rutInput}
-              onChange={(e) => setRutInput(formatRut(e.target.value))}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
-              className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none transition-all font-mono font-bold text-slate-800 text-sm"
-            />
-          </div>
-          <button
-            type="button"
-            onClick={handleSearch}
-            disabled={loadingSearch || rutInput.length < 2}
-            className="bg-slate-900 text-white px-6 py-3 rounded-xl font-bold hover:bg-slate-800 transition-colors disabled:opacity-50 shadow-sm cursor-pointer shrink-0"
-          >
-            {loadingSearch ? "Buscando..." : "Buscar Paciente"}
-          </button>
-        </div>
-        {searchError && (
-          <div className="mt-3 flex flex-col items-start gap-2 text-red-600 text-sm font-bold bg-red-50 p-3 rounded-lg border border-red-100">
-            <div className="flex items-center gap-2">
-              <AlertCircle size={16} />
-              {searchError}
+      {!success && (
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+          <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Búsqueda de Paciente</label>
+          <div className="flex gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+              <input
+                type="text"
+                placeholder="Ingrese RUT de la paciente (ej: 12345678-9)..."
+                value={rutInput}
+                onChange={(e) => setRutInput(formatRut(e.target.value))}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
+                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none transition-all font-mono font-bold text-slate-800 text-sm"
+              />
             </div>
-            {searchError === "Paciente no encontrado en el padrón interconectado." && (
-              <button 
-                onClick={() => setShowProvisorio(true)}
-                className="flex items-center text-[10px] font-black uppercase tracking-wider bg-red-600 text-white px-3 py-1.5 rounded-md hover:bg-red-700 transition shadow-sm mt-1 cursor-pointer"
-              >
-                <UserPlus size={12} className="mr-1.5" /> Registrar de forma Provisoria
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={handleSearch}
+              disabled={loadingSearch || rutInput.length < 2}
+              className="bg-slate-900 text-white px-6 py-3 rounded-xl font-bold hover:bg-slate-800 transition-colors disabled:opacity-50 shadow-sm cursor-pointer shrink-0"
+            >
+              {loadingSearch ? "Buscando..." : "Buscar Paciente"}
+            </button>
           </div>
-        )}
-      </div>
+          {searchError && (
+            <div className="mt-3 flex flex-col items-start gap-2 text-red-600 text-sm font-bold bg-red-50 p-3 rounded-lg border border-red-100">
+              <div className="flex items-center gap-2">
+                <AlertCircle size={16} />
+                {searchError}
+              </div>
+              {searchError === "Paciente no encontrado en el padrón interconectado." && (
+                <button 
+                  onClick={() => setShowProvisorio(true)}
+                  className="flex items-center text-[10px] font-black uppercase tracking-wider bg-red-600 text-white px-3 py-1.5 rounded-md hover:bg-red-700 transition shadow-sm mt-1 cursor-pointer"
+                >
+                  <UserPlus size={12} className="mr-1.5" /> Registrar de forma Provisoria
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
-      {paciente && (
+      {paciente && !success && (
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Ficha Rápida de la Paciente Seleccionada */}
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 animate-in fade-in">
@@ -921,6 +939,32 @@ export default function NuevoRegistroMujer() {
             </button>
           </div>
         </form>
+      )}
+
+      {success && (
+        <div className="bg-white p-8 rounded-2xl shadow-sm border border-emerald-200 text-center animate-in zoom-in-95 duration-300">
+          <div className="mx-auto w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-4">
+            <CheckCircle size={32} />
+          </div>
+          <h2 className="text-xl font-black text-slate-800 mb-2 uppercase tracking-wide">¡Registro Exitoso!</h2>
+          <p className="text-slate-500 mb-8 max-w-sm mx-auto text-sm font-medium">
+            La atención clínica ha sido guardada. Los indicadores de la matriz y rescates se han actualizado automáticamente.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <button
+              onClick={handleResetForm}
+              className="px-6 py-3 bg-pink-600 text-white rounded-xl font-bold hover:bg-pink-700 transition-colors shadow-sm w-full sm:w-auto uppercase tracking-wider text-xs cursor-pointer"
+            >
+              Ingresar Siguiente Paciente
+            </button>
+            <Link
+              href="/mujer"
+              className="px-6 py-3 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-50 transition-colors shadow-sm w-full sm:w-auto uppercase tracking-wider text-xs cursor-pointer inline-flex items-center justify-center"
+            >
+              Volver al Dashboard
+            </Link>
+          </div>
+        </div>
       )}
 
       {showProvisorio && (
