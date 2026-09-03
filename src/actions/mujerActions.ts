@@ -9,7 +9,7 @@ export async function getMujerDashboardData() {
       WITH UltimoPap AS (
         SELECT rut_paciente, fecha_pap, resultado, tipo_examen, adecuacion_muestra,
                motivo_insatisfactoria, fecha_resultado, derivado_upc, fecha_derivacion_upc,
-               codigo_lab, periodicidad_meses, fecha_proximo_control,
+               codigo_lab, periodicidad_meses, fecha_proximo_control, profesional_rut,
                ROW_NUMBER() OVER(PARTITION BY rut_paciente ORDER BY fecha_pap DESC) as rn
         FROM gia_mujer_pap
       )
@@ -27,7 +27,8 @@ export async function getMujerDashboardData() {
         TO_CHAR(pap.fecha_derivacion_upc, 'YYYY-MM-DD') as ultima_fecha_derivacion_upc,
         pap.codigo_lab as ultimo_codigo_lab,
         pap.periodicidad_meses as ultima_periodicidad_meses,
-        TO_CHAR(pap.fecha_proximo_control, 'YYYY-MM-DD') as ultima_fecha_proximo_control
+        TO_CHAR(pap.fecha_proximo_control, 'YYYY-MM-DD') as ultima_fecha_proximo_control,
+        pap.profesional_rut as ultimo_profesional_rut
       FROM gia_pacientes p
       LEFT JOIN UltimoPap pap ON p.rut = pap.rut_paciente AND pap.rn = 1
       WHERE p.sexo = 'FEMENINO'

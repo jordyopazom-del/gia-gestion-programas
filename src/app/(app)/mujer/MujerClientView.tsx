@@ -33,6 +33,7 @@ type PacienteMujer = {
   ultimo_codigo_lab?: string;
   ultima_periodicidad_meses?: number;
   ultima_fecha_proximo_control?: string;
+  ultimo_profesional_rut?: string;
 };
 
 export default function MujerClientView({ initialData, initialEmbarazadasData, user }: { initialData: PacienteMujer[], initialEmbarazadasData?: any[], user: UserProfile }) {
@@ -685,29 +686,54 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
   }, [data]);
 
   const exportToExcel = () => {
-    const exportData = filteredData.map(p => {
-      const age = calculateAge(p.fecha_nacimiento);
-      const status = getTamizajeStatus(p);
-      return {
-        "RUT": `${p.rut}-${p.dv}`,
-        "Nombre": p.nombre_completo,
-        "Edad": age,
-        "Sexo": p.sexo || "FEMENINO",
-        "Sector": p.sector,
-        "Teléfono": p.telefono || "Sin Registro",
-        "Histerectomizada": p.histerectomizada ? `SÍ (${p.causa_histerectomia})` : "NO",
-        "Último Examen": p.ultima_fecha_pap ? `${p.ultimo_tipo_examen} (${new Date(p.ultima_fecha_pap).toLocaleDateString('es-CL')})` : "Sin Registro",
-        "Resultado": p.ultimo_resultado_pap || "—",
-        "Adecuación Muestra": p.ultima_adecuacion_muestra || "—",
-        "Derivada a UPC": p.ultimo_derivado_upc ? `SÍ (${p.ultima_fecha_derivacion_upc ? new Date(p.ultima_fecha_derivacion_upc).toLocaleDateString('es-CL') : '—'})` : "NO",
-        "Estado Tamizaje": status.label,
-        "Conducta Clínico-Administrativa": status.conducta
-      };
-    });
+    let exportData;
+    let sheetName = "Tamizaje CaCu";
+    let fileName = `Programa_Mujer_${activeTab === "pap" ? "PAP" : "General"}.xlsx`;
+
+    if (activeTab === "pap" && selectedStatus === "PENDIENTES") {
+      sheetName = "Nómina de Envío";
+      fileName = `Nomina_Envio_Patologia_${new Date().toISOString().split("T")[0]}.xlsx`;
+      exportData = filteredData.map((p, index) => {
+        const age = calculateAge(p.fecha_nacimiento);
+        const matron = profesionalesList.find(prof => prof.rut === p.ultimo_profesional_rut)?.nombre || "NO REGISTRADO";
+        return {
+          "N°": index + 1,
+          "RUT": `${p.rut}-${p.dv}`,
+          "Nombre Paciente": p.nombre_completo,
+          "Edad": age,
+          "Establecimiento/Sector": p.sector,
+          "Fecha de Toma": p.ultima_fecha_pap ? new Date(p.ultima_fecha_pap).toLocaleDateString('es-CL') : "Sin Registro",
+          "Tipo Examen": p.ultimo_tipo_examen || "PAP",
+          "Profesional (Matrón/a)": matron,
+          "Observaciones": p.ultimo_motivo_insatisfactoria || p.ultima_adecuacion_muestra || ""
+        };
+      });
+    } else {
+      exportData = filteredData.map(p => {
+        const age = calculateAge(p.fecha_nacimiento);
+        const status = getTamizajeStatus(p);
+        return {
+          "RUT": `${p.rut}-${p.dv}`,
+          "Nombre": p.nombre_completo,
+          "Edad": age,
+          "Sexo": p.sexo || "FEMENINO",
+          "Sector": p.sector,
+          "Teléfono": p.telefono || "Sin Registro",
+          "Histerectomizada": p.histerectomizada ? `SÍ (${p.causa_histerectomia})` : "NO",
+          "Último Examen": p.ultima_fecha_pap ? `${p.ultimo_tipo_examen} (${new Date(p.ultima_fecha_pap).toLocaleDateString('es-CL')})` : "Sin Registro",
+          "Resultado": p.ultimo_resultado_pap || "—",
+          "Adecuación Muestra": p.ultima_adecuacion_muestra || "—",
+          "Derivada a UPC": p.ultimo_derivado_upc ? `SÍ (${p.ultima_fecha_derivacion_upc ? new Date(p.ultima_fecha_derivacion_upc).toLocaleDateString('es-CL') : '—'})` : "NO",
+          "Estado Tamizaje": status.label,
+          "Conducta Clínico-Administrativa": status.conducta
+        };
+      });
+    }
+
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Tamizaje CaCu");
-    XLSX.writeFile(wb, `Programa_Mujer_Tamizaje_${activeTab === "pap" ? "PAP" : "General"}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    XLSX.writeFile(wb, fileName);
   };
 
   return (
