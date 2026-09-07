@@ -129,7 +129,7 @@ export default function NuevoRegistroMujer() {
   const [tipoExamen, setTipoExamen] = useState("PAP");
   const [fechaPap, setFechaPap] = useState(() => getLocalDateString());
   const [codigoLab, setCodigoLab] = useState(""); // Empieza en blanco para evitar errores
-  const [periodicidadMeses, setPeriodicidadMeses] = useState<number>(36);
+  const [periodicidadMeses, setPeriodicidadMeses] = useState<number | null>(36);
   const [fechaProximoControl, setFechaProximoControl] = useState("");
   const [criterioPersonalizado, setCriterioPersonalizado] = useState(false);
   const [adecuacionMuestra, setAdecuacionMuestra] = useState("SATISFACTORIA");
@@ -223,6 +223,12 @@ export default function NuevoRegistroMujer() {
   };
 
   const handlePeriodicidadChange = (meses: number, manual: boolean = true) => {
+    if (manual && periodicidadMeses === meses) {
+      setPeriodicidadMeses(null);
+      setFechaProximoControl("");
+      return;
+    }
+    
     setPeriodicidadMeses(meses);
     if (manual) setCriterioPersonalizado(true);
     if (fechaPap && meses > 0) {
@@ -285,7 +291,7 @@ export default function NuevoRegistroMujer() {
         derivado_upc: isPatologico ? derivadoUpc : false,
         fecha_derivacion_upc: isPatologico && derivadoUpc ? (fechaDerivacionUpc || fechaPap) : undefined,
         codigo_lab: tipoExamen === "PAP" ? (codigoLab || undefined) : undefined,
-        periodicidad_meses: periodicidadMeses,
+        periodicidad_meses: periodicidadMeses === null ? undefined : periodicidadMeses,
         fecha_proximo_control: fechaProximoControl || undefined,
         observaciones: observaciones || (tipoExamen === "PAP" ? decodificacion.textoResumen : undefined)
       });
@@ -652,7 +658,7 @@ export default function NuevoRegistroMujer() {
                     value={fechaPap}
                     onChange={(e) => {
                       setFechaPap(e.target.value);
-                      if (e.target.value && periodicidadMeses > 0) {
+                      if (e.target.value && periodicidadMeses !== null && periodicidadMeses > 0) {
                         const d = new Date(e.target.value);
                         d.setMonth(d.getMonth() + periodicidadMeses);
                         setFechaProximoControl(d.toISOString().split("T")[0]);
@@ -796,7 +802,7 @@ export default function NuevoRegistroMujer() {
                       </button>
                     </div>
 
-                    {periodicidadMeses > 0 && (
+                    {periodicidadMeses !== null && periodicidadMeses > 0 && (
                       <div className="flex items-center justify-between pt-2 border-t border-slate-100">
                         <span className="text-[10px] font-bold text-slate-500">Fecha Próximo PAP Calculada:</span>
                         <input
