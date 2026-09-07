@@ -98,7 +98,7 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
   const [tipoExamenForm, setTipoExamenForm] = useState("PAP");
   const [fechaExamenForm, setFechaExamenForm] = useState("");
   const [codigoLabForm, setCodigoLabForm] = useState("");
-  const [periodicidadMesesForm, setPeriodicidadMesesForm] = useState<number>(36);
+  const [periodicidadMesesForm, setPeriodicidadMesesForm] = useState<number | null>(36);
   const [fechaProximoControlForm, setFechaProximoControlForm] = useState("");
   const [criterioPersonalizado, setCriterioPersonalizado] = useState(false);
   const [adecuacionMuestraForm, setAdecuacionMuestraForm] = useState("SATISFACTORIA");
@@ -160,6 +160,12 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
   };
 
   const handlePeriodicidadChange = (meses: number, manual: boolean = true) => {
+    if (manual && periodicidadMesesForm === meses) {
+      setPeriodicidadMesesForm(null);
+      setFechaProximoControlForm("");
+      return;
+    }
+    
     setPeriodicidadMesesForm(meses);
     if (manual) setCriterioPersonalizado(true);
     if (fechaExamenForm && meses > 0) {
@@ -288,7 +294,7 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
       derivado_upc: isPatologico ? derivadoUpcForm : false,
       fecha_derivacion_upc: isPatologico && derivadoUpcForm ? (fechaDerivacionUpcForm || fechaExamenForm) : undefined,
       codigo_lab: tipoExamenForm === "PAP" ? codigoLabForm : undefined,
-      periodicidad_meses: periodicidadMesesForm,
+      periodicidad_meses: periodicidadMesesForm === null ? undefined : periodicidadMesesForm,
       fecha_proximo_control: fechaProximoControlForm || undefined,
       observaciones: observacionesExamenForm || (tipoExamenForm === "PAP" ? decodificacion.textoResumen : undefined)
     });
@@ -311,7 +317,7 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
             ultimo_derivado_upc: isPatologico ? derivadoUpcForm : false,
             ultima_fecha_derivacion_upc: isPatologico && derivadoUpcForm ? (fechaDerivacionUpcForm || fechaExamenForm) : undefined,
             ultimo_codigo_lab: tipoExamenForm === "PAP" ? codigoLabForm : undefined,
-            ultima_periodicidad_meses: periodicidadMesesForm,
+            ultima_periodicidad_meses: periodicidadMesesForm === null ? undefined : periodicidadMesesForm,
             ultima_fecha_proximo_control: fechaProximoControlForm || undefined
           };
         }
@@ -1556,7 +1562,7 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                         value={fechaExamenForm}
                         onChange={(e) => {
                           setFechaExamenForm(e.target.value);
-                          if (e.target.value && periodicidadMesesForm > 0) {
+                          if (e.target.value && periodicidadMesesForm !== null && periodicidadMesesForm > 0) {
                             const d = new Date(e.target.value);
                             d.setMonth(d.getMonth() + periodicidadMesesForm);
                             setFechaProximoControlForm(d.toISOString().split("T")[0]);
@@ -1724,7 +1730,7 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                           </button>
                         </div>
 
-                        {periodicidadMesesForm > 0 && (
+                        {periodicidadMesesForm !== null && periodicidadMesesForm > 0 && (
                           <div className="flex items-center justify-between pt-2 border-t border-slate-100">
                             <span className="text-xs font-semibold text-slate-600">Fecha calculada para próximo PAP:</span>
                             <input
