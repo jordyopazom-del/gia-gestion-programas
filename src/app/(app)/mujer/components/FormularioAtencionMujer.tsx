@@ -188,9 +188,14 @@ export default function FormularioAtencionMujer({
     const fumVal = e.target.value;
     setFum(fumVal);
     if (fumVal) {
-      const date = new Date(fumVal);
+      // Parsear como fecha LOCAL (no UTC) agregando T00:00:00 para evitar desfase de zona horaria
+      const [y, m, d] = fumVal.split('-').map(Number);
+      const date = new Date(y, m - 1, d);
       date.setDate(date.getDate() + 280);
-      setFpp(date.toISOString().split('T')[0]);
+      const fppY = date.getFullYear();
+      const fppM = String(date.getMonth() + 1).padStart(2, '0');
+      const fppD = String(date.getDate()).padStart(2, '0');
+      setFpp(`${fppY}-${fppM}-${fppD}`);
     } else {
       setFpp("");
     }

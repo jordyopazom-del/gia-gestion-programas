@@ -96,10 +96,22 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
   
   // Auto-calcular FPP cuando cambia FUM
 
+  // Helper: parsea "YYYY-MM-DD" como fecha LOCAL (evita desfase UTC-3)
+  const parseLocalDate = (dateStr: string): Date => {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  };
+
+  const formatLocalDate = (dateStr: string | undefined): string => {
+    if (!dateStr) return "-";
+    return parseLocalDate(dateStr).toLocaleDateString('es-CL');
+  };
+
   const calcularSemanasGestacion = (fumStr: string) => {
     if(!fumStr) return "-";
-    const fumDate = new Date(fumStr);
+    const fumDate = parseLocalDate(fumStr);
     const today = new Date();
+    today.setHours(0, 0, 0, 0);
     const diffTime = today.getTime() - fumDate.getTime();
     if (diffTime < 0) return "-";
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
@@ -885,14 +897,14 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                                 E.G: {p.fum ? calcularSemanasGestacion(p.fum) : "-"}
                               </span>
                               <span className="text-[10px] font-semibold text-slate-500 uppercase">
-                                FPP: {p.fpp ? new Date(p.fpp).toLocaleDateString('es-CL') : "-"}
+                                FPP: {formatLocalDate(p.fpp)}
                               </span>
                             </div>
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex flex-col gap-1 text-xs text-slate-600">
-                              <div><span className="font-semibold text-slate-400 text-[10px] uppercase">Último:</span> {p.fecha_ultimo_control ? new Date(p.fecha_ultimo_control).toLocaleDateString('es-CL') : "Sin reg"}</div>
-                              <div><span className="font-semibold text-slate-400 text-[10px] uppercase">Próximo:</span> {p.fecha_proximo_control ? new Date(p.fecha_proximo_control).toLocaleDateString('es-CL') : "Sin reg"}</div>
+                              <div><span className="font-semibold text-slate-400 text-[10px] uppercase">Último:</span> {formatLocalDate(p.fecha_ultimo_control)}</div>
+                              <div><span className="font-semibold text-slate-400 text-[10px] uppercase">Próximo:</span> {formatLocalDate(p.fecha_proximo_control)}</div>
                               {p.profesional_nombre && (
                                 <div className="mt-1 pt-1 border-t border-slate-100 flex items-center gap-1 text-[10px] text-slate-500 font-medium">
                                   <User size={10} className="text-purple-400" />
