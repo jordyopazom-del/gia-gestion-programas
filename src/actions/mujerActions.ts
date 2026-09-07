@@ -244,7 +244,7 @@ export async function getEmbarazadasData() {
         SELECT id, rut, TO_CHAR(fum, 'YYYY-MM-DD') as fum, TO_CHAR(fpp, 'YYYY-MM-DD') as fpp,
                TO_CHAR(fecha_ultimo_control, 'YYYY-MM-DD') as fecha_ultimo_control, 
                TO_CHAR(fecha_proximo_control, 'YYYY-MM-DD') as fecha_proximo_control,
-               estado_nutricional, observaciones, estado
+               estado_nutricional, observaciones, estado, alto_riesgo_obstetrico
         FROM gia_mujer_embarazos
         WHERE estado = 'EMBARAZO'
       )
@@ -254,7 +254,7 @@ export async function getEmbarazadasData() {
         p.estado, p.es_pad,
         e.id as embarazo_id,
         e.fum, e.fpp, e.fecha_ultimo_control, e.fecha_proximo_control,
-        e.estado_nutricional, e.observaciones, e.estado as estado_embarazo
+        e.estado_nutricional, e.observaciones, e.estado as estado_embarazo, e.alto_riesgo_obstetrico
       FROM gia_pacientes p
       INNER JOIN EmbarazoActivo e ON p.rut = e.rut
       WHERE p.sexo = 'FEMENINO'
@@ -274,18 +274,23 @@ export async function ingresarEmbarazo(data: {
   fecha_ultimo_control?: string,
   fecha_proximo_control?: string,
   estado_nutricional?: string,
-  observaciones?: string
+  observaciones?: string,
+  alto_riesgo_obstetrico?: boolean,
+  profesional_rut?: string
 }) {
   try {
+    const user = await getCurrentUser();
+    const final_profesional_rut = data.profesional_rut || (user ? user.rut : '12345678-5');
+    
     await sql`
       INSERT INTO gia_mujer_embarazos (
         rut, fum, fpp, fecha_ultimo_control, fecha_proximo_control,
-        estado_nutricional, observaciones, estado
+        estado_nutricional, observaciones, estado, alto_riesgo_obstetrico, profesional_rut
       )
       VALUES (
         ${data.rut_paciente}, ${data.fum}, ${data.fpp}, 
         ${data.fecha_ultimo_control || null}, ${data.fecha_proximo_control || null},
-        ${data.estado_nutricional || null}, ${data.observaciones || null}, 'EMBARAZO'
+        ${data.estado_nutricional || null}, ${data.observaciones || null}, 'EMBARAZO', ${data.alto_riesgo_obstetrico || false}, ${final_profesional_rut}
       )
     `;
     return { success: true };
