@@ -244,7 +244,7 @@ export async function getEmbarazadasData() {
         SELECT id, rut, TO_CHAR(fum, 'YYYY-MM-DD') as fum, TO_CHAR(fpp, 'YYYY-MM-DD') as fpp,
                TO_CHAR(fecha_ultimo_control, 'YYYY-MM-DD') as fecha_ultimo_control, 
                TO_CHAR(fecha_proximo_control, 'YYYY-MM-DD') as fecha_proximo_control,
-               estado_nutricional, observaciones, estado, alto_riesgo_obstetrico
+               estado_nutricional, observaciones, estado, alto_riesgo_obstetrico, profesional_rut
         FROM gia_mujer_embarazos
         WHERE estado = 'EMBARAZO'
       )
@@ -254,9 +254,11 @@ export async function getEmbarazadasData() {
         p.estado, p.es_pad,
         e.id as embarazo_id,
         e.fum, e.fpp, e.fecha_ultimo_control, e.fecha_proximo_control,
-        e.estado_nutricional, e.observaciones, e.estado as estado_embarazo, e.alto_riesgo_obstetrico
+        e.estado_nutricional, e.observaciones, e.estado as estado_embarazo, e.alto_riesgo_obstetrico,
+        e.profesional_rut, u.nombre as profesional_nombre
       FROM gia_pacientes p
       INNER JOIN EmbarazoActivo e ON p.rut = e.rut
+      LEFT JOIN usuarios u ON e.profesional_rut = u.rut
       WHERE p.sexo = 'FEMENINO'
       ORDER BY p.nombre_completo ASC
     `;

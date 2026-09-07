@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Search, HeartPulse, User, ShieldCheck, Download, Plus, FileText, AlertTriangle, CheckCircle2, HelpCircle, Eye, Settings, X, PlusCircle, MapPin, Calendar, Clock, Phone, ChevronRight, Activity, AlertOctagon } from "lucide-react";
+import { Search, HeartPulse, User, ShieldCheck, Download, Plus, FileText, AlertTriangle, CheckCircle2, HelpCircle, Eye, Settings, X, PlusCircle, MapPin, Calendar, Clock, Phone, ChevronRight, Activity, AlertOctagon, UserCog } from "lucide-react";
 import * as XLSX from "xlsx";
 import { UserProfile } from "@/actions/userActions";
 import Link from "next/link";
@@ -42,6 +42,7 @@ type PacienteMujer = {
   fecha_proximo_control?: string;
   estado_nutricional?: string;
   observaciones?: string;
+  profesional_nombre?: string;
 };
 
 export default function MujerClientView({ initialData, initialEmbarazadasData, user }: { initialData: PacienteMujer[], initialEmbarazadasData?: any[], user: UserProfile }) {
@@ -891,6 +892,12 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                             <div className="flex flex-col gap-1 text-xs text-slate-600">
                               <div><span className="font-semibold text-slate-400 text-[10px] uppercase">Último:</span> {p.fecha_ultimo_control ? new Date(p.fecha_ultimo_control).toLocaleDateString('es-CL') : "Sin reg"}</div>
                               <div><span className="font-semibold text-slate-400 text-[10px] uppercase">Próximo:</span> {p.fecha_proximo_control ? new Date(p.fecha_proximo_control).toLocaleDateString('es-CL') : "Sin reg"}</div>
+                              {p.profesional_nombre && (
+                                <div className="mt-1 pt-1 border-t border-slate-100 flex items-center gap-1 text-[10px] text-slate-500 font-medium">
+                                  <User size={10} className="text-purple-400" />
+                                  <span className="truncate max-w-[120px] uppercase" title={p.profesional_nombre}>{p.profesional_nombre.split(" ")[0]} {p.profesional_nombre.split(" ")[1] || ""}</span>
+                                </div>
+                              )}
                             </div>
                           </td>
                           <td className="px-6 py-4">
@@ -903,8 +910,9 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                           </td>
                           <td className="px-6 py-4 text-right">
                              <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button onClick={() => { setTipoIngreso("EMBARAZO"); openExamenModal(p); }} className="text-purple-600 hover:text-purple-800 hover:bg-purple-50 p-1.5 rounded-lg transition-colors" title="Actualizar Embarazo">
-                                <FileText size={16} />
+                              <button onClick={() => { setTipoIngreso("EMBARAZO"); openExamenModal(p); }} className="flex items-center gap-1.5 text-xs font-bold text-purple-600 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-3 py-1.5 rounded-lg transition-colors shadow-sm" title="Actualizar Control o Editar Matrón/a">
+                                <UserCog size={14} />
+                                <span>Editar</span>
                               </button>
                              </div>
                           </td>
