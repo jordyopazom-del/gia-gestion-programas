@@ -281,7 +281,7 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
           ? "text-red-500 bg-red-50 border-red-200" 
           : "text-red-700 bg-red-100 border-red-300 font-black animate-pulse",
         conducta: derivado 
-          ? `Derivada a UPC el ${p.ultima_fecha_derivacion_upc ? new Date(p.ultima_fecha_derivacion_upc).toLocaleDateString('es-CL') : '—'}.`
+          ? `Derivada a UPC el ${p.ultima_fecha_derivacion_upc ? formatLocalDate(p.ultima_fecha_derivacion_upc) : '—'}.`
           : "¡Alerta! Requiere derivación prioritaria a UPC.",
         critico: !derivado
       };
@@ -548,7 +548,7 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
           "Nombre Paciente": p.nombre_completo,
           "Edad": age,
           "Establecimiento/Sector": p.sector,
-          "Fecha de Toma": p.ultima_fecha_pap ? new Date(p.ultima_fecha_pap).toLocaleDateString('es-CL') : "Sin Registro",
+          "Fecha de Toma": p.ultima_fecha_pap ? formatLocalDate(p.ultima_fecha_pap) : "Sin Registro",
           "Tipo Examen": p.ultimo_tipo_examen || "PAP",
           "Profesional (Matrón/a)": matron,
           "Observaciones": p.ultimo_motivo_insatisfactoria || p.ultima_adecuacion_muestra || ""
@@ -566,10 +566,10 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
           "Sector": p.sector,
           "Teléfono": p.telefono || "Sin Registro",
           "Histerectomizada": p.histerectomizada ? `SÍ (${p.causa_histerectomia})` : "NO",
-          "Último Examen": p.ultima_fecha_pap ? `${p.ultimo_tipo_examen} (${new Date(p.ultima_fecha_pap).toLocaleDateString('es-CL')})` : "Sin Registro",
+          "Último Examen": p.ultima_fecha_pap ? `${p.ultimo_tipo_examen} (${formatLocalDate(p.ultima_fecha_pap)})` : "Sin Registro",
           "Resultado": p.ultimo_resultado_pap || "—",
           "Adecuación Muestra": p.ultima_adecuacion_muestra || "—",
-          "Derivada a UPC": p.ultimo_derivado_upc ? `SÍ (${p.ultima_fecha_derivacion_upc ? new Date(p.ultima_fecha_derivacion_upc).toLocaleDateString('es-CL') : '—'})` : "NO",
+          "Derivada a UPC": p.ultimo_derivado_upc ? `SÍ (${p.ultima_fecha_derivacion_upc ? formatLocalDate(p.ultima_fecha_derivacion_upc) : '—'})` : "NO",
           "Estado Tamizaje": status.label,
           "Conducta Clínico-Administrativa": status.conducta
         };
@@ -956,7 +956,7 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                               <div className="flex flex-col gap-1">
                                 <div className="flex items-center gap-1.5">
                                   <span className="font-bold text-slate-800 text-xs">
-                                    {new Date(p.ultima_fecha_pap).toLocaleDateString('es-CL')}
+                                    {formatLocalDate(p.ultima_fecha_pap)}
                                   </span>
                                   <span className="text-[9px] text-slate-500 uppercase font-black bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
                                     {p.ultimo_tipo_examen || "PAP"}
@@ -984,7 +984,7 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                             ) : p.ultima_fecha_proximo_control ? (
                               <div className="flex flex-col gap-1">
                                 <span className="font-bold text-slate-800 text-xs">
-                                  {new Date(p.ultima_fecha_proximo_control).toLocaleDateString('es-CL')}
+                                  {formatLocalDate(p.ultima_fecha_proximo_control)}
                                 </span>
                                 {p.ultima_periodicidad_meses === 12 && (
                                   <span className="text-[8px] font-black text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 uppercase w-fit">
@@ -1313,7 +1313,7 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                     <AlertTriangle size={16} className="text-purple-600 shrink-0 mt-0.5" />
                     <div>
                       <span className="font-black uppercase tracking-wider block text-[9px] text-purple-700 mb-0.5">Paciente Excluida por Histerectomía</span>
-                      Registrada el {selectedPacienteHistorial.fecha_histerectomia ? new Date(selectedPacienteHistorial.fecha_histerectomia).toLocaleDateString('es-CL') : '—'} por causa {selectedPacienteHistorial.causa_histerectomia || "BENIGNA"}. Excluida del tamizaje estándar.
+                      Registrada el {selectedPacienteHistorial.fecha_histerectomia ? formatLocalDate(selectedPacienteHistorial.fecha_histerectomia) : '—'} por causa {selectedPacienteHistorial.causa_histerectomia || "BENIGNA"}. Excluida del tamizaje estándar.
                     </div>
                   </div>
                   <button
@@ -1393,7 +1393,7 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                             <div className="flex items-center justify-between">
                               <span className="text-xs font-bold text-slate-800 flex items-center">
                                 <Calendar size={12} className="mr-1.5 text-slate-400" />
-                                {new Date(ex.fecha_pap).toLocaleDateString('es-CL')}
+                                {formatLocalDate(ex.fecha_pap)}
                               </span>
                               <div className="flex items-center gap-1.5">
                                 {ex.codigo_lab && (
@@ -1425,7 +1425,7 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                             {ex.derivado_upc && (
                               <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-50 border border-red-100 text-red-700 text-[10px] font-bold">
                                 <AlertTriangle size={12} className="text-red-500" />
-                                <span>Derivada a UPC el {ex.fecha_derivacion_upc ? new Date(ex.fecha_derivacion_upc).toLocaleDateString('es-CL') : '—'}</span>
+                                <span>Derivada a UPC el {ex.fecha_derivacion_upc ? formatLocalDate(ex.fecha_derivacion_upc) : '—'}</span>
                               </div>
                             )}
 
