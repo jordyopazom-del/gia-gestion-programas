@@ -258,7 +258,7 @@ export async function getEmbarazadasData() {
         e.profesional_rut, u.nombre as profesional_nombre
       FROM gia_pacientes p
       INNER JOIN EmbarazoActivo e ON p.rut = e.rut
-      LEFT JOIN usuarios u ON e.profesional_rut = u.rut
+      LEFT JOIN gia_usuarios u ON e.profesional_rut = u.rut
       WHERE p.sexo = 'FEMENINO'
       ORDER BY p.nombre_completo ASC
     `;
