@@ -86,13 +86,16 @@ export default function FormularioAtencionMujer({
   const [observaciones, setObservaciones] = useState("");
 
   // Formulario Embarazo
-  const [fum, setFum] = useState("");
-  const [fpp, setFpp] = useState("");
-  const [fechaUltimoControl, setFechaUltimoControl] = useState(() => getLocalDateString());
-  const [fechaProximoControlEmb, setFechaProximoControlEmb] = useState("");
-  const [estadoNutricional, setEstadoNutricional] = useState("");
-  const [observacionesEmb, setObservacionesEmb] = useState("");
-  const [altoRiesgoObstetrico, setAltoRiesgoObstetrico] = useState(false);
+  const [fum, setFum] = useState(initialTipoIngreso === "EMBARAZO" ? (paciente?.fum || "") : "");
+  const [fpp, setFpp] = useState(initialTipoIngreso === "EMBARAZO" ? (paciente?.fpp || "") : "");
+  const [fechaUltimoControl, setFechaUltimoControl] = useState(() => {
+    if (initialTipoIngreso === "EMBARAZO" && paciente?.fecha_ultimo_control) return paciente.fecha_ultimo_control;
+    return getLocalDateString();
+  });
+  const [fechaProximoControlEmb, setFechaProximoControlEmb] = useState(initialTipoIngreso === "EMBARAZO" ? (paciente?.fecha_proximo_control || "") : "");
+  const [estadoNutricional, setEstadoNutricional] = useState(initialTipoIngreso === "EMBARAZO" ? (paciente?.estado_nutricional || "") : "");
+  const [observacionesEmb, setObservacionesEmb] = useState(initialTipoIngreso === "EMBARAZO" ? (paciente?.observaciones || "") : "");
+  const [altoRiesgoObstetrico, setAltoRiesgoObstetrico] = useState(initialTipoIngreso === "EMBARAZO" ? (paciente?.alto_riesgo_obstetrico || false) : false);
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");

@@ -203,9 +203,9 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
     }
   };
 
-  const openExamenModal = (paciente: PacienteMujer) => {
+  const openExamenModal = (paciente: PacienteMujer, tipoIngresoInicial: string = "SELECCION") => {
     setSelectedPacienteExamen(paciente);
-    setTipoIngreso("SELECCION");
+    setTipoIngreso(tipoIngresoInicial);
     setShowExamenModal(true);
   };
 
@@ -923,7 +923,7 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                           </td>
                           <td className="px-6 py-4 text-right">
                              <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button onClick={() => { setTipoIngreso("EMBARAZO"); openExamenModal(p); }} className="flex items-center gap-1.5 text-xs font-bold text-purple-600 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-3 py-1.5 rounded-lg transition-colors shadow-sm" title="Actualizar Control o Editar Matrón/a">
+                              <button onClick={() => openExamenModal(p, "EMBARAZO")} className="flex items-center gap-1.5 text-xs font-bold text-purple-600 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-3 py-1.5 rounded-lg transition-colors shadow-sm" title="Actualizar Control o Editar Matrón/a">
                                 <UserCog size={14} />
                                 <span>Editar</span>
                               </button>
