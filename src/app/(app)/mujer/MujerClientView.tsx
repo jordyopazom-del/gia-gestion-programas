@@ -180,9 +180,10 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
             estado_nutricional: payload.estado_nutricional,
             observaciones: payload.observaciones,
             alto_riesgo_obstetrico: payload.alto_riesgo_obstetrico,
-            estado_embarazo: "EMBARAZO"
+            estado_embarazo: "EMBARAZO",
+            profesional_nombre: payload.profesional_rut ? "Asignado" : ""
           },
-          ...prev
+          ...prev.filter((p: any) => p.rut !== payload.rut_paciente)
         ]);
       }
       setSelectedPacienteExamen(null);

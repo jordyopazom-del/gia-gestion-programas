@@ -284,17 +284,33 @@ export async function ingresarEmbarazo(data: {
     const user = await getCurrentUser();
     const final_profesional_rut = data.profesional_rut || (user ? user.rut : '12345678-5');
     
-    await sql`
-      INSERT INTO gia_mujer_embarazos (
-        rut, fum, fpp, fecha_ultimo_control, fecha_proximo_control,
-        estado_nutricional, observaciones, estado, alto_riesgo_obstetrico, profesional_rut
-      )
-      VALUES (
-        ${data.rut_paciente}, ${data.fum}, ${data.fpp}, 
-        ${data.fecha_ultimo_control || null}, ${data.fecha_proximo_control || null},
-        ${data.estado_nutricional || null}, ${data.observaciones || null}, 'EMBARAZO', ${data.alto_riesgo_obstetrico || false}, ${final_profesional_rut}
-      )
-    `;
+    const active = await sql`SELECT id FROM gia_mujer_embarazos WHERE rut = ${data.rut_paciente} AND estado = 'EMBARAZO' LIMIT 1`;
+    if (active.length > 0) {
+      await sql`
+        UPDATE gia_mujer_embarazos SET
+          fum = ${data.fum}, fpp = ${data.fpp},
+          fecha_ultimo_control = ${data.fecha_ultimo_control || null},
+          fecha_proximo_control = ${data.fecha_proximo_control || null},
+          estado_nutricional = ${data.estado_nutricional || null},
+          observaciones = ${data.observaciones || null},
+          alto_riesgo_obstetrico = ${data.alto_riesgo_obstetrico || false},
+          profesional_rut = ${final_profesional_rut},
+          updated_at = NOW()
+        WHERE id = ${active[0].id}
+      `;
+    } else {
+      await sql`
+        INSERT INTO gia_mujer_embarazos (
+          rut, fum, fpp, fecha_ultimo_control, fecha_proximo_control,
+          estado_nutricional, observaciones, estado, alto_riesgo_obstetrico, profesional_rut
+        )
+        VALUES (
+          ${data.rut_paciente}, ${data.fum}, ${data.fpp}, 
+          ${data.fecha_ultimo_control || null}, ${data.fecha_proximo_control || null},
+          ${data.estado_nutricional || null}, ${data.observaciones || null}, 'EMBARAZO', ${data.alto_riesgo_obstetrico || false}, ${final_profesional_rut}
+        )
+      `;
+    }
     return { success: true };
   } catch (error: any) {
     console.error("Error al guardar Embarazo:", error);
