@@ -7,9 +7,10 @@ export async function getMujerDashboardData() {
   try {
     const result = await sql`
       WITH UltimoPap AS (
-        SELECT rut_paciente, fecha_pap, resultado, tipo_examen, adecuacion_muestra,
+        SELECT id, rut_paciente, fecha_pap, resultado, tipo_examen, adecuacion_muestra,
                motivo_insatisfactoria, fecha_resultado, derivado_upc, fecha_derivacion_upc,
                codigo_lab, periodicidad_meses, fecha_proximo_control, profesional_rut,
+               numero_nomina, fecha_envio_nomina,
                ROW_NUMBER() OVER(PARTITION BY rut_paciente ORDER BY fecha_pap DESC) as rn
         FROM gia_mujer_pap
       )
@@ -28,7 +29,10 @@ export async function getMujerDashboardData() {
         pap.codigo_lab as ultimo_codigo_lab,
         pap.periodicidad_meses as ultima_periodicidad_meses,
         TO_CHAR(pap.fecha_proximo_control, 'YYYY-MM-DD') as ultima_fecha_proximo_control,
-        pap.profesional_rut as ultimo_profesional_rut
+        pap.profesional_rut as ultimo_profesional_rut,
+        pap.id as ultimo_pap_id,
+        pap.numero_nomina as ultimo_numero_nomina,
+        TO_CHAR(pap.fecha_envio_nomina, 'YYYY-MM-DD') as ultima_fecha_envio_nomina
       FROM gia_pacientes p
       LEFT JOIN UltimoPap pap ON p.rut = pap.rut_paciente AND pap.rn = 1
       WHERE p.sexo = 'FEMENINO'
@@ -334,10 +338,28 @@ export async function cambiarEstadoEmbarazo(id: number, nuevoEstado: string) {
 
 export async function eliminarExamenPap(id: number) {
   try {
-    await sql`DELETE FROM gia_mujer_examenes WHERE id = ${id}`;
+    await sql`DELETE FROM gia_mujer_pap WHERE id = ${id}`;
     return { success: true };
   } catch (error: any) {
     console.error("Error al eliminar examen PAP:", error);
     return { error: "Error al eliminar el examen." };
+  }
+}
+
+// Marca un lote de exámenes PAP con el número de nómina y la fecha de envío
+export async function marcarNominaEnviada(examenIds: number[], numeroNomina: string) {
+  try {
+    const fechaHoy = new Date().toISOString().split('T')[0];
+    // Actualizar en lote usando ANY
+    await sql`
+      UPDATE gia_mujer_pap
+      SET numero_nomina = ${numeroNomina},
+          fecha_envio_nomina = ${fechaHoy}
+      WHERE id = ANY(${examenIds}::int[])
+    `;
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error al marcar nómina:", error);
+    return { error: "Error al registrar el número de nómina." };
   }
 }

@@ -5,7 +5,7 @@ import { Search, Trash, HeartPulse, User, ShieldCheck, Download, Plus, FileText,
 import * as XLSX from "xlsx";
 import { UserProfile } from "@/actions/userActions";
 import Link from "next/link";
-import { guardarHisterectomia, guardarPap, actualizarResultadoPap, getHistorialExamenesPaciente, ingresarEmbarazo, obtenerProfesionalesMatroneria, eliminarExamenPap, cambiarEstadoEmbarazo } from "@/actions/mujerActions";
+import { guardarHisterectomia, guardarPap, actualizarResultadoPap, getHistorialExamenesPaciente, ingresarEmbarazo, obtenerProfesionalesMatroneria, eliminarExamenPap, cambiarEstadoEmbarazo, marcarNominaEnviada } from "@/actions/mujerActions";
 import { useEffect } from "react";
 import { decodificarCodigoPap, DecodificacionPap } from "@/lib/decodificadorPap";
 import FormularioAtencionMujer from "@/app/(app)/mujer/components/FormularioAtencionMujer";
@@ -56,6 +56,13 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
   const [tipoIngreso, setTipoIngreso] = useState("SELECCION"); // "SELECCION", "PAP", "EMBARAZO"
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 100;
+
+  // Estados para Modal de Nómina de Envío
+  const [showNominaModal, setShowNominaModal] = useState(false);
+  const [nominaNumero, setNominaNumero] = useState("");
+  const [nominaSeleccion, setNominaSeleccion] = useState<Record<string, boolean>>({});
+  const [savingNomina, setSavingNomina] = useState(false);
+  const [nominaError, setNominaError] = useState("");
 
   // Estados para Modal de Histerectomía
   const [selectedPaciente, setSelectedPaciente] = useState<PacienteMujer | null>(null);
@@ -555,55 +562,92 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
     return { total, poblacionActiva, vigentes, porVencer, vencidos, patologicos, excluidas, cob };
   }, [data]);
 
-  const exportToExcel = () => {
-    let exportData;
-    let sheetName = "Tamizaje CaCu";
-    let fileName = `Programa_Mujer_${activeTab === "pap" ? "PAP" : "General"}.xlsx`;
+  const abrirModalNomina = () => {
+    // Los pendientes son los que NO tienen numero_nomina asignado (o tienen codigo_lab pero sin nómina)
+    const pendientes = filteredData.filter(p => p.ultima_fecha_pap && !p.ultimo_numero_nomina);
+    const seleccionInicial: Record<string, boolean> = {};
+    pendientes.forEach(p => { seleccionInicial[`${p.rut}_${p.ultimo_pap_id}`] = true; });
+    setNominaSeleccion(seleccionInicial);
+    setNominaNumero("");
+    setNominaError("");
+    setShowNominaModal(true);
+  };
 
-    if (activeTab === "pap" && selectedStatus === "PENDIENTES") {
-      sheetName = "Nómina de Envío";
-      fileName = `Nomina_Envio_Patologia_${new Date().toISOString().split("T")[0]}.xlsx`;
-      exportData = filteredData.map((p, index) => {
-        const age = calculateAge(p.fecha_nacimiento);
-        const matron = profesionalesList.find(prof => prof.rut === p.ultimo_profesional_rut)?.nombre || "NO REGISTRADO";
-        return {
-          "N°": index + 1,
-          "RUT": `${p.rut}-${p.dv}`,
-          "Nombre Paciente": p.nombre_completo,
-          "Edad": age,
-          "Establecimiento/Sector": p.sector,
-          "Fecha de Toma": p.ultima_fecha_pap ? formatLocalDate(p.ultima_fecha_pap) : "Sin Registro",
-          "Tipo Examen": p.ultimo_tipo_examen || "PAP",
-          "Profesional (Matrón/a)": matron,
-          "Observaciones": p.ultimo_motivo_insatisfactoria || p.ultima_adecuacion_muestra || ""
-        };
-      });
-    } else {
-      exportData = filteredData.map(p => {
-        const age = calculateAge(p.fecha_nacimiento);
-        const status = getTamizajeStatus(p);
-        return {
-          "RUT": `${p.rut}-${p.dv}`,
-          "Nombre": p.nombre_completo,
-          "Edad": age,
-          "Sexo": p.sexo || "FEMENINO",
-          "Sector": p.sector,
-          "Teléfono": p.telefono || "Sin Registro",
-          "Histerectomizada": p.histerectomizada ? `SÍ (${p.causa_histerectomia})` : "NO",
-          "Último Examen": p.ultima_fecha_pap ? `${p.ultimo_tipo_examen} (${formatLocalDate(p.ultima_fecha_pap)})` : "Sin Registro",
-          "Resultado": p.ultimo_resultado_pap || "—",
-          "Adecuación Muestra": p.ultima_adecuacion_muestra || "—",
-          "Derivada a UPC": p.ultimo_derivado_upc ? `SÍ (${p.ultima_fecha_derivacion_upc ? formatLocalDate(p.ultima_fecha_derivacion_upc) : '—'})` : "NO",
-          "Estado Tamizaje": status.label,
-          "Conducta Clínico-Administrativa": status.conducta
-        };
-      });
-    }
+  const generarYDescargarNomina = async () => {
+    if (!nominaNumero.trim()) { setNominaError("Debes ingresar el número de nómina."); return; }
+    const pendientes = filteredData.filter(p => p.ultima_fecha_pap && !p.ultimo_numero_nomina);
+    const seleccionados = pendientes.filter(p => nominaSeleccion[`${p.rut}_${p.ultimo_pap_id}`]);
+    if (seleccionados.length === 0) { setNominaError("Debes seleccionar al menos un examen."); return; }
 
+    setSavingNomina(true);
+    setNominaError("");
+
+    // 1. Generar y descargar Excel
+    const exportData = seleccionados.map((p, index) => {
+      const age = calculateAge(p.fecha_nacimiento);
+      const matron = profesionalesList.find((prof: any) => prof.rut === p.ultimo_profesional_rut)?.nombre || "NO REGISTRADO";
+      return {
+        "N°": index + 1,
+        "Nómina N°": nominaNumero.trim(),
+        "Fecha Envío": new Date().toLocaleDateString('es-CL'),
+        "RUT": `${p.rut}-${p.dv}`,
+        "Nombre Paciente": p.nombre_completo,
+        "Edad": age,
+        "Sector": p.sector,
+        "Fecha de Toma": p.ultima_fecha_pap ? formatLocalDate(p.ultima_fecha_pap) : "Sin Registro",
+        "Tipo Examen": p.ultimo_tipo_examen || "PAP",
+        "Profesional": matron,
+        "Observaciones": p.ultimo_motivo_insatisfactoria || p.ultima_adecuacion_muestra || ""
+      };
+    });
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, sheetName);
-    XLSX.writeFile(wb, fileName);
+    XLSX.utils.book_append_sheet(wb, ws, `Nómina ${nominaNumero.trim()}`);
+    XLSX.writeFile(wb, `Nomina_${nominaNumero.trim()}_${new Date().toISOString().split('T')[0]}.xlsx`);
+
+    // 2. Marcar en BD
+    const ids = seleccionados.map(p => p.ultimo_pap_id).filter(Boolean) as number[];
+    if (ids.length > 0) {
+      const res = await marcarNominaEnviada(ids, nominaNumero.trim());
+      if (res.error) { setNominaError("Excel descargado, pero hubo un error al guardar en BD: " + res.error); setSavingNomina(false); return; }
+      // Actualizar estado local
+      setData(prev => prev.map(p => {
+        const wasSelected = seleccionados.find(s => s.rut === p.rut);
+        if (wasSelected) return { ...p, ultimo_numero_nomina: nominaNumero.trim(), ultima_fecha_envio_nomina: new Date().toISOString().split('T')[0] };
+        return p;
+      }));
+    }
+
+    setSavingNomina(false);
+    setShowNominaModal(false);
+  };
+
+  const exportToExcel = () => {
+    // Si estamos en la vista de PAP y hay pendientes sin nómina → abrir modal
+    if (activeTab === "pap" && filteredData.some(p => p.ultima_fecha_pap && !p.ultimo_numero_nomina)) {
+      abrirModalNomina();
+      return;
+    }
+    // Exportación genérica
+    const exportData = filteredData.map(p => {
+      const age = calculateAge(p.fecha_nacimiento);
+      const status = getTamizajeStatus(p);
+      return {
+        "RUT": `${p.rut}-${p.dv}`,
+        "Nombre": p.nombre_completo,
+        "Edad": age,
+        "Sector": p.sector,
+        "Teléfono": p.telefono || "Sin Registro",
+        "Histerectomizada": p.histerectomizada ? `SÍ (${p.causa_histerectomia})` : "NO",
+        "Último Examen": p.ultima_fecha_pap ? `${p.ultimo_tipo_examen} (${formatLocalDate(p.ultima_fecha_pap)})` : "Sin Registro",
+        "Resultado": p.ultimo_resultado_pap || "—",
+        "Estado Tamizaje": status.label,
+      };
+    });
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Tamizaje CaCu");
+    XLSX.writeFile(wb, `Programa_Mujer_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   return (
@@ -1574,7 +1618,88 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
           </div>
         </div>
       )}
+
+      {/* ─── MODAL DE NÓMINA DE ENVÍO ─── */}
+      {showNominaModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl flex flex-col max-h-[85vh]">
+            {/* Header */}
+            <div className="p-6 border-b border-slate-100 flex items-start justify-between flex-shrink-0">
+              <div>
+                <h2 className="text-base font-black text-slate-800 tracking-tight">Preparar Nómina de Envío a Laboratorio</h2>
+                <p className="text-xs text-slate-500 mt-1">Revise las muestras, desmarque las que NO se envían, e ingrese el número de nómina.</p>
+              </div>
+              <button onClick={() => setShowNominaModal(false)} className="text-slate-400 hover:text-slate-600 ml-4">
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Número de nómina */}
+            <div className="px-6 pt-4 flex-shrink-0">
+              <label className="block text-xs font-black text-slate-600 uppercase tracking-wider mb-1.5">N° de Nómina (asignado por el sistema de envíos)</label>
+              <input
+                type="text"
+                value={nominaNumero}
+                onChange={e => { setNominaNumero(e.target.value); setNominaError(""); }}
+                placeholder="Ej: 4052"
+                className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold tracking-widest text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                maxLength={20}
+              />
+              {nominaError && <p className="text-xs text-red-600 font-bold mt-1.5">{nominaError}</p>}
+            </div>
+
+            {/* Contador dinámico */}
+            <div className="px-6 pt-3 pb-2 flex-shrink-0">
+              {(() => {
+                const pendientes = filteredData.filter(p => p.ultima_fecha_pap && !p.ultimo_numero_nomina);
+                const selCount = pendientes.filter(p => nominaSeleccion[`${p.rut}_${p.ultimo_pap_id}`]).length;
+                return (
+                  <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2">
+                    <span className="text-xs font-bold text-emerald-700">Muestras seleccionadas para envío:</span>
+                    <span className="text-lg font-black text-emerald-700">{selCount} <span className="text-xs font-semibold text-emerald-500">de {pendientes.length}</span></span>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Lista de pacientes con checkboxes */}
+            <div className="overflow-y-auto flex-1 px-6 pb-2 space-y-1.5">
+              {filteredData.filter(p => p.ultima_fecha_pap && !p.ultimo_numero_nomina).map(p => {
+                const key = `${p.rut}_${p.ultimo_pap_id}`;
+                const checked = nominaSeleccion[key] ?? true;
+                return (
+                  <label key={key} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${checked ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200 opacity-60'}`}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={e => setNominaSeleccion(prev => ({ ...prev, [key]: e.target.checked }))}
+                      className="w-4 h-4 rounded accent-emerald-600"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-slate-800 truncate">{p.nombre_completo}</p>
+                      <p className="text-[10px] text-slate-500 font-mono">{p.rut}-{p.dv} · {formatLocalDate(p.ultima_fecha_pap)} · {p.ultimo_tipo_examen || "PAP"}</p>
+                    </div>
+                    {!checked && <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider shrink-0">No enviar</span>}
+                  </label>
+                );
+              })}
+            </div>
+
+            {/* Footer botones */}
+            <div className="p-6 border-t border-slate-100 flex justify-between items-center flex-shrink-0">
+              <button onClick={() => setShowNominaModal(false)} className="text-sm text-slate-500 font-semibold hover:text-slate-700">Cancelar</button>
+              <button
+                onClick={generarYDescargarNomina}
+                disabled={savingNomina}
+                className="flex items-center gap-2 bg-emerald-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-emerald-700 transition-colors disabled:opacity-50 shadow-sm"
+              >
+                <Download size={16} />
+                {savingNomina ? "Generando..." : `Generar Nómina N° ${nominaNumero || "—"}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
