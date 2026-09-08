@@ -6,17 +6,27 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const mode = searchParams.get("mode");
 
-    // Borra SOLO los registros creados HOY con resultado PENDIENTE
-    const deleteQuery = await sql`
-      DELETE FROM gia_mujer_pap
-      WHERE fecha_pap = CURRENT_DATE 
-        AND resultado = 'PENDIENTE'
-      RETURNING id, rut_paciente, numero_nomina
-    `;
+    let deleteQuery;
+    
+    if (mode === 'all') {
+      // Borra absolutamente todo el historial de PAPs para dejar en cero
+      deleteQuery = await sql`
+        DELETE FROM gia_mujer_pap
+        RETURNING id, rut_paciente
+      `;
+    } else {
+      // Borra SOLO los registros creados HOY con resultado PENDIENTE
+      deleteQuery = await sql`
+        DELETE FROM gia_mujer_pap
+        WHERE fecha_pap = CURRENT_DATE 
+          AND resultado = 'PENDIENTE'
+        RETURNING id, rut_paciente, numero_nomina
+      `;
+    }
 
     return NextResponse.json({ 
       success: true, 
-      message: `Se eliminaron de raíz ${deleteQuery.length} exámenes de prueba.`,
+      message: `Se eliminaron de raíz ${deleteQuery.length} exámenes.`,
       eliminados: deleteQuery
     });
   } catch (error: any) {
