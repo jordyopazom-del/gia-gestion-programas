@@ -885,11 +885,11 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
               <tr className="bg-slate-50 border-b border-slate-200">
                 {activeTab === "embarazadas" ? (
                   <>
-                    <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider bg-slate-50/50">Identificación</th>
-                    <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider bg-slate-50/50">Gestación</th>
-                    <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider bg-slate-50/50">Controles</th>
-                    <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider bg-slate-50/50">Nutrición / Obs.</th>
-                    <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider bg-slate-50/50 text-right">Acciones</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-[28%] min-w-[260px]">Identificación</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-[18%] min-w-[160px]">Gestación</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-[20%] min-w-[180px]">Controles</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-[20%] min-w-[180px]">Nutrición / Obs.</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right w-[14%] min-w-[130px]">Acciones</th>
                   </>
                 ) : activeTab === "pap" ? (
                   <>
@@ -942,13 +942,8 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                               HST
                             </span>
                           )}
-                          {activeTab === "embarazadas" && p.alto_riesgo_obstetrico && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-red-600 text-white text-[9px] font-black tracking-widest shrink-0 shadow-sm" title="Alto Riesgo Obstétrico">
-                              [ARO]
-                            </span>
-                          )}
                         </div>
-                        <div className="flex flex-wrap items-center text-[10px] text-slate-500 gap-x-2 gap-y-1">
+                        <div className="flex flex-wrap items-center text-[10px] text-slate-500 gap-x-2 gap-y-1 mt-0.5">
                           <span className="font-mono font-bold bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 leading-none">{p.rut}-{p.dv}</span>
                           <span>•</span>
                           <span className="font-bold">{age} Años</span>
@@ -960,13 +955,19 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                       {activeTab === "embarazadas" ? (
                         <>
                           <td className="px-6 py-4">
-                            <div className="flex flex-col gap-1">
-                              <span className="text-xs font-bold text-purple-700 bg-purple-50 px-2 py-1 rounded w-fit">
+                            <div className="flex flex-col gap-1.5">
+                              <span className="text-xs font-bold text-purple-700 bg-purple-50 px-2.5 py-1 rounded-md w-fit border border-purple-100">
                                 E.G: {p.fum ? calcularSemanasGestacion(p.fum) : "-"}
                               </span>
-                              <span className="text-[10px] font-semibold text-slate-500 uppercase">
-                                FPP: {formatLocalDate(p.fpp)}
+                              <span className="text-[10px] text-slate-500 font-semibold flex items-center pl-1">
+                                FPP: {p.fpp ? formatLocalDate(p.fpp) : "-"}
                               </span>
+                              {p.alto_riesgo_obstetrico && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 mt-1 rounded bg-red-50 text-red-600 border border-red-100 text-[9px] font-black tracking-widest w-fit shadow-sm">
+                                  <AlertTriangle size={10} />
+                                  ALTO RIESGO [ARO]
+                                </span>
+                              )}
                             </div>
                           </td>
                           <td className="px-6 py-4">
