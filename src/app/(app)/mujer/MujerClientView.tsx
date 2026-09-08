@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Search, HeartPulse, User, ShieldCheck, Download, Plus, FileText, AlertTriangle, CheckCircle2, HelpCircle, Eye, Settings, X, PlusCircle, MapPin, Calendar, Clock, Phone, ChevronRight, Activity, AlertOctagon, UserCog } from "lucide-react";
+import { Search, Trash, HeartPulse, User, ShieldCheck, Download, Plus, FileText, AlertTriangle, CheckCircle2, HelpCircle, Eye, Settings, X, PlusCircle, MapPin, Calendar, Clock, Phone, ChevronRight, Activity, AlertOctagon, UserCog } from "lucide-react";
 import * as XLSX from "xlsx";
 import { UserProfile } from "@/actions/userActions";
 import Link from "next/link";
-import { guardarHisterectomia, guardarPap, actualizarResultadoPap, getHistorialExamenesPaciente, ingresarEmbarazo, obtenerProfesionalesMatroneria } from "@/actions/mujerActions";
+import { guardarHisterectomia, guardarPap, actualizarResultadoPap, getHistorialExamenesPaciente, ingresarEmbarazo, obtenerProfesionalesMatroneria, eliminarExamenPap, cambiarEstadoEmbarazo } from "@/actions/mujerActions";
 import { useEffect } from "react";
 import { decodificarCodigoPap, DecodificacionPap } from "@/lib/decodificadorPap";
 import FormularioAtencionMujer from "@/app/(app)/mujer/components/FormularioAtencionMujer";
@@ -200,6 +200,30 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
       }
       setSelectedPacienteExamen(null);
       setActiveTab("embarazadas");
+    }
+  };
+
+  const handleTerminarEmbarazo = async (embarazoId: number, pacienteRut: string) => {
+    if (window.confirm("¿Confirmas que deseas DAR DE ALTA o registrar PARTO/PÉRDIDA para esta gestación? La paciente saldrá del listado de embarazadas activas.")) {
+      const res = await cambiarEstadoEmbarazo(embarazoId, "PARTO");
+      if (res.success) {
+        setEmbarazadasData(prev => prev.filter(p => p.rut !== pacienteRut));
+        alert("Gestación terminada con éxito. Paciente retornada a población general.");
+      } else {
+        alert("Error al dar de alta el embarazo.");
+      }
+    }
+  };
+
+  const handleEliminarExamen = async (examenId: number, pacienteRut: string) => {
+    if (window.confirm("ATENCIÓN: ¿Estás seguro de ELIMINAR este examen PAP/VPH del historial de forma permanente?")) {
+      const res = await eliminarExamenPap(examenId);
+      if (res.success) {
+        setHistorialExamenes(prev => prev.filter(e => e.id !== examenId));
+        alert("Examen eliminado. Actualiza la página para recalcular el estado de la paciente.");
+      } else {
+        alert("Error al eliminar examen.");
+      }
     }
   };
 
@@ -923,6 +947,10 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                           </td>
                           <td className="px-6 py-4 text-right">
                              <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button onClick={() => handleTerminarEmbarazo(p.embarazo_id, p.rut)} className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-red-700 bg-white hover:bg-red-50 border border-slate-200 hover:border-red-200 px-3 py-1.5 rounded-lg transition-colors shadow-sm" title="Dar de Alta (Parto o Pérdida)">
+                                <CheckCircle2 size={14} />
+                                <span>Alta</span>
+                              </button>
                               <button onClick={() => openExamenModal(p, "EMBARAZO")} className="flex items-center gap-1.5 text-xs font-bold text-purple-600 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-3 py-1.5 rounded-lg transition-colors shadow-sm" title="Actualizar Control o Editar Matrón/a">
                                 <UserCog size={14} />
                                 <span>Editar</span>
@@ -1396,6 +1424,13 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                                 {formatLocalDate(ex.fecha_pap)}
                               </span>
                               <div className="flex items-center gap-1.5">
+                                <button 
+                                  onClick={() => handleEliminarExamen(ex.id, selectedPacienteHistorial!.rut)}
+                                  className="text-slate-300 hover:text-red-500 hover:bg-red-50 p-1 rounded transition-colors"
+                                  title="Eliminar este examen"
+                                >
+                                  <Trash size={14} />
+                                </button>
                                 {ex.codigo_lab && (
                                   <span className="font-mono text-[9px] font-black bg-pink-100 text-pink-700 px-2 py-0.5 rounded border border-pink-200 uppercase tracking-wider">
                                     {ex.codigo_lab}

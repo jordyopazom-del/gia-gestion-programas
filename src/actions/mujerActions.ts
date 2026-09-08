@@ -331,3 +331,13 @@ export async function cambiarEstadoEmbarazo(id: number, nuevoEstado: string) {
     return { error: "Error al actualizar estado del embarazo." };
   }
 }
+
+export async function eliminarExamenPap(id: number) {
+  try {
+    await sql`DELETE FROM gia_mujer_examenes WHERE id = ${id}`;
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error al eliminar examen PAP:", error);
+    return { error: "Error al eliminar el examen." };
+  }
+}
