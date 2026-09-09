@@ -464,35 +464,62 @@ export default function NuevoControlInfantilPage() {
             </div>
 
             {/* Nutricional y Físico */}
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5 flex flex-col">
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5">
               <h3 className="font-black text-slate-800 uppercase flex items-center border-b pb-3">
                 <span className="bg-emerald-100 text-emerald-600 w-6 h-6 rounded-md flex items-center justify-center mr-2 text-xs">2</span>
-                Estado Nutricional
+                Estado Nutricional y Físico
               </h3>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-500 mb-2">Diagnóstico Nutricional Integrado</label>
-                <select 
-                  value={estadoNutricional} 
-                  onChange={(e) => setEstadoNutricional(e.target.value)} 
-                  className={`w-full rounded-xl font-medium ${
-                    estadoNutricional === "Normal" ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 
-                    estadoNutricional === "Sobrepeso" || estadoNutricional.includes("Riesgo") ? 'border-amber-300 bg-amber-50 text-amber-700' : 
-                    'border-red-300 bg-red-50 text-red-700'
-                  }`}
-                >
-                  <option value="Normal">Eutrófico (Normal)</option>
-                  <option value="Riesgo Desnutrir">Riesgo de Desnutrir</option>
-                  <option value="Desnutrición">Desnutrición</option>
-                  <option value="Sobrepeso">Sobrepeso</option>
-                  <option value="Obesidad">Obesidad</option>
-                  <option value="Obesidad Severa">Obesidad Severa</option>
-                </select>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-2">Diagnóstico Nutricional Integrado</label>
+                  <select 
+                    value={estadoNutricional} 
+                    onChange={(e) => setEstadoNutricional(e.target.value)} 
+                    className={`w-full rounded-xl font-medium ${
+                      estadoNutricional === "Normal" ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 
+                      estadoNutricional === "Sobrepeso" || estadoNutricional.includes("Riesgo") ? 'border-amber-300 bg-amber-50 text-amber-700' : 
+                      'border-red-300 bg-red-50 text-red-700'
+                    }`}
+                  >
+                    <option value="Normal">Eutrófico (Normal)</option>
+                    <option value="Riesgo Desnutrir">Riesgo de Desnutrir</option>
+                    <option value="Desnutrición">Desnutrición</option>
+                    <option value="Sobrepeso">Sobrepeso</option>
+                    <option value="Obesidad">Obesidad</option>
+                    <option value="Obesidad Severa">Obesidad Severa</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-2">Clasificación Estatura (T/E)</label>
+                  <select
+                    value={clasificacionEstatura}
+                    onChange={e => setClasificacionEstatura(e.target.value)}
+                    className={`w-full rounded-xl font-medium text-sm ${
+                      !clasificacionEstatura ? 'border-slate-200 text-slate-400' :
+                      clasificacionEstatura === "Normal" ? 'border-emerald-300 bg-emerald-50 text-emerald-700' :
+                      clasificacionEstatura === "-1DE" ? 'border-amber-300 bg-amber-50 text-amber-700' :
+                      clasificacionEstatura === "-2DE" ? 'border-red-300 bg-red-50 text-red-700' :
+                      'border-blue-300 bg-blue-50 text-blue-700'
+                    }`}
+                  >
+                    <option value="">Sin registrar</option>
+                    <option value="+2DE">+2 DE (Talla Alta)</option>
+                    <option value="+1DE">+1 DE (Sobre Normal)</option>
+                    <option value="Normal">Normal</option>
+                    <option value="-1DE">-1 DE (Bajo Normal)</option>
+                    <option value="-2DE">-2 DE (Talla Baja)</option>
+                  </select>
+                  {clasificacionEstatura === "-2DE" && (
+                    <p className="text-[10px] text-red-600 font-bold mt-1">⚠ Derivar a médico</p>
+                  )}
+                </div>
               </div>
 
               {/* Controles Condicionales por Edad */}
               {pacienteInfo.edad_anios === 0 && (
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 mt-auto">
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
                   <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Controles Lactante Menor (menor de 1 año)</h4>
                   <div className="space-y-3">
                     {pacienteInfo.edad_meses <= 7 && (
@@ -520,7 +547,7 @@ export default function NuevoControlInfantilPage() {
               )}
 
               {pacienteInfo.edad_anios >= 3 && (
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 mt-auto">
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
                   <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Control Presión Arterial (Desde 3 años)</h4>
                   <select value={presionArterial} onChange={e => setPresionArterial(e.target.value)} className="w-full text-sm rounded-lg border-slate-200">
                     <option value="Normal (PA menor al percentil 90)">Normal (PA menor al percentil 90)</option>
@@ -541,33 +568,7 @@ export default function NuevoControlInfantilPage() {
               Otras Pautas Aplicadas
             </h3>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {/* Clasificación Estatura T/E — siempre */}
-              <div>
-                <label className="block text-xs font-bold text-slate-500 mb-2">Clasificación Estatura (T/E)</label>
-                <select
-                  value={clasificacionEstatura}
-                  onChange={e => setClasificacionEstatura(e.target.value)}
-                  className={`w-full rounded-xl font-medium text-sm ${
-                    !clasificacionEstatura ? 'border-slate-200 text-slate-400' :
-                    clasificacionEstatura === "Normal" ? 'border-emerald-300 bg-emerald-50 text-emerald-700' :
-                    clasificacionEstatura === "-1DE" ? 'border-amber-300 bg-amber-50 text-amber-700' :
-                    clasificacionEstatura === "-2DE" ? 'border-red-300 bg-red-50 text-red-700' :
-                    'border-blue-300 bg-blue-50 text-blue-700'
-                  }`}
-                >
-                  <option value="">Sin registrar</option>
-                  <option value="+2DE">+2 DE (Talla Alta)</option>
-                  <option value="+1DE">+1 DE (Sobre Normal)</option>
-                  <option value="Normal">Normal</option>
-                  <option value="-1DE">-1 DE (Bajo Normal)</option>
-                  <option value="-2DE">-2 DE (Talla Baja)</option>
-                </select>
-                {clasificacionEstatura === "-2DE" && (
-                  <p className="text-[10px] text-red-600 font-bold mt-1">⚠ Derivar a médico para evaluación</p>
-                )}
-              </div>
-
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Edimburgo — siempre */}
               <div>
                 <label className="block text-xs font-bold text-slate-500 mb-2">Edimburgo (EPDS)</label>
