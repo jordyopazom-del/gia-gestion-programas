@@ -551,7 +551,14 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
                       {p.telefono && (
                         <>
                           <span>•</span>
-                          <span className="flex items-center font-mono text-slate-600 font-bold">📞 {p.telefono}</span>
+                          <a
+                            href={`tel:${p.telefono}`}
+                            onClick={e => e.stopPropagation()}
+                            className="flex items-center font-mono text-blue-600 font-bold hover:underline hover:text-blue-800 transition-colors"
+                            title="Llamar o copiar número"
+                          >
+                            📞 {p.telefono}
+                          </a>
                         </>
                       )}
                     </div>
