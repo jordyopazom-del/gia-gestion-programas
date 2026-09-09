@@ -107,6 +107,9 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
   const [editDsm, setEditDsm] = useState("");
   const [editNutri, setEditNutri] = useState("");
   const [editClasificacionEstatura, setEditClasificacionEstatura] = useState("");
+  const [editEdimburgo, setEditEdimburgo] = useState("");
+  const [editRiesgoBps, setEditRiesgoBps] = useState("");
+  const [editTeaSenales, setEditTeaSenales] = useState("");
   const [editNaneas, setEditNaneas] = useState(false);
   const [editSocial, setEditSocial] = useState(false);
   const [editSala, setEditSala] = useState(false);
@@ -145,6 +148,9 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
       dsm_resultado: editDsm || null,
       estado_nutricional: editNutri || null,
       clasificacion_estatura: editClasificacionEstatura || null,
+      edimburgo: editEdimburgo || null,
+      riesgo_biopsicosocial: editRiesgoBps ? Number(editRiesgoBps) : null,
+      tea_senales: editTeaSenales || null,
       es_naneas: editNaneas,
       es_caso_social: editSocial,
       en_sala_estimulacion: editSala,
@@ -715,6 +721,21 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
                                   ? (p.dsm_detalle.clasificacion_estatura || "")
                                   : ""
                               );
+                              setEditEdimburgo(
+                                p.dsm_detalle && typeof p.dsm_detalle === 'object'
+                                  ? (p.dsm_detalle.edimburgo || "")
+                                  : ""
+                              );
+                              setEditRiesgoBps(
+                                p.dsm_detalle && typeof p.dsm_detalle === 'object' && p.dsm_detalle.riesgo_biopsicosocial != null
+                                  ? String(p.dsm_detalle.riesgo_biopsicosocial)
+                                  : ""
+                              );
+                              setEditTeaSenales(
+                                p.dsm_detalle && typeof p.dsm_detalle === 'object'
+                                  ? (p.dsm_detalle.tea_senales || "")
+                                  : ""
+                              );
                               setEditNaneas(p.es_naneas || false);
                               setEditSocial(p.es_caso_social || false);
                               setEditSala(p.en_sala_estimulacion || false);
@@ -1123,6 +1144,55 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
                     {editClasificacionEstatura === '-2DE' && (
                       <p className="text-[10px] text-red-600 font-bold mt-1">⚠ Derivar a médico</p>
                     )}
+                  </div>
+
+                  {/* Otras Pautas Evaluadas */}
+                  <div className="border-t border-slate-100 pt-3">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Otras Pautas Evaluadas</p>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1">Edimburgo (EPDS)</label>
+                        <select
+                          value={editEdimburgo}
+                          onChange={e => setEditEdimburgo(e.target.value)}
+                          className={`w-full text-sm border-slate-300 rounded-lg font-medium ${
+                            editEdimburgo === 'Alterado' ? 'border-red-300 bg-red-50 text-red-700' :
+                            editEdimburgo === 'Normal' ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : ''
+                          }`}
+                        >
+                          <option value="">Sin aplicar</option>
+                          <option value="Normal">Normal</option>
+                          <option value="Alterado">Alterado</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1">Riesgo Biopsicosocial (puntaje)</label>
+                        <input
+                          type="number"
+                          min={0}
+                          max={999}
+                          placeholder="Puntaje (ej: 12)"
+                          value={editRiesgoBps}
+                          onChange={e => setEditRiesgoBps(e.target.value)}
+                          className="w-full text-sm border-slate-300 rounded-lg font-mono"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1">Señales de Alerta TEA</label>
+                        <select
+                          value={editTeaSenales}
+                          onChange={e => setEditTeaSenales(e.target.value)}
+                          className={`w-full text-sm border-slate-300 rounded-lg font-medium ${
+                            editTeaSenales === 'Positivo' ? 'border-red-300 bg-red-50 text-red-700' :
+                            editTeaSenales === 'Negativo' ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : ''
+                          }`}
+                        >
+                          <option value="">Sin aplicar</option>
+                          <option value="Negativo">Negativo</option>
+                          <option value="Positivo">Positivo</option>
+                        </select>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="flex gap-4 flex-wrap">

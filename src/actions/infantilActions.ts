@@ -214,6 +214,9 @@ export async function editarPacienteInfantilAdmin(data: {
   dsm_resultado?: string | null;
   estado_nutricional?: string | null;
   clasificacion_estatura?: string | null;
+  edimburgo?: string | null;
+  riesgo_biopsicosocial?: number | null;
+  tea_senales?: string | null;
   es_naneas?: boolean;
   es_caso_social?: boolean;
   en_sala_estimulacion?: boolean;
@@ -259,6 +262,9 @@ export async function editarPacienteInfantilAdmin(data: {
     const newDetalle = {
       ...currentDetalle,
       clasificacion_estatura: data.clasificacion_estatura ?? currentDetalle.clasificacion_estatura ?? null,
+      edimburgo: data.edimburgo !== undefined ? data.edimburgo : (currentDetalle.edimburgo ?? null),
+      riesgo_biopsicosocial: data.riesgo_biopsicosocial !== undefined ? data.riesgo_biopsicosocial : (currentDetalle.riesgo_biopsicosocial ?? null),
+      tea_senales: data.tea_senales !== undefined ? data.tea_senales : (currentDetalle.tea_senales ?? null),
     };
     
     await sql`
