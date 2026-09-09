@@ -106,6 +106,7 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
   const [editPaciente, setEditPaciente] = useState<InfantilData | null>(null);
   const [editDsm, setEditDsm] = useState("");
   const [editNutri, setEditNutri] = useState("");
+  const [editClasificacionEstatura, setEditClasificacionEstatura] = useState("");
   const [editNaneas, setEditNaneas] = useState(false);
   const [editSocial, setEditSocial] = useState(false);
   const [editSala, setEditSala] = useState(false);
@@ -143,6 +144,7 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
       rut_paciente: editPaciente.rut,
       dsm_resultado: editDsm || null,
       estado_nutricional: editNutri || null,
+      clasificacion_estatura: editClasificacionEstatura || null,
       es_naneas: editNaneas,
       es_caso_social: editSocial,
       en_sala_estimulacion: editSala,
@@ -546,6 +548,12 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
                       <span className="font-bold">{p.edad_anios} Años, {p.edad_meses} M</span>
                       <span>•</span>
                       <span className="flex items-center font-bold uppercase"><MapPin size={10} className="mr-1 text-slate-400"/> {p.sector}</span>
+                      {p.telefono && (
+                        <>
+                          <span>•</span>
+                          <span className="flex items-center font-mono text-slate-600 font-bold">📞 {p.telefono}</span>
+                        </>
+                      )}
                     </div>
                     {/* Banderas Clínicas en Listado */}
                     {(p.es_pad || p.es_naneas || p.es_caso_social || p.en_sala_estimulacion || p.condicion_especial) && (
@@ -695,6 +703,11 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
                               setEditPaciente(p);
                               setEditDsm(p.dsm_resultado || "");
                               setEditNutri(p.estado_nutricional || "");
+                              setEditClasificacionEstatura(
+                                p.dsm_detalle && typeof p.dsm_detalle === 'object'
+                                  ? (p.dsm_detalle.clasificacion_estatura || "")
+                                  : ""
+                              );
                               setEditNaneas(p.es_naneas || false);
                               setEditSocial(p.es_caso_social || false);
                               setEditSala(p.en_sala_estimulacion || false);
@@ -1079,6 +1092,30 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
                       <option value="Obesidad">Obesidad</option>
                       <option value="Obesidad Severa">Obesidad Severa</option>
                     </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-1">Clasificación Estatura (T/E)</label>
+                    <select
+                      value={editClasificacionEstatura}
+                      onChange={e => setEditClasificacionEstatura(e.target.value)}
+                      className={`w-full text-sm border-slate-300 rounded-lg font-medium ${
+                        editClasificacionEstatura === '-2DE' ? 'border-red-300 bg-red-50 text-red-700' :
+                        editClasificacionEstatura === '-1DE' ? 'border-amber-300 bg-amber-50 text-amber-700' :
+                        editClasificacionEstatura === 'Normal' ? 'border-emerald-300 bg-emerald-50 text-emerald-700' :
+                        editClasificacionEstatura ? 'border-blue-300 bg-blue-50 text-blue-700' : ''
+                      }`}
+                    >
+                      <option value="">Sin registrar</option>
+                      <option value="+2DE">+2 DE (Talla Alta)</option>
+                      <option value="+1DE">+1 DE (Sobre Normal)</option>
+                      <option value="Normal">Normal</option>
+                      <option value="-1DE">-1 DE (Bajo Normal)</option>
+                      <option value="-2DE">-2 DE (Talla Baja)</option>
+                    </select>
+                    {editClasificacionEstatura === '-2DE' && (
+                      <p className="text-[10px] text-red-600 font-bold mt-1">⚠ Derivar a médico</p>
+                    )}
                   </div>
 
                   <div className="flex gap-4 flex-wrap">

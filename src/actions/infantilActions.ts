@@ -213,6 +213,7 @@ export async function editarPacienteInfantilAdmin(data: {
   rut_paciente: string;
   dsm_resultado?: string | null;
   estado_nutricional?: string | null;
+  clasificacion_estatura?: string | null;
   es_naneas?: boolean;
   es_caso_social?: boolean;
   en_sala_estimulacion?: boolean;
@@ -226,14 +227,13 @@ export async function editarPacienteInfantilAdmin(data: {
   try {
     // Obtenemos el ID del último registro para actualizarlo y no alterar historiales
     const rows = await sql`
-      SELECT id FROM gia_infantil 
+      SELECT id, dsm_detalle FROM gia_infantil 
       WHERE rut_paciente = ${data.rut_paciente} 
       ORDER BY fecha_registro DESC 
       LIMIT 1
     `;
     
     if (rows.length === 0) {
-      // Si no tiene registros previos, usamos la misma funcion de guardar para crear uno vacio
       return await guardarControlInfantil({
         rut_paciente: data.rut_paciente,
         dsm_resultado: data.dsm_resultado,
@@ -251,6 +251,15 @@ export async function editarPacienteInfantilAdmin(data: {
     }
     
     const lastId = rows[0].id;
+
+    // Merge clasificacion_estatura dentro de dsm_detalle JSONB existente
+    const currentDetalle = rows[0].dsm_detalle && typeof rows[0].dsm_detalle === 'object'
+      ? rows[0].dsm_detalle
+      : {};
+    const newDetalle = {
+      ...currentDetalle,
+      clasificacion_estatura: data.clasificacion_estatura ?? currentDetalle.clasificacion_estatura ?? null,
+    };
     
     await sql`
       UPDATE gia_infantil
@@ -265,6 +274,7 @@ export async function editarPacienteInfantilAdmin(data: {
         prox_control_enfermera = ${data.prox_control_enfermera ?? null},
         prox_control_nutri = ${data.prox_control_nutri ?? null},
         prox_control_dental = ${data.prox_control_dental ?? null},
+        dsm_detalle = ${sql.json(newDetalle)},
         observaciones = ${data.observaciones ?? null}
       WHERE id = ${lastId}
     `;
