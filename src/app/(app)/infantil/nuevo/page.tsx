@@ -15,8 +15,10 @@ export default function NuevoControlInfantilPage() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   // Form states
-  const [proximoControl, setProximoControl] = useState("");
-  const [estamentoProximoControl, setEstamentoProximoControl] = useState("");
+  const [proxControlMedico, setProxControlMedico] = useState("");
+  const [proxControlEnfermera, setProxControlEnfermera] = useState("");
+  const [proxControlNutri, setProxControlNutri] = useState("");
+  const [proxControlDental, setProxControlDental] = useState("");
   
   const [dsmResultado, setDsmResultado] = useState("");
   const [tipoEvaluacionDsm, setTipoEvaluacionDsm] = useState("");
@@ -150,8 +152,10 @@ export default function NuevoControlInfantilPage() {
         ultimo_control_nutri: pacienteInfo.hist_nutri || null,
         ultimo_control_dental: pacienteInfo.hist_dental || null,
         atencion_hoy: true,
-        proximo_control: proximoControl ? `${proximoControl}-01` : null,
-        estamento_proximo_control: estamentoProximoControl || null,
+        prox_control_medico: proxControlMedico ? `${proxControlMedico}-01` : null,
+        prox_control_enfermera: proxControlEnfermera ? `${proxControlEnfermera}-01` : null,
+        prox_control_nutri: proxControlNutri ? `${proxControlNutri}-01` : null,
+        prox_control_dental: proxControlDental ? `${proxControlDental}-01` : null,
         es_naneas: esNaneas,
         es_caso_social: esCasoSocial,
         en_sala_estimulacion: enSalaEstimulacion,
@@ -174,8 +178,10 @@ export default function NuevoControlInfantilPage() {
         setDsmResultado("");
         setTipoEvaluacionDsm("");
         setEstadoNutricional("Normal");
-        setProximoControl("");
-        setEstamentoProximoControl("");
+        setProxControlMedico("");
+        setProxControlEnfermera("");
+        setProxControlNutri("");
+        setProxControlDental("");
         setObservaciones("");
         setEnSalaEstimulacion(false);
       }
@@ -636,26 +642,12 @@ export default function NuevoControlInfantilPage() {
             
             <div className="grid grid-cols-2 gap-6">
               <div>
-                <label className="block text-xs font-bold text-slate-500 mb-2">Próximo Control Programado</label>
-                <div className="flex gap-3">
-                  <input 
-                    type="month" 
-                    min={new Date().toISOString().substring(0, 7)}
-                    value={proximoControl} 
-                    onChange={(e) => setProximoControl(e.target.value)} 
-                    className="flex-1 rounded-xl border-slate-200"
-                  />
-                  <select 
-                    value={estamentoProximoControl} 
-                    onChange={(e) => setEstamentoProximoControl(e.target.value)} 
-                    className="flex-1 rounded-xl border-slate-200"
-                  >
-                    <option value="">Estamento...</option>
-                    <option value="MEDICO">Médico</option>
-                    <option value="ENFERMERA">Enfermera</option>
-                    <option value="NUTRICIONISTA">Nutricionista</option>
-                    <option value="DENTAL">Dental</option>
-                  </select>
+                <label className="block text-xs font-bold text-slate-500 mb-2">Próximas Atenciones Programadas (Mes/Año)</label>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <input type="month" value={proxControlMedico} onChange={(e) => setProxControlMedico(e.target.value)} className="w-full rounded-xl border-slate-200 text-sm" placeholder="Médico"/>
+                  <input type="month" value={proxControlEnfermera} onChange={(e) => setProxControlEnfermera(e.target.value)} className="w-full rounded-xl border-slate-200 text-sm" placeholder="Enfermera"/>
+                  <input type="month" value={proxControlNutri} onChange={(e) => setProxControlNutri(e.target.value)} className="w-full rounded-xl border-slate-200 text-sm" placeholder="Nutricionista"/>
+                  <input type="month" value={proxControlDental} onChange={(e) => setProxControlDental(e.target.value)} className="w-full rounded-xl border-slate-200 text-sm" placeholder="Dental"/>
                 </div>
                 <p className="text-[10px] text-slate-400 mt-2 italic">Opcional. Si el paciente queda de alta o requiere interconsulta, puedes omitir la fecha de próximo control.</p>
               </div>

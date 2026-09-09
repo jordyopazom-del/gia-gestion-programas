@@ -9,7 +9,7 @@ export async function getInfantilDashboardData() {
       WITH UltimoControl AS (
         SELECT rut_paciente, 
                ultimo_control_medico, ultimo_control_enfermera, ultimo_control_nutri, ultimo_control_dental,
-               proximo_control, estamento_proximo_control, es_naneas, es_caso_social, en_sala_estimulacion, condicion_especial,
+               prox_control_medico, prox_control_enfermera, prox_control_nutri, prox_control_dental, es_naneas, es_caso_social, en_sala_estimulacion, condicion_especial,
                estado_nutricional, dsm_resultado, tipo_evaluacion_dsm, dsm_detalle, estado_programa, observaciones,
                ROW_NUMBER() OVER(PARTITION BY rut_paciente ORDER BY fecha_registro DESC) as rn
         FROM gia_infantil
@@ -28,8 +28,10 @@ export async function getInfantilDashboardData() {
         TO_CHAR(inf.ultimo_control_enfermera, 'YYYY-MM-DD') as ultimo_control_enfermera,
         TO_CHAR(inf.ultimo_control_nutri, 'YYYY-MM-DD') as ultimo_control_nutri,
         TO_CHAR(inf.ultimo_control_dental, 'YYYY-MM-DD') as ultimo_control_dental,
-        TO_CHAR(inf.proximo_control, 'YYYY-MM-DD') as proximo_control,
-        inf.estamento_proximo_control,
+        inf.prox_control_medico,
+        inf.prox_control_enfermera,
+        inf.prox_control_nutri,
+        inf.prox_control_dental,
         inf.condicion_especial,
         inf.estado_nutricional,
         inf.dsm_resultado,
@@ -60,8 +62,10 @@ export async function guardarControlInfantil(data: {
   ultimo_control_nutri?: string | null,
   ultimo_control_dental?: string | null,
   atencion_hoy?: boolean,
-  proximo_control?: string | null,
-  estamento_proximo_control?: string | null,
+  prox_control_medico?: string | null,
+  prox_control_enfermera?: string | null,
+  prox_control_nutri?: string | null,
+  prox_control_dental?: string | null,
   es_naneas?: boolean,
   es_caso_social?: boolean,
   en_sala_estimulacion?: boolean,
@@ -96,7 +100,7 @@ export async function guardarControlInfantil(data: {
       INSERT INTO gia_infantil (
         rut_paciente, 
         ultimo_control_medico, ultimo_control_enfermera, ultimo_control_nutri, ultimo_control_dental,
-        proximo_control, estamento_proximo_control, es_naneas, es_caso_social, en_sala_estimulacion, condicion_especial,
+        prox_control_medico, prox_control_enfermera, prox_control_nutri, prox_control_dental, es_naneas, es_caso_social, en_sala_estimulacion, condicion_especial,
         estado_nutricional, dsm_resultado, tipo_evaluacion_dsm, dsm_detalle, estado_programa, observaciones,
         profesional_rut
       )
@@ -104,7 +108,8 @@ export async function guardarControlInfantil(data: {
         ${data.rut_paciente}, 
         ${uMedico}, ${uEnfermera}, 
         ${uNutri}, ${uDental},
-        ${data.proximo_control || null}, ${data.estamento_proximo_control || null}, 
+        ${data.prox_control_medico || null}, ${data.prox_control_enfermera || null}, 
+        ${data.prox_control_nutri || null}, ${data.prox_control_dental || null}, 
         ${data.es_naneas || false}, ${data.es_caso_social || false}, ${data.en_sala_estimulacion || false}, ${data.condicion_especial || null},
         ${data.estado_nutricional || null}, ${data.dsm_resultado || null}, ${data.tipo_evaluacion_dsm || null}, 
         ${data.dsm_detalle ? sql.json(data.dsm_detalle) : null},
@@ -132,6 +137,7 @@ export async function buscarPacienteInfantilPorRut(rutInput: string) {
         SELECT rut_paciente, 
                ultimo_control_medico, ultimo_control_enfermera, ultimo_control_nutri, ultimo_control_dental,
                en_sala_estimulacion,
+               prox_control_medico, prox_control_enfermera, prox_control_nutri, prox_control_dental,
                ROW_NUMBER() OVER(PARTITION BY rut_paciente ORDER BY fecha_registro DESC) as rn
         FROM gia_infantil
       )
@@ -143,6 +149,7 @@ export async function buscarPacienteInfantilPorRut(rutInput: string) {
         TO_CHAR(inf.ultimo_control_enfermera, 'YYYY-MM-DD') as hist_enfermera,
         TO_CHAR(inf.ultimo_control_nutri, 'YYYY-MM-DD') as hist_nutri,
         TO_CHAR(inf.ultimo_control_dental, 'YYYY-MM-DD') as hist_dental,
+        inf.prox_control_medico, inf.prox_control_enfermera, inf.prox_control_nutri, inf.prox_control_dental,
         inf.en_sala_estimulacion
       FROM gia_pacientes p
       LEFT JOIN UltimoControl inf ON p.rut = inf.rut_paciente AND inf.rn = 1
@@ -177,7 +184,7 @@ export async function registrarNspInfantil(data: {
       INSERT INTO gia_infantil (
         rut_paciente, 
         ultimo_control_medico, ultimo_control_enfermera, ultimo_control_nutri, ultimo_control_dental,
-        proximo_control, estamento_proximo_control, es_naneas, es_caso_social, condicion_especial,
+        prox_control_medico, prox_control_enfermera, prox_control_nutri, prox_control_dental, es_naneas, es_caso_social, condicion_especial,
         estado_nutricional, dsm_resultado, tipo_evaluacion_dsm, dsm_detalle, 
         estado_programa, observaciones,
         profesional_rut, fecha_registro
@@ -186,7 +193,8 @@ export async function registrarNspInfantil(data: {
         ${data.rut_paciente}, 
         ${p.hist_medico || null}, ${p.hist_enfermera || null}, 
         ${p.hist_nutri || null}, ${p.hist_dental || null},
-        ${p.proximo_control || null}, ${p.estamento_proximo_control || null}, 
+        ${p.prox_control_medico || null}, ${p.prox_control_enfermera || null}, 
+        ${p.prox_control_nutri || null}, ${p.prox_control_dental || null}, 
         ${p.es_naneas || false}, ${p.es_caso_social || false}, ${p.condicion_especial || null},
         ${p.estado_nutricional || null}, ${p.dsm_resultado || null}, ${p.tipo_evaluacion_dsm || null}, 
         ${p.dsm_detalle ? sql.json(p.dsm_detalle) : null},
@@ -209,8 +217,10 @@ export async function editarPacienteInfantilAdmin(data: {
   es_caso_social?: boolean;
   en_sala_estimulacion?: boolean;
   condicion_especial?: string | null;
-  proximo_control?: string | null;
-  estamento_proximo_control?: string | null;
+  prox_control_medico?: string | null;
+  prox_control_enfermera?: string | null;
+  prox_control_nutri?: string | null;
+  prox_control_dental?: string | null;
   observaciones?: string | null;
 }) {
   try {
@@ -232,8 +242,10 @@ export async function editarPacienteInfantilAdmin(data: {
         es_caso_social: data.es_caso_social,
         en_sala_estimulacion: data.en_sala_estimulacion,
         condicion_especial: data.condicion_especial,
-        proximo_control: data.proximo_control,
-        estamento_proximo_control: data.estamento_proximo_control,
+        prox_control_medico: data.prox_control_medico,
+        prox_control_enfermera: data.prox_control_enfermera,
+        prox_control_nutri: data.prox_control_nutri,
+        prox_control_dental: data.prox_control_dental,
         observaciones: data.observaciones
       });
     }
@@ -249,8 +261,10 @@ export async function editarPacienteInfantilAdmin(data: {
         es_caso_social = ${data.es_caso_social ?? false},
         en_sala_estimulacion = ${data.en_sala_estimulacion ?? false},
         condicion_especial = ${data.condicion_especial ?? null},
-        proximo_control = ${data.proximo_control ?? null},
-        estamento_proximo_control = ${data.estamento_proximo_control ?? null},
+        prox_control_medico = ${data.prox_control_medico ?? null},
+        prox_control_enfermera = ${data.prox_control_enfermera ?? null},
+        prox_control_nutri = ${data.prox_control_nutri ?? null},
+        prox_control_dental = ${data.prox_control_dental ?? null},
         observaciones = ${data.observaciones ?? null}
       WHERE id = ${lastId}
     `;

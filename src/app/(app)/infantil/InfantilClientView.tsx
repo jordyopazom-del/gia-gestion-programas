@@ -56,8 +56,10 @@ type InfantilData = {
   ultimo_control_enfermera: string | null;
   ultimo_control_nutri: string | null;
   ultimo_control_dental: string | null;
-  proximo_control: string | null;
-  estamento_proximo_control: string | null;
+  prox_control_medico: string | null;
+  prox_control_enfermera: string | null;
+  prox_control_nutri: string | null;
+  prox_control_dental: string | null;
   condicion_especial: string | null;
   estado_nutricional: string | null;
   dsm_resultado: string | null;
@@ -65,6 +67,16 @@ type InfantilData = {
   estado_programa: string | null;
   observaciones: string | null;
   dsm_detalle: any;
+};
+
+
+const parseLocalDate = (dateStr: string): Date => {
+  if (!dateStr) return new Date();
+  const parts = dateStr.split('-');
+  const y = Number(parts[0]);
+  const m = Number(parts[1]) - 1;
+  const d = parts[2] ? Number(parts[2]) : 1;
+  return new Date(y, m, d);
 };
 
 export default function InfantilClientView({ data, user }: { data: InfantilData[], user: UserProfile }) {
@@ -98,8 +110,10 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
   const [editSocial, setEditSocial] = useState(false);
   const [editSala, setEditSala] = useState(false);
   const [editCondicion, setEditCondicion] = useState("");
-  const [editProxControl, setEditProxControl] = useState("");
-  const [editProxEstamento, setEditProxEstamento] = useState("");
+  const [editProxControlMedico, setEditProxControlMedico] = useState("");
+  const [editProxControlEnfermera, setEditProxControlEnfermera] = useState("");
+  const [editProxControlNutri, setEditProxControlNutri] = useState("");
+  const [editProxControlDental, setEditProxControlDental] = useState("");
   const [editObs, setEditObs] = useState("");
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [selectedPaciente, setSelectedPaciente] = useState<InfantilData | null>(null);
@@ -133,8 +147,10 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
       es_caso_social: editSocial,
       en_sala_estimulacion: editSala,
       condicion_especial: editCondicion || null,
-      proximo_control: editProxControl ? `${editProxControl}-01` : null,
-      estamento_proximo_control: editProxEstamento || null,
+      prox_control_medico: editProxControlMedico ? `${editProxControlMedico}-01` : null,
+      prox_control_enfermera: editProxControlEnfermera ? `${editProxControlEnfermera}-01` : null,
+      prox_control_nutri: editProxControlNutri ? `${editProxControlNutri}-01` : null,
+      prox_control_dental: editProxControlDental ? `${editProxControlDental}-01` : null,
       observaciones: editObs || null
     });
     setIsSavingEdit(false);
@@ -153,12 +169,37 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
   const egresados = data.filter(p => p.edad_anios >= 10);
 
   // Brechas: Dentro de los activos, aquellos que su próximo control ya pasó o no tienen control o estado_programa es inasistente (Solo para conteo en KPIs)
-  const brechas = activos.filter(p => {
-    if (!p.proximo_control) return true;
-    const proxControl = new Date(p.proximo_control);
-    const hoy = new Date();
-    return proxControl < hoy || p.estado_programa === 'INASISTENTE';
-  });
+  
+  const esVencido = (p: InfantilData) => {
+    if (p.estado_programa === 'INASISTENTE') return true;
+    
+    const fechasRaw = [
+      p.prox_control_medico,
+      p.prox_control_enfermera,
+      p.prox_control_nutri,
+      p.prox_control_dental
+    ];
+    
+    const fechas = fechasRaw.filter(f => f !== null) as string[];
+    if (fechas.length === 0) return true; // Sin agendar = Brecha
+
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth();
+
+    for (const dateStr of fechas) {
+      if (!dateStr) continue;
+      const d = parseLocalDate(dateStr);
+      const dYear = d.getFullYear();
+      const dMonth = d.getMonth();
+      if (dYear < currentYear || (dYear === currentYear && dMonth < currentMonth)) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  const brechas = activos.filter(p => esVencido(p));
 
   const getFilteredData = () => {
     let list = activeTab === "LISTADO" ? activos : egresados;
@@ -168,21 +209,7 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
         let isVencido = false;
         let isItInasistente = p.estado_programa === 'INASISTENTE';
         
-        if (!isItInasistente) {
-          if (p.proximo_control) {
-            const proxControl = new Date(p.proximo_control);
-            const hoy = new Date();
-            const proxYear = proxControl.getUTCFullYear();
-            const proxMonth = proxControl.getUTCMonth();
-            const hoyYear = hoy.getFullYear();
-            const hoyMonth = hoy.getMonth();
-            if (proxYear < hoyYear || (proxYear === hoyYear && proxMonth < hoyMonth)) {
-              isVencido = true;
-            }
-          } else if (!p.proximo_control) {
-            isVencido = true;
-          }
-        }
+        if (!isItInasistente) { isVencido = esVencido(p); }
 
         if (filterEstado === "VIGENTES") return !isVencido && !isItInasistente;
         if (filterEstado === "VENCIDOS") return isVencido && !isItInasistente;
@@ -217,34 +244,50 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
   const sectores = ["TODOS", ...Array.from(new Set(data.map(d => d.sector).filter(Boolean)))];
 
   const getEstadoBadge = (paciente: InfantilData) => {
-    if (paciente.edad_anios >= 10) {
-      return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">Alta por Edad</span>;
-    }
+    if (paciente.edad_anios >= 10) return <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-black tracking-wider border border-slate-200">ALTA POR EDAD</span>;
+    if (paciente.estado_programa === 'INASISTENTE') return <span className="px-2 py-1 bg-red-100 text-red-700 rounded-lg text-[10px] font-black tracking-wider border border-red-200 shadow-sm flex flex-col items-center">INASISTENTE <span className="text-[8px] opacity-80 mt-0.5">({paciente.observaciones})</span></span>;
     
-    if (paciente.estado_programa === 'INASISTENTE') {
-      return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 border border-red-200">Inasistente</span>;
+    // Evaluar 4 fechas
+    const fechasRaw = [
+      paciente.prox_control_medico,
+      paciente.prox_control_enfermera,
+      paciente.prox_control_nutri,
+      paciente.prox_control_dental
+    ];
+    
+    // Filtrar nulos
+    const fechas = fechasRaw.filter(f => f !== null) as string[];
+    
+    if (fechas.length === 0) {
+      return <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded-lg text-[10px] font-black tracking-wider border border-amber-200 shadow-sm">SIN AGENDAR</span>;
     }
 
-    let isVencido = false;
-    if (paciente.proximo_control) {
-      const proxControl = new Date(paciente.proximo_control);
-      const hoy = new Date();
-      const proxYear = proxControl.getUTCFullYear();
-      const proxMonth = proxControl.getUTCMonth();
-      const hoyYear = hoy.getFullYear();
-      const hoyMonth = hoy.getMonth();
-      if (proxYear < hoyYear || (proxYear === hoyYear && proxMonth < hoyMonth)) {
-        isVencido = true;
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth();
+
+    let hasVencido = false;
+    let hasPorVencer = false;
+
+    for (const dateStr of fechas) {
+      const d = parseLocalDate(dateStr);
+      const dYear = d.getFullYear();
+      const dMonth = d.getMonth();
+
+      if (dYear < currentYear || (dYear === currentYear && dMonth < currentMonth)) {
+        hasVencido = true;
+      } else if (dYear === currentYear && dMonth === currentMonth) {
+        hasPorVencer = true;
       }
-    } else if (!paciente.proximo_control) {
-      isVencido = true;
     }
 
-    if (isVencido) {
-      return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">Vencido</span>;
+    if (hasVencido) {
+      return <span className="px-2 py-1 bg-red-100 text-red-700 rounded-lg text-[10px] font-black tracking-wider border border-red-200 shadow-sm flex items-center gap-1.5"><AlertCircle size={12}/> VENCIDO</span>;
+    } else if (hasPorVencer) {
+      return <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded-lg text-[10px] font-black tracking-wider border border-amber-200 shadow-sm flex items-center gap-1.5"><AlertCircle size={12}/> POR VENCER</span>;
+    } else {
+      return <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-lg text-[10px] font-black tracking-wider border border-emerald-200 shadow-sm flex items-center gap-1.5"><CheckCircle2 size={12}/> VIGENTE</span>;
     }
-    
-    return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800">Vigente</span>;
   };
 
   const exportToExcel = () => {
@@ -289,8 +332,10 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
         "Último Control Nutri": p.ultimo_control_nutri ? p.ultimo_control_nutri.substring(0, 10) : "",
         "Último Control Dental": p.ultimo_control_dental ? p.ultimo_control_dental.substring(0, 10) : "",
         
-        "Próximo Control": p.proximo_control ? p.proximo_control.substring(0, 7) : "",
-        "Estamento Próx Control": p.estamento_proximo_control || "",
+        "Próx. Control Médico": p.prox_control_medico ? p.prox_control_medico.substring(0, 7) : "",
+        "Próx. Control Enf": p.prox_control_enfermera ? p.prox_control_enfermera.substring(0, 7) : "",
+        "Próx. Control Nutri": p.prox_control_nutri ? p.prox_control_nutri.substring(0, 7) : "",
+        "Próx. Control Dental": p.prox_control_dental ? p.prox_control_dental.substring(0, 7) : "",
         "Observaciones": p.observaciones || ""
       };
     });
@@ -606,16 +651,7 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
                   <td className="px-6 py-4 align-top">
                     <div className="flex flex-col items-start gap-1">
                       {getEstadoBadge(p)}
-                      {p.proximo_control && (
-                        <div className="flex flex-col mt-1.5 bg-slate-50/50 p-2 rounded-lg border border-slate-100/50">
-                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-wide">Próximo Control</span>
-                          <div className="flex items-center gap-1 mt-0.5 text-slate-700">
-                            <Calendar className="h-3 w-3 text-slate-400" />
-                            <span className="font-bold text-[10px] uppercase">{formatMesAno(p.proximo_control)}</span>
-                            {p.estamento_proximo_control && <span className="text-[9px] font-semibold text-slate-500 bg-slate-100 px-1 rounded ml-1">{p.estamento_proximo_control}</span>}
-                          </div>
-                        </div>
-                      )}
+                      
                     </div>
                   </td>
                   <td className="px-6 py-4 text-right align-top">
@@ -645,8 +681,10 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
                               setEditSocial(p.es_caso_social || false);
                               setEditSala(p.en_sala_estimulacion || false);
                               setEditCondicion(p.condicion_especial || "");
-                              setEditProxControl(p.proximo_control ? p.proximo_control.substring(0, 7) : "");
-                              setEditProxEstamento(p.estamento_proximo_control || "");
+                              setEditProxControlMedico(p.prox_control_medico ? p.prox_control_medico.substring(0, 7) : "");
+                            setEditProxControlEnfermera(p.prox_control_enfermera ? p.prox_control_enfermera.substring(0, 7) : "");
+                            setEditProxControlNutri(p.prox_control_nutri ? p.prox_control_nutri.substring(0, 7) : "");
+                            setEditProxControlDental(p.prox_control_dental ? p.prox_control_dental.substring(0, 7) : "");
                               setEditObs(p.observaciones || "");
                               setShowEditModal(true);
                             }}
@@ -1049,26 +1087,26 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
                 <div className="space-y-4">
                   <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b pb-2">Agendamiento</h4>
                   
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1">Mes y Año (Correspondiente)</label>
-                    <input 
-                      type="month" 
-                      min={new Date().toISOString().substring(0, 7)}
-                      value={editProxControl} 
-                      onChange={e => setEditProxControl(e.target.value)} 
-                      className="w-full text-sm border-slate-300 rounded-lg" 
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1">Estamento Próx. Control</label>
-                    <select value={editProxEstamento} onChange={e => setEditProxEstamento(e.target.value)} className="w-full text-sm border-slate-300 rounded-lg">
-                      <option value="">Sin asignar / Seleccionar...</option>
-                      <option value="MEDICO">Médico</option>
-                      <option value="ENFERMERA">Enfermera</option>
-                      <option value="NUTRICIONISTA">Nutricionista</option>
-                      <option value="DENTAL">Dental</option>
-                    </select>
+                  <div className="col-span-2">
+                    <h4 className="text-xs font-bold text-slate-700 uppercase mb-2">Próximas Atenciones (Mes/Año)</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1">Médico</label>
+                        <input type="month" value={editProxControlMedico} onChange={e => setEditProxControlMedico(e.target.value)} className="w-full text-sm border-slate-300 rounded-lg"/>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1">Enfermera</label>
+                        <input type="month" value={editProxControlEnfermera} onChange={e => setEditProxControlEnfermera(e.target.value)} className="w-full text-sm border-slate-300 rounded-lg"/>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1">Nutricionista</label>
+                        <input type="month" value={editProxControlNutri} onChange={e => setEditProxControlNutri(e.target.value)} className="w-full text-sm border-slate-300 rounded-lg"/>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1">Odontólogo</label>
+                        <input type="month" value={editProxControlDental} onChange={e => setEditProxControlDental(e.target.value)} className="w-full text-sm border-slate-300 rounded-lg"/>
+                      </div>
+                    </div>
                   </div>
 
                   <div>

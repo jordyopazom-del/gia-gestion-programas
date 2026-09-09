@@ -1,10 +1,13 @@
 import { sql } from "./src/lib/db";
 async function run() {
-  try {
-    await sql`ALTER TABLE gia_mujer_embarazos ADD COLUMN alto_riesgo_obstetrico BOOLEAN DEFAULT false;`;
-    console.log("Migration added ARO");
-  } catch(e) {
-    console.error(e);
-  }
+  await sql`
+    ALTER TABLE gia_infantil
+    ADD COLUMN IF NOT EXISTS prox_control_medico VARCHAR(7),
+    ADD COLUMN IF NOT EXISTS prox_control_enfermera VARCHAR(7),
+    ADD COLUMN IF NOT EXISTS prox_control_nutri VARCHAR(7),
+    ADD COLUMN IF NOT EXISTS prox_control_dental VARCHAR(7);
+  `;
+  console.log("Migration executed!");
+  process.exit(0);
 }
 run();
