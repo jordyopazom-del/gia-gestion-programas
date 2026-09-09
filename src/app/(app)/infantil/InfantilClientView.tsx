@@ -515,10 +515,11 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
         <table className="min-w-full text-left border-collapse border-spacing-0">
           <thead className="bg-white sticky top-0 z-10 shadow-sm">
             <tr className="border-b border-slate-100 bg-slate-50/30">
-              <th className="px-6 py-4 text-[10px] font-black uppercase text-slate-400 tracking-widest w-1/3">Identificación</th>
+              <th className="px-6 py-4 text-[10px] font-black uppercase text-slate-400 tracking-widest w-1/4">Identificación</th>
               <th className="px-6 py-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Últimas Atenciones</th>
               <th className="px-6 py-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Evaluación Clínica</th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Estado / Próx. Control</th>
+              <th className="px-6 py-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Próximas Atenciones</th>
+              <th className="px-6 py-4 text-[10px] font-black uppercase text-slate-400 tracking-widest text-center">Estado</th>
               <th className="px-6 py-4"></th>
             </tr>
           </thead>
@@ -649,10 +650,27 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
                     </div>
                   </td>
                   <td className="px-6 py-4 align-top">
-                    <div className="flex flex-col items-start gap-1">
-                      {getEstadoBadge(p)}
-                      
-                    </div>
+                     <div className="flex flex-col space-y-1.5 min-w-[140px]">
+                        <div className="flex justify-between items-center text-[9px] gap-4">
+                           <span className="font-black text-slate-400 uppercase">Médico</span>
+                           <span className="font-bold text-slate-600">{p.prox_control_medico ? formatMesAno(p.prox_control_medico) : '-'}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-[9px] gap-4 border-t border-slate-50 pt-1.5">
+                           <span className="font-black text-slate-400 uppercase">Enfermera</span>
+                           <span className="font-bold text-slate-600">{p.prox_control_enfermera ? formatMesAno(p.prox_control_enfermera) : '-'}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-[9px] gap-4 border-t border-slate-50 pt-1.5">
+                           <span className="font-black text-slate-400 uppercase">Nutricionista</span>
+                           <span className="font-bold text-slate-600">{p.prox_control_nutri ? formatMesAno(p.prox_control_nutri) : '-'}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-[9px] gap-4 border-t border-slate-50 pt-1.5">
+                           <span className="font-black text-slate-400 uppercase">Dental</span>
+                           <span className="font-bold text-slate-600">{p.prox_control_dental ? formatMesAno(p.prox_control_dental) : '-'}</span>
+                        </div>
+                     </div>
+                  </td>
+                  <td className="px-6 py-4 align-middle text-center">
+                    {getEstadoBadge(p)}
                   </td>
                   <td className="px-6 py-4 text-right align-top">
                     <div className="flex items-center justify-end space-x-2">
