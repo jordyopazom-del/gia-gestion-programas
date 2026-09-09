@@ -36,8 +36,14 @@ export default function NuevoControlInfantilPage() {
 
   // Estados condicionales por edad
   const [scoreIra, setScoreIra] = useState("");
-  const [lme, setLme] = useState(false);
+  const [tipoAlimentacion, setTipoAlimentacion] = useState(""); // Reemplaza lme bool — solo ≤7 meses
   const [presionArterial, setPresionArterial] = useState("Normal (PA menor al percentil 90)");
+
+  // Otras Pautas Aplicadas (sin límite de edad)
+  const [clasificacionEstatura, setClasificacionEstatura] = useState("");
+  const [edimburgo, setEdimburgo] = useState("");
+  const [riesgoBiopsicosocial, setRiesgoBiopsicosocial] = useState("");
+  const [teaSenales, setTeaSenales] = useState("");
 
   const [estadoNutricional, setEstadoNutricional] = useState("Normal");
   
@@ -112,12 +118,12 @@ export default function NuevoControlInfantilPage() {
         };
       }
 
-      // Payload dinámico
+      // Payload dinámico — Lactante menor (edad_anios === 0)
       if (pacienteInfo.edad_anios === 0) {
         dsmDetalle = {
           ...dsmDetalle,
           score_ira: scoreIra,
-          lme: (pacienteInfo.edad_meses === 6 || pacienteInfo.edad_meses === 7) ? lme : null
+          tipo_alimentacion: pacienteInfo.edad_meses <= 7 ? (tipoAlimentacion || null) : null
         };
       }
 
@@ -127,6 +133,15 @@ export default function NuevoControlInfantilPage() {
           presion_arterial: presionArterial
         };
       }
+
+      // Otras Pautas Aplicadas (siempre — sin límite de edad)
+      dsmDetalle = {
+        ...dsmDetalle,
+        clasificacion_estatura: clasificacionEstatura || null,
+        edimburgo: edimburgo || null,
+        riesgo_biopsicosocial: riesgoBiopsicosocial ? Number(riesgoBiopsicosocial) : null,
+        tea_senales: teaSenales || null,
+      };
 
       const resControl = await guardarControlInfantil({
         rut_paciente: pacienteInfo.rut,
@@ -480,11 +495,16 @@ export default function NuevoControlInfantilPage() {
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 mt-auto">
                   <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Controles Lactante Menor (menor de 1 año)</h4>
                   <div className="space-y-3">
-                    {(pacienteInfo.edad_meses === 6 || pacienteInfo.edad_meses === 7) && (
-                      <label className="flex items-center justify-between cursor-pointer">
-                        <span className="text-sm font-semibold text-slate-700">Lactancia Materna Exclusiva (LME)</span>
-                        <input type="checkbox" checked={lme} onChange={e => setLme(e.target.checked)} className="rounded border-slate-300 text-pink-600 w-5 h-5" />
-                      </label>
+                    {pacienteInfo.edad_meses <= 7 && (
+                      <div>
+                        <label className="block text-xs font-medium text-slate-500 mb-1">Tipo de Alimentación</label>
+                        <select value={tipoAlimentacion} onChange={e => setTipoAlimentacion(e.target.value)} className="w-full text-sm rounded-lg border-slate-200">
+                          <option value="">Seleccionar...</option>
+                          <option value="LME">LME (Lactancia Materna Exclusiva)</option>
+                          <option value="LA">LA (Lactancia Artificial)</option>
+                          <option value="LM+LA">LM + LA (Mixta)</option>
+                        </select>
+                      </div>
                     )}
                     <div>
                       <label className="block text-xs font-medium text-slate-500 mb-1">Score IRA</label>
@@ -514,9 +534,102 @@ export default function NuevoControlInfantilPage() {
             </div>
           </div>
 
+          {/* Otras Pautas Aplicadas */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5">
             <h3 className="font-black text-slate-800 uppercase flex items-center border-b pb-3">
-              <span className="bg-purple-100 text-purple-600 w-6 h-6 rounded-md flex items-center justify-center mr-2 text-xs">3</span>
+              <span className="bg-amber-100 text-amber-600 w-6 h-6 rounded-md flex items-center justify-center mr-2 text-xs">3</span>
+              Otras Pautas Aplicadas
+            </h3>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {/* Clasificación Estatura T/E — siempre */}
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-2">Clasificación Estatura (T/E)</label>
+                <select
+                  value={clasificacionEstatura}
+                  onChange={e => setClasificacionEstatura(e.target.value)}
+                  className={`w-full rounded-xl font-medium text-sm ${
+                    !clasificacionEstatura ? 'border-slate-200 text-slate-400' :
+                    clasificacionEstatura === "Normal" ? 'border-emerald-300 bg-emerald-50 text-emerald-700' :
+                    clasificacionEstatura === "-1DE" ? 'border-amber-300 bg-amber-50 text-amber-700' :
+                    clasificacionEstatura === "-2DE" ? 'border-red-300 bg-red-50 text-red-700' :
+                    'border-blue-300 bg-blue-50 text-blue-700'
+                  }`}
+                >
+                  <option value="">Sin registrar</option>
+                  <option value="+2DE">+2 DE (Talla Alta)</option>
+                  <option value="+1DE">+1 DE (Sobre Normal)</option>
+                  <option value="Normal">Normal</option>
+                  <option value="-1DE">-1 DE (Bajo Normal)</option>
+                  <option value="-2DE">-2 DE (Talla Baja)</option>
+                </select>
+                {clasificacionEstatura === "-2DE" && (
+                  <p className="text-[10px] text-red-600 font-bold mt-1">⚠ Derivar a médico para evaluación</p>
+                )}
+              </div>
+
+              {/* Edimburgo — siempre */}
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-2">Edimburgo (EPDS)</label>
+                <select
+                  value={edimburgo}
+                  onChange={e => setEdimburgo(e.target.value)}
+                  className={`w-full rounded-xl font-medium text-sm ${
+                    !edimburgo ? 'border-slate-200 text-slate-400' :
+                    edimburgo === "Normal" ? 'border-emerald-300 bg-emerald-50 text-emerald-700' :
+                    'border-red-300 bg-red-50 text-red-700'
+                  }`}
+                >
+                  <option value="">Sin aplicar</option>
+                  <option value="Normal">Normal</option>
+                  <option value="Alterado">Alterado</option>
+                </select>
+                {edimburgo === "Alterado" && (
+                  <p className="text-[10px] text-red-600 font-bold mt-1">⚠ Requiere seguimiento</p>
+                )}
+              </div>
+
+              {/* Riesgo Biopsicosocial — puntaje libre, siempre */}
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-2">Factor Riesgo Biopsicosocial</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={999}
+                  placeholder="Puntaje (ej: 12)"
+                  value={riesgoBiopsicosocial}
+                  onChange={e => setRiesgoBiopsicosocial(e.target.value)}
+                  className="w-full rounded-xl border-slate-200 text-sm font-mono"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">Ingrese el puntaje obtenido</p>
+              </div>
+
+              {/* Señales de Alerta TEA — siempre */}
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-2">Señales de Alerta TEA</label>
+                <select
+                  value={teaSenales}
+                  onChange={e => setTeaSenales(e.target.value)}
+                  className={`w-full rounded-xl font-medium text-sm ${
+                    !teaSenales ? 'border-slate-200 text-slate-400' :
+                    teaSenales === "Negativo" ? 'border-emerald-300 bg-emerald-50 text-emerald-700' :
+                    'border-red-300 bg-red-50 text-red-700'
+                  }`}
+                >
+                  <option value="">Sin aplicar</option>
+                  <option value="Negativo">Negativo</option>
+                  <option value="Positivo">Positivo</option>
+                </select>
+                {teaSenales === "Positivo" && (
+                  <p className="text-[10px] text-red-600 font-bold mt-1">⚠ Derivar a confirmación diagnóstica</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5">
+            <h3 className="font-black text-slate-800 uppercase flex items-center border-b pb-3">
+              <span className="bg-purple-100 text-purple-600 w-6 h-6 rounded-md flex items-center justify-center mr-2 text-xs">4</span>
               Agendamiento y Observaciones
             </h3>
             

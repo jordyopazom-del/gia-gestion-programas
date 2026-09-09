@@ -274,10 +274,15 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
         "DSM - Coordinación": dsm.coordinacion || "",
         "DSM - Motricidad": dsm.motricidad || "",
         "Score IRA": dsm.score_ira || "",
-        "LME (6/7 Mes)": dsm.lme === true ? "SI" : (dsm.lme === false ? "NO" : ""),
+        "Tipo Alimentación (≤7m)": dsm.tipo_alimentacion || "",
         "Riesgo TEA (M-CHAT)": dsm.mchat || "",
         "Derivación TEA": dsm.obsTea === true ? "SI" : "",
         "Presión Arterial": dsm.presion_arterial || "",
+
+        "Clasificación Estatura (T/E)": dsm.clasificacion_estatura || "",
+        "Edimburgo (EPDS)": dsm.edimburgo || "",
+        "Riesgo Biopsicosocial (puntaje)": dsm.riesgo_biopsicosocial != null ? String(dsm.riesgo_biopsicosocial) : "",
+        "Señales de Alerta TEA": dsm.tea_senales || "",
 
         "Último Control Médico": p.ultimo_control_medico ? p.ultimo_control_medico.substring(0, 10) : "",
         "Último Control Enf": p.ultimo_control_enfermera ? p.ultimo_control_enfermera.substring(0, 10) : "",
@@ -573,6 +578,29 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
                           }`}>{p.estado_nutricional}</span>
                         </div>
                       )}
+                      {/* Badges de Alertas Críticas desde dsm_detalle */}
+                      {(() => {
+                        const det = p.dsm_detalle && typeof p.dsm_detalle === 'object' ? p.dsm_detalle : {};
+                        return (
+                          <>
+                            {det.edimburgo === 'Alterado' && (
+                              <span className="w-fit mt-1 px-1.5 py-0.5 rounded text-[9px] font-black uppercase border border-red-200 bg-red-50 text-red-700">
+                                ⚠ EDIMBURGO ALT.
+                              </span>
+                            )}
+                            {det.tea_senales === 'Positivo' && (
+                              <span className="w-fit mt-0.5 px-1.5 py-0.5 rounded text-[9px] font-black uppercase border border-red-200 bg-red-50 text-red-700">
+                                ⚠ SEÑAL TEA +
+                              </span>
+                            )}
+                            {det.clasificacion_estatura === '-2DE' && (
+                              <span className="w-fit mt-0.5 px-1.5 py-0.5 rounded text-[9px] font-black uppercase border border-amber-200 bg-amber-50 text-amber-700">
+                                TALLA BAJA -2DE
+                              </span>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
                   </td>
                   <td className="px-6 py-4 align-top">
@@ -797,6 +825,42 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
                           <div className="flex justify-between items-center">
                             <span className="text-xs text-slate-500">Obs. TEA</span>
                             <span className="text-xs font-bold text-indigo-700">Marcado</span>
+                          </div>
+                        )}
+                        {detalle.tipo_alimentacion && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs text-slate-500">Tipo Alimentación</span>
+                            <span className="text-xs font-bold text-blue-700">{detalle.tipo_alimentacion}</span>
+                          </div>
+                        )}
+                        {/* Otras Pautas Aplicadas */}
+                        {(detalle.clasificacion_estatura || detalle.edimburgo || detalle.riesgo_biopsicosocial != null || detalle.tea_senales) && (
+                          <div className="mt-2 pt-2 border-t border-slate-100">
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Otras Pautas</p>
+                            {detalle.clasificacion_estatura && (
+                              <div className="flex justify-between items-center">
+                                <span className="text-xs text-slate-500">Estatura T/E</span>
+                                <span className={`text-xs font-bold ${detalle.clasificacion_estatura === '-2DE' ? 'text-red-700' : detalle.clasificacion_estatura === '-1DE' ? 'text-amber-700' : detalle.clasificacion_estatura === 'Normal' ? 'text-emerald-700' : 'text-blue-700'}`}>{detalle.clasificacion_estatura}</span>
+                              </div>
+                            )}
+                            {detalle.edimburgo && (
+                              <div className="flex justify-between items-center">
+                                <span className="text-xs text-slate-500">Edimburgo</span>
+                                <span className={`text-xs font-bold ${detalle.edimburgo === 'Alterado' ? 'text-red-700' : 'text-emerald-700'}`}>{detalle.edimburgo}</span>
+                              </div>
+                            )}
+                            {detalle.riesgo_biopsicosocial != null && (
+                              <div className="flex justify-between items-center">
+                                <span className="text-xs text-slate-500">Riesgo BPS</span>
+                                <span className="text-xs font-bold font-mono text-slate-700">{detalle.riesgo_biopsicosocial} pts</span>
+                              </div>
+                            )}
+                            {detalle.tea_senales && (
+                              <div className="flex justify-between items-center">
+                                <span className="text-xs text-slate-500">Señales TEA</span>
+                                <span className={`text-xs font-bold ${detalle.tea_senales === 'Positivo' ? 'text-red-700' : 'text-emerald-700'}`}>{detalle.tea_senales}</span>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
