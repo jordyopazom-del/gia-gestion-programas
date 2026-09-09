@@ -2,6 +2,7 @@
 
 import { sql } from "@/lib/db";
 import { getCurrentUser } from "./userActions";
+import { revalidatePath } from "next/cache";
 
 export async function getInfantilDashboardData() {
   try {
@@ -79,7 +80,7 @@ export async function guardarControlInfantil(data: {
 }) {
   try {
     const user = await getCurrentUser();
-    const profesional_rut = user ? user.rut : '12345678-5';
+    const profesional_rut = user?.rut || null;
     const profesion = user ? (user.profesion || '').toUpperCase() : '';
 
     const hoy = new Date().toISOString().split('T')[0];
@@ -117,6 +118,8 @@ export async function guardarControlInfantil(data: {
         ${profesional_rut}
       )
     `;
+    revalidatePath("/infantil");
+    revalidatePath("/infantil/nuevo");
     return { success: true };
   } catch (error: any) {
     console.error("Error al guardar Control Infantil:", error);
@@ -173,7 +176,7 @@ export async function registrarNspInfantil(data: {
 }) {
   try {
     const user = await getCurrentUser();
-    const profesional_rut = user ? user.rut : '12345678-5';
+    const profesional_rut = user?.rut || null;
 
     const res = await buscarPacienteInfantilPorRut(data.rut_paciente);
     if (res.error || !res.data) throw new Error(res.error || "Paciente no encontrado");
@@ -202,6 +205,7 @@ export async function registrarNspInfantil(data: {
         ${profesional_rut}, ${data.fecha_nsp}
       )
     `;
+    revalidatePath("/infantil");
     return { success: true };
   } catch (error: any) {
     console.error("Error al registrar NSP Infantil:", error);
@@ -237,10 +241,17 @@ export async function editarPacienteInfantilAdmin(data: {
     `;
     
     if (rows.length === 0) {
+      const initialDetalle: any = {};
+      if (data.clasificacion_estatura) initialDetalle.clasificacion_estatura = data.clasificacion_estatura;
+      if (data.edimburgo) initialDetalle.edimburgo = data.edimburgo;
+      if (data.riesgo_biopsicosocial != null) initialDetalle.riesgo_biopsicosocial = data.riesgo_biopsicosocial;
+      if (data.tea_senales) initialDetalle.tea_senales = data.tea_senales;
+
       return await guardarControlInfantil({
         rut_paciente: data.rut_paciente,
         dsm_resultado: data.dsm_resultado,
         estado_nutricional: data.estado_nutricional,
+        dsm_detalle: Object.keys(initialDetalle).length > 0 ? initialDetalle : null,
         es_naneas: data.es_naneas,
         es_caso_social: data.es_caso_social,
         en_sala_estimulacion: data.en_sala_estimulacion,
@@ -284,6 +295,7 @@ export async function editarPacienteInfantilAdmin(data: {
         observaciones = ${data.observaciones ?? null}
       WHERE id = ${lastId}
     `;
+    revalidatePath("/infantil");
     return { success: true };
   } catch (error: any) {
     console.error("Error al editar paciente infantil:", error);

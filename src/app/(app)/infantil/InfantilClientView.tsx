@@ -136,7 +136,9 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
     } else {
       toast.success("NSP Registrado");
       setShowNspModal(false);
-      window.location.reload();
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
     }
   };
 
@@ -165,9 +167,11 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
     if (res.error) {
       toast.error(res.error);
     } else {
-      toast.success("Información actualizada");
+      toast.success("Información actualizada exitosamente");
       setShowEditModal(false);
-      window.location.reload();
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
     }
   };
 
