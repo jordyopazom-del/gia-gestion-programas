@@ -428,6 +428,17 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
           return true;
         });
       }
+    } else if (activeTab === "embarazadas") {
+      const hoy = new Date();
+      hoy.setHours(0,0,0,0);
+
+      if (selectedStatus === "EMB_AL_DIA") {
+        result = result.filter(p => p.fecha_proximo_control && parseLocalDate(p.fecha_proximo_control as string) >= hoy);
+      } else if (selectedStatus === "EMB_ATRASADOS") {
+        result = result.filter(p => p.fecha_proximo_control && parseLocalDate(p.fecha_proximo_control as string) < hoy);
+      } else if (selectedStatus === "EMB_ARO") {
+        result = result.filter(p => p.alto_riesgo_obstetrico === true);
+      }
     }
 
     return result;
@@ -561,6 +572,18 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
 
     return { total, poblacionActiva, vigentes, porVencer, vencidos, patologicos, excluidas, cob };
   }, [data]);
+
+  const embMetrics = useMemo(() => {
+    const total = embarazadasData.length;
+    const hoy = new Date();
+    hoy.setHours(0,0,0,0);
+    
+    const alDia = embarazadasData.filter(p => p.fecha_proximo_control && parseLocalDate(p.fecha_proximo_control as string) >= hoy).length;
+    const atrasados = embarazadasData.filter(p => p.fecha_proximo_control && parseLocalDate(p.fecha_proximo_control as string) < hoy).length;
+    const aro = embarazadasData.filter(p => p.alto_riesgo_obstetrico === true).length;
+    
+    return { total, alDia, atrasados, aro };
+  }, [embarazadasData]);
 
   const abrirModalNomina = () => {
     // Los pendientes son los que NO tienen numero_nomina asignado (o tienen codigo_lab pero sin nómina)
@@ -809,6 +832,90 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
         </div>
       )}
 
+      {/* Indicadores Clave del Dashboard Embarazadas */}
+      {activeTab === "embarazadas" && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div 
+            onClick={() => { setSelectedStatus("TODOS"); setCurrentPage(1); }}
+            className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+              selectedStatus === "TODOS" 
+                ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-slate-400' 
+                : 'bg-white text-slate-800 border-slate-200 hover:border-slate-300 shadow-xs'
+            }`}
+          >
+            <span className={`block text-[10px] font-black uppercase tracking-wider ${selectedStatus === "TODOS" ? 'text-slate-400' : 'text-slate-400'}`}>
+              Población Gestante
+            </span>
+            <span className="text-2xl font-black mt-1 block">
+              {embMetrics.total.toLocaleString("es-CL")}
+            </span>
+            <span className={`text-[10px] font-semibold block mt-0.5 ${selectedStatus === "TODOS" ? 'text-slate-300' : 'text-slate-500'}`}>
+              Embarazos Activos
+            </span>
+          </div>
+
+          <div 
+            onClick={() => { setSelectedStatus("EMB_AL_DIA"); setCurrentPage(1); }}
+            className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+              selectedStatus === "EMB_AL_DIA" 
+                ? 'bg-emerald-600 text-white border-emerald-600 shadow-md ring-2 ring-emerald-300' 
+                : 'bg-emerald-50 text-emerald-900 border-emerald-100 hover:border-emerald-300 shadow-xs'
+            }`}
+          >
+            <span className={`block text-[10px] font-black uppercase tracking-wider ${selectedStatus === "EMB_AL_DIA" ? 'text-emerald-100' : 'text-emerald-600'}`}>
+              Controles al Día
+            </span>
+            <span className={`text-2xl font-black mt-1 block ${selectedStatus === "EMB_AL_DIA" ? 'text-white' : 'text-emerald-700'}`}>
+              {embMetrics.alDia.toLocaleString("es-CL")}
+            </span>
+            <span className={`text-[10px] font-semibold block mt-0.5 ${selectedStatus === "EMB_AL_DIA" ? 'text-emerald-100' : 'text-emerald-700/80'}`}>
+              Vigentes
+            </span>
+          </div>
+
+          <div 
+            onClick={() => { setSelectedStatus("EMB_ATRASADOS"); setCurrentPage(1); }}
+            className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+              selectedStatus === "EMB_ATRASADOS" 
+                ? 'bg-red-600 text-white border-red-600 shadow-md ring-2 ring-red-300' 
+                : 'bg-red-50 text-red-900 border-red-100 hover:border-red-300 shadow-xs'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className={`block text-[10px] font-black uppercase tracking-wider ${selectedStatus === "EMB_ATRASADOS" ? 'text-red-100' : 'text-red-600'}`}>
+                Brecha de Controles
+              </span>
+              <span className={`h-2 w-2 rounded-full ${selectedStatus === "EMB_ATRASADOS" ? 'bg-white' : 'bg-red-500 animate-pulse'}`} />
+            </div>
+            <span className={`text-2xl font-black mt-1 block ${selectedStatus === "EMB_ATRASADOS" ? 'text-white' : 'text-red-600'}`}>
+              {embMetrics.atrasados.toLocaleString("es-CL")}
+            </span>
+            <span className={`text-[10px] font-semibold block mt-0.5 ${selectedStatus === "EMB_ATRASADOS" ? 'text-red-100' : 'text-red-700/80'}`}>
+              Atrasadas / Inasistentes
+            </span>
+          </div>
+
+          <div 
+            onClick={() => { setSelectedStatus("EMB_ARO"); setCurrentPage(1); }}
+            className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+              selectedStatus === "EMB_ARO" 
+                ? 'bg-purple-900 text-white border-purple-900 shadow-md ring-2 ring-purple-400' 
+                : 'bg-white text-slate-800 border-slate-200 hover:border-purple-300 shadow-xs'
+            }`}
+          >
+            <span className={`block text-[10px] font-black uppercase tracking-wider ${selectedStatus === "EMB_ARO" ? 'text-purple-200' : 'text-purple-700'}`}>
+              Alto Riesgo Obst.
+            </span>
+            <span className={`text-2xl font-black mt-1 block ${selectedStatus === "EMB_ARO" ? 'text-white' : 'text-purple-700'}`}>
+              {embMetrics.aro.toLocaleString("es-CL")}
+            </span>
+            <span className={`text-[10px] font-semibold block mt-0.5 ${selectedStatus === "EMB_ARO" ? 'text-purple-200' : 'text-slate-500'}`}>
+              Seguimiento ARO
+            </span>
+          </div>
+        </div>
+      )}
+
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="p-6 border-b border-slate-100 bg-slate-50/50">
@@ -849,6 +956,20 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                   <option value="RECHAZADOS">Rechazados / Muestra Insatisfactoria</option>
                   <option value="PENDIENTES">PAPs Pendientes de Laboratorio</option>
                   <option value="EXCLUIDAS">Excluidas (Histerectomía)</option>
+                </select>
+              )}
+
+              {/* Filtro por Estado Clínico Gestacional (Visible sólo en pestaña Embarazadas) */}
+              {activeTab === "embarazadas" && (
+                <select
+                  value={selectedStatus}
+                  onChange={(e) => { setSelectedStatus(e.target.value); setCurrentPage(1); }}
+                  className="bg-white border border-slate-200 rounded-xl px-4 h-11 text-sm font-semibold text-slate-600 focus:ring-2 focus:ring-pink-500 outline-none transition-all shadow-sm cursor-pointer w-full sm:w-auto sm:min-w-[240px]"
+                >
+                  <option value="TODOS">Todos los Embarazos</option>
+                  <option value="EMB_AL_DIA">Controles al Día</option>
+                  <option value="EMB_ATRASADOS">Controles Atrasados (Brecha)</option>
+                  <option value="EMB_ARO">Solo Alto Riesgo [ARO]</option>
                 </select>
               )}
 
