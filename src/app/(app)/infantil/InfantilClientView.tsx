@@ -115,6 +115,10 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
   const [editSocial, setEditSocial] = useState(false);
   const [editSala, setEditSala] = useState(false);
   const [editCondicion, setEditCondicion] = useState("");
+  const [editUltimoControlMedico, setEditUltimoControlMedico] = useState("");
+  const [editUltimoControlEnfermera, setEditUltimoControlEnfermera] = useState("");
+  const [editUltimoControlNutri, setEditUltimoControlNutri] = useState("");
+  const [editUltimoControlDental, setEditUltimoControlDental] = useState("");
   const [editProxControlMedico, setEditProxControlMedico] = useState("");
   const [editProxControlEnfermera, setEditProxControlEnfermera] = useState("");
   const [editProxControlNutri, setEditProxControlNutri] = useState("");
@@ -148,6 +152,10 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
     setIsSavingEdit(true);
     const res = await editarPacienteInfantilAdmin({
       rut_paciente: editPaciente.rut,
+      ultimo_control_medico: editUltimoControlMedico || null,
+      ultimo_control_enfermera: editUltimoControlEnfermera || null,
+      ultimo_control_nutri: editUltimoControlNutri || null,
+      ultimo_control_dental: editUltimoControlDental || null,
       dsm_resultado: editDsm || null,
       estado_nutricional: editNutri || null,
       clasificacion_estatura: editClasificacionEstatura || null,
@@ -743,6 +751,10 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
                               setEditSocial(p.es_caso_social || false);
                               setEditSala(p.en_sala_estimulacion || false);
                               setEditCondicion(p.condicion_especial || "");
+                              setEditUltimoControlMedico(p.ultimo_control_medico ? p.ultimo_control_medico.substring(0, 10) : "");
+                              setEditUltimoControlEnfermera(p.ultimo_control_enfermera ? p.ultimo_control_enfermera.substring(0, 10) : "");
+                              setEditUltimoControlNutri(p.ultimo_control_nutri ? p.ultimo_control_nutri.substring(0, 10) : "");
+                              setEditUltimoControlDental(p.ultimo_control_dental ? p.ultimo_control_dental.substring(0, 10) : "");
                               setEditProxControlMedico(p.prox_control_medico ? p.prox_control_medico.substring(0, 7) : "");
                             setEditProxControlEnfermera(p.prox_control_enfermera ? p.prox_control_enfermera.substring(0, 7) : "");
                             setEditProxControlNutri(p.prox_control_nutri ? p.prox_control_nutri.substring(0, 7) : "");
@@ -1227,33 +1239,63 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
                 </div>
 
                 <div className="space-y-4">
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b pb-2">Agendamiento</h4>
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b pb-2">Atenciones y Agendamiento</h4>
                   
-                  <div className="col-span-2">
-                    <h4 className="text-xs font-bold text-slate-700 uppercase mb-2">Próximas Atenciones (Mes/Año)</h4>
-                    <div className="grid grid-cols-2 gap-4">
+                  {/* ÚLTIMAS ATENCIONES REALIZADAS */}
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-700 uppercase mb-1.5 flex items-center justify-between">
+                      <span>Últimas Atenciones Realizadas</span>
+                      <span className="text-[10px] font-normal text-slate-400 lowercase italic">fecha exacta</span>
+                    </h4>
+                    <div className="grid grid-cols-2 gap-2.5 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-500 mb-1">Médico</label>
-                        <input type="month" value={editProxControlMedico} onChange={e => setEditProxControlMedico(e.target.value)} className="w-full text-sm border-slate-300 rounded-lg"/>
+                        <label className="block text-[10px] font-bold text-blue-700 mb-1">Médico</label>
+                        <input type="date" value={editUltimoControlMedico} onChange={e => setEditUltimoControlMedico(e.target.value)} className="w-full text-xs border-slate-300 rounded-lg bg-white"/>
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-500 mb-1">Enfermera</label>
-                        <input type="month" value={editProxControlEnfermera} onChange={e => setEditProxControlEnfermera(e.target.value)} className="w-full text-sm border-slate-300 rounded-lg"/>
+                        <label className="block text-[10px] font-bold text-pink-700 mb-1">Enfermera</label>
+                        <input type="date" value={editUltimoControlEnfermera} onChange={e => setEditUltimoControlEnfermera(e.target.value)} className="w-full text-xs border-slate-300 rounded-lg bg-white"/>
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-500 mb-1">Nutricionista</label>
-                        <input type="month" value={editProxControlNutri} onChange={e => setEditProxControlNutri(e.target.value)} className="w-full text-sm border-slate-300 rounded-lg"/>
+                        <label className="block text-[10px] font-bold text-emerald-700 mb-1">Nutricionista</label>
+                        <input type="date" value={editUltimoControlNutri} onChange={e => setEditUltimoControlNutri(e.target.value)} className="w-full text-xs border-slate-300 rounded-lg bg-white"/>
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-500 mb-1">Odontólogo</label>
-                        <input type="month" value={editProxControlDental} onChange={e => setEditProxControlDental(e.target.value)} className="w-full text-sm border-slate-300 rounded-lg"/>
+                        <label className="block text-[10px] font-bold text-purple-700 mb-1">Dental</label>
+                        <input type="date" value={editUltimoControlDental} onChange={e => setEditUltimoControlDental(e.target.value)} className="w-full text-xs border-slate-300 rounded-lg bg-white"/>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* PRÓXIMAS ATENCIONES PROGRAMADAS */}
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-700 uppercase mb-1.5 flex items-center justify-between">
+                      <span>Próximas Atenciones Programadas</span>
+                      <span className="text-[10px] font-normal text-slate-400 lowercase italic">mes/año</span>
+                    </h4>
+                    <div className="grid grid-cols-2 gap-2.5 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                      <div>
+                        <label className="block text-[10px] font-bold text-blue-700 mb-1">Médico</label>
+                        <input type="month" value={editProxControlMedico} onChange={e => setEditProxControlMedico(e.target.value)} className="w-full text-xs border-slate-300 rounded-lg bg-white"/>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-pink-700 mb-1">Enfermera</label>
+                        <input type="month" value={editProxControlEnfermera} onChange={e => setEditProxControlEnfermera(e.target.value)} className="w-full text-xs border-slate-300 rounded-lg bg-white"/>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-emerald-700 mb-1">Nutricionista</label>
+                        <input type="month" value={editProxControlNutri} onChange={e => setEditProxControlNutri(e.target.value)} className="w-full text-xs border-slate-300 rounded-lg bg-white"/>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-purple-700 mb-1">Dental</label>
+                        <input type="month" value={editProxControlDental} onChange={e => setEditProxControlDental(e.target.value)} className="w-full text-xs border-slate-300 rounded-lg bg-white"/>
                       </div>
                     </div>
                   </div>
 
                   <div>
                     <label className="block text-xs font-bold text-slate-500 mb-1">Observaciones</label>
-                    <textarea maxLength={500} value={editObs} onChange={e => setEditObs(e.target.value)} rows={3} className="w-full text-sm border-slate-300 rounded-lg font-mono" placeholder="Notas internas..."></textarea>
+                    <textarea maxLength={500} value={editObs} onChange={e => setEditObs(e.target.value)} rows={2} className="w-full text-sm border-slate-300 rounded-lg font-mono" placeholder="Notas internas..."></textarea>
                   </div>
                 </div>
               </div>

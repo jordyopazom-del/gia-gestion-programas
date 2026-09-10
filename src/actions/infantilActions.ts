@@ -220,6 +220,10 @@ export async function registrarNspInfantil(data: {
 
 export async function editarPacienteInfantilAdmin(data: {
   rut_paciente: string;
+  ultimo_control_medico?: string | null;
+  ultimo_control_enfermera?: string | null;
+  ultimo_control_nutri?: string | null;
+  ultimo_control_dental?: string | null;
   dsm_resultado?: string | null;
   estado_nutricional?: string | null;
   clasificacion_estatura?: string | null;
@@ -254,6 +258,10 @@ export async function editarPacienteInfantilAdmin(data: {
 
       return await guardarControlInfantil({
         rut_paciente: data.rut_paciente,
+        ultimo_control_medico: data.ultimo_control_medico || null,
+        ultimo_control_enfermera: data.ultimo_control_enfermera || null,
+        ultimo_control_nutri: data.ultimo_control_nutri || null,
+        ultimo_control_dental: data.ultimo_control_dental || null,
         dsm_resultado: data.dsm_resultado,
         estado_nutricional: data.estado_nutricional,
         dsm_detalle: Object.keys(initialDetalle).length > 0 ? initialDetalle : null,
@@ -286,6 +294,10 @@ export async function editarPacienteInfantilAdmin(data: {
     await sql`
       UPDATE gia_infantil
       SET 
+        ultimo_control_medico = ${data.ultimo_control_medico || null},
+        ultimo_control_enfermera = ${data.ultimo_control_enfermera || null},
+        ultimo_control_nutri = ${data.ultimo_control_nutri || null},
+        ultimo_control_dental = ${data.ultimo_control_dental || null},
         dsm_resultado = ${data.dsm_resultado ?? null},
         estado_nutricional = ${data.estado_nutricional ?? null},
         es_naneas = ${data.es_naneas ?? false},
