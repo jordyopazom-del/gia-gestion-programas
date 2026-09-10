@@ -158,10 +158,10 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
       es_caso_social: editSocial,
       en_sala_estimulacion: editSala,
       condicion_especial: editCondicion || null,
-      prox_control_medico: editProxControlMedico ? `${editProxControlMedico}-01` : null,
-      prox_control_enfermera: editProxControlEnfermera ? `${editProxControlEnfermera}-01` : null,
-      prox_control_nutri: editProxControlNutri ? `${editProxControlNutri}-01` : null,
-      prox_control_dental: editProxControlDental ? `${editProxControlDental}-01` : null,
+      prox_control_medico: editProxControlMedico ? editProxControlMedico.substring(0, 7) : null,
+      prox_control_enfermera: editProxControlEnfermera ? editProxControlEnfermera.substring(0, 7) : null,
+      prox_control_nutri: editProxControlNutri ? editProxControlNutri.substring(0, 7) : null,
+      prox_control_dental: editProxControlDental ? editProxControlDental.substring(0, 7) : null,
       observaciones: editObs || null
     });
     setIsSavingEdit(false);

@@ -97,6 +97,11 @@ export async function guardarControlInfantil(data: {
       else if (profesion.includes('ODONT') || profesion.includes('DENTIS')) uDental = hoy;
     }
 
+    const cleanProxMedico = data.prox_control_medico ? data.prox_control_medico.substring(0, 7) : null;
+    const cleanProxEnfermera = data.prox_control_enfermera ? data.prox_control_enfermera.substring(0, 7) : null;
+    const cleanProxNutri = data.prox_control_nutri ? data.prox_control_nutri.substring(0, 7) : null;
+    const cleanProxDental = data.prox_control_dental ? data.prox_control_dental.substring(0, 7) : null;
+
     await sql`
       INSERT INTO gia_infantil (
         rut_paciente, 
@@ -109,8 +114,8 @@ export async function guardarControlInfantil(data: {
         ${data.rut_paciente}, 
         ${uMedico}, ${uEnfermera}, 
         ${uNutri}, ${uDental},
-        ${data.prox_control_medico || null}, ${data.prox_control_enfermera || null}, 
-        ${data.prox_control_nutri || null}, ${data.prox_control_dental || null}, 
+        ${cleanProxMedico}, ${cleanProxEnfermera}, 
+        ${cleanProxNutri}, ${cleanProxDental}, 
         ${data.es_naneas || false}, ${data.es_caso_social || false}, ${data.en_sala_estimulacion || false}, ${data.condicion_especial || null},
         ${data.estado_nutricional || null}, ${data.dsm_resultado || null}, ${data.tipo_evaluacion_dsm || null}, 
         ${data.dsm_detalle ? sql.json(data.dsm_detalle) : null},
@@ -123,7 +128,7 @@ export async function guardarControlInfantil(data: {
     return { success: true };
   } catch (error: any) {
     console.error("Error al guardar Control Infantil:", error);
-    return { error: "Error de base de datos al guardar el control infantil." };
+    return { error: `Error en base de datos: ${error.message || error}` };
   }
 }
 
@@ -287,10 +292,10 @@ export async function editarPacienteInfantilAdmin(data: {
         es_caso_social = ${data.es_caso_social ?? false},
         en_sala_estimulacion = ${data.en_sala_estimulacion ?? false},
         condicion_especial = ${data.condicion_especial ?? null},
-        prox_control_medico = ${data.prox_control_medico ?? null},
-        prox_control_enfermera = ${data.prox_control_enfermera ?? null},
-        prox_control_nutri = ${data.prox_control_nutri ?? null},
-        prox_control_dental = ${data.prox_control_dental ?? null},
+        prox_control_medico = ${data.prox_control_medico ? data.prox_control_medico.substring(0, 7) : null},
+        prox_control_enfermera = ${data.prox_control_enfermera ? data.prox_control_enfermera.substring(0, 7) : null},
+        prox_control_nutri = ${data.prox_control_nutri ? data.prox_control_nutri.substring(0, 7) : null},
+        prox_control_dental = ${data.prox_control_dental ? data.prox_control_dental.substring(0, 7) : null},
         dsm_detalle = ${sql.json(newDetalle)},
         observaciones = ${data.observaciones ?? null}
       WHERE id = ${lastId}
@@ -299,6 +304,6 @@ export async function editarPacienteInfantilAdmin(data: {
     return { success: true };
   } catch (error: any) {
     console.error("Error al editar paciente infantil:", error);
-    return { error: "Error de base de datos al editar paciente." };
+    return { error: `Error en base de datos: ${error.message || error}` };
   }
 }

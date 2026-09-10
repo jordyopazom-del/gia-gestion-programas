@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { buscarPacienteInfantilPorRut, guardarControlInfantil } from "@/actions/infantilActions";
-import { Baby, Search, ArrowLeft, Save, AlertCircle, ShieldCheck } from "lucide-react";
+import { Baby, Search, ArrowLeft, Save, AlertCircle, ShieldCheck, Stethoscope, ActivitySquare, Carrot, Sparkles } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function NuevoControlInfantilPage() {
@@ -152,10 +152,10 @@ export default function NuevoControlInfantilPage() {
         ultimo_control_nutri: pacienteInfo.hist_nutri || null,
         ultimo_control_dental: pacienteInfo.hist_dental || null,
         atencion_hoy: true,
-        prox_control_medico: proxControlMedico ? `${proxControlMedico}-01` : null,
-        prox_control_enfermera: proxControlEnfermera ? `${proxControlEnfermera}-01` : null,
-        prox_control_nutri: proxControlNutri ? `${proxControlNutri}-01` : null,
-        prox_control_dental: proxControlDental ? `${proxControlDental}-01` : null,
+        prox_control_medico: proxControlMedico ? proxControlMedico.substring(0, 7) : null,
+        prox_control_enfermera: proxControlEnfermera ? proxControlEnfermera.substring(0, 7) : null,
+        prox_control_nutri: proxControlNutri ? proxControlNutri.substring(0, 7) : null,
+        prox_control_dental: proxControlDental ? proxControlDental.substring(0, 7) : null,
         es_naneas: esNaneas,
         es_caso_social: esCasoSocial,
         en_sala_estimulacion: enSalaEstimulacion,
@@ -640,14 +640,57 @@ export default function NuevoControlInfantilPage() {
               Agendamiento y Observaciones
             </h3>
             
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-xs font-bold text-slate-500 mb-2">Próximas Atenciones Programadas (Mes/Año)</label>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <input type="month" value={proxControlMedico} onChange={(e) => setProxControlMedico(e.target.value)} className="w-full rounded-xl border-slate-200 text-sm" placeholder="Médico"/>
-                  <input type="month" value={proxControlEnfermera} onChange={(e) => setProxControlEnfermera(e.target.value)} className="w-full rounded-xl border-slate-200 text-sm" placeholder="Enfermera"/>
-                  <input type="month" value={proxControlNutri} onChange={(e) => setProxControlNutri(e.target.value)} className="w-full rounded-xl border-slate-200 text-sm" placeholder="Nutricionista"/>
-                  <input type="month" value={proxControlDental} onChange={(e) => setProxControlDental(e.target.value)} className="w-full rounded-xl border-slate-200 text-sm" placeholder="Dental"/>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                    <label className="flex items-center text-[11px] font-bold text-blue-700 uppercase mb-1">
+                      <Stethoscope size={12} className="mr-1 text-blue-600 shrink-0" /> Médico
+                    </label>
+                    <input 
+                      type="month" 
+                      value={proxControlMedico} 
+                      onChange={(e) => setProxControlMedico(e.target.value)} 
+                      className="w-full rounded-lg border-slate-200 bg-white text-xs font-medium focus:ring-blue-500 focus:border-blue-500" 
+                    />
+                  </div>
+
+                  <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                    <label className="flex items-center text-[11px] font-bold text-pink-700 uppercase mb-1">
+                      <ActivitySquare size={12} className="mr-1 text-pink-600 shrink-0" /> Enfermera
+                    </label>
+                    <input 
+                      type="month" 
+                      value={proxControlEnfermera} 
+                      onChange={(e) => setProxControlEnfermera(e.target.value)} 
+                      className="w-full rounded-lg border-slate-200 bg-white text-xs font-medium focus:ring-pink-500 focus:border-pink-500" 
+                    />
+                  </div>
+
+                  <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                    <label className="flex items-center text-[11px] font-bold text-emerald-700 uppercase mb-1">
+                      <Carrot size={12} className="mr-1 text-emerald-600 shrink-0" /> Nutricionista
+                    </label>
+                    <input 
+                      type="month" 
+                      value={proxControlNutri} 
+                      onChange={(e) => setProxControlNutri(e.target.value)} 
+                      className="w-full rounded-lg border-slate-200 bg-white text-xs font-medium focus:ring-emerald-500 focus:border-emerald-500" 
+                    />
+                  </div>
+
+                  <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                    <label className="flex items-center text-[11px] font-bold text-purple-700 uppercase mb-1">
+                      <Sparkles size={12} className="mr-1 text-purple-600 shrink-0" /> Dental
+                    </label>
+                    <input 
+                      type="month" 
+                      value={proxControlDental} 
+                      onChange={(e) => setProxControlDental(e.target.value)} 
+                      className="w-full rounded-lg border-slate-200 bg-white text-xs font-medium focus:ring-purple-500 focus:border-purple-500" 
+                    />
+                  </div>
                 </div>
                 <p className="text-[10px] text-slate-400 mt-2 italic">Opcional. Si el paciente queda de alta o requiere interconsulta, puedes omitir la fecha de próximo control.</p>
               </div>
@@ -657,10 +700,10 @@ export default function NuevoControlInfantilPage() {
                 <textarea 
                   value={observaciones} 
                   onChange={(e) => setObservaciones(e.target.value)} 
-                  rows={3} 
+                  rows={4} 
                   maxLength={500}
                   placeholder="Detalles relevantes de la atención, indicaciones especiales..."
-                  className="w-full rounded-xl border-slate-200"
+                  className="w-full rounded-xl border-slate-200 text-sm"
                 ></textarea>
               </div>
             </div>
