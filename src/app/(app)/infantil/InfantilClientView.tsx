@@ -553,7 +553,17 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
                       <p className="text-sm font-bold text-slate-800 uppercase leading-none mr-1">{p.nombre_completo}</p>
                     </div>
                     <div className="flex flex-wrap items-center text-[10px] text-slate-500 gap-x-2 gap-y-1 mb-1.5">
-                      <span className="font-mono font-bold bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">{p.rut}-{p.dv}</span>
+                      <button 
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          navigator.clipboard.writeText(`${p.rut}-${p.dv}`);
+                          toast.success("RUT copiado al portapapeles", { style: { fontSize: '12px', padding: '8px' } });
+                        }}
+                        className="font-mono font-bold bg-slate-100 hover:bg-slate-200 px-1.5 py-0.5 rounded text-slate-600 transition-colors cursor-copy"
+                        title="Clic para copiar RUT"
+                      >
+                        {p.rut}-{p.dv}
+                      </button>
                       <span>•</span>
                       <span className="font-bold">{p.edad_anios} Años, {p.edad_meses} M</span>
                       <span>•</span>
@@ -561,14 +571,17 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
                       {p.telefono && (
                         <>
                           <span>•</span>
-                          <a
-                            href={`tel:${p.telefono}`}
-                            onClick={e => e.stopPropagation()}
-                            className="flex items-center font-mono text-blue-600 font-bold hover:underline hover:text-blue-800 transition-colors"
-                            title="Llamar o copiar número"
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigator.clipboard.writeText(p.telefono);
+                              toast.success("Teléfono copiado al portapapeles", { style: { fontSize: '12px', padding: '8px' } });
+                            }}
+                            className="flex items-center font-mono font-bold bg-slate-100 hover:bg-slate-200 px-1.5 py-0.5 rounded text-slate-600 transition-colors cursor-copy"
+                            title="Clic para copiar Teléfono"
                           >
                             📞 {p.telefono}
-                          </a>
+                          </button>
                         </>
                       )}
                     </div>
