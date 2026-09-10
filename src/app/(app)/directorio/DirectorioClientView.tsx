@@ -5,6 +5,7 @@ import { Search, MapPin, Download, UserMinus, History, CheckCircle, AlertCircle,
 import { egresarPaciente, validarPaciente, eliminarPacienteProvisorio, upsertPaciente, PacienteData } from "@/actions/pacientesActions";
 import { UserProfile } from "@/actions/userActions";
 import { getLocalDateString } from "@/lib/dateUtils";
+import { CopyBadge } from "@/components/CopyBadge";
 
 const calculateAge = (birthDate: string | Date | null) => {
   if (!birthDate) return "-";
@@ -325,12 +326,25 @@ export default function DirectorioClientView({ pacientes, user }: { pacientes: a
               <tbody className="divide-y divide-slate-100">
                 {filtered.slice(0, 500).map((p, i) => (
                   <tr key={i} className="hover:bg-blue-50 transition-colors">
-                    <td className="px-4 py-2 font-medium">{p.rut}-{p.dv}</td>
+                    <td className="px-4 py-2 font-medium">
+                      <CopyBadge value={`${p.rut}-${p.dv}`} label="RUT" />
+                    </td>
                     <td className="px-4 py-2 uppercase truncate" title={p.nombre_completo}>{p.nombre_completo}</td>
                     <td className="px-4 py-2 text-center">{calculateAge(p.fecha_nacimiento)}</td>
                     <td className="px-4 py-2 text-center uppercase">{p.sexo}</td>
                     <td className="px-4 py-2 uppercase truncate max-w-[150px]" title={p.sector}>{p.sector}</td>
-                    <td className="px-4 py-2">{p.telefono || '-'}</td>
+                    <td className="px-4 py-2">
+                      {p.telefono ? (
+                        <CopyBadge 
+                          value={p.telefono} 
+                          label="Teléfono" 
+                          prefixIcon="📞"
+                          className="font-mono font-bold bg-slate-100 hover:bg-slate-200 px-1.5 py-0.5 rounded text-slate-600 transition-colors cursor-copy inline-flex items-center text-xs" 
+                        />
+                      ) : (
+                        '-'
+                      )}
+                    </td>
                     {tab === "activos" ? (
                       (user?.rol === "ADMINISTRADOR" || user?.rol === "ADMINISTRATIVO") && (
                         <td className="px-4 py-2 text-center">

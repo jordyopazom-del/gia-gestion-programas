@@ -9,6 +9,7 @@ import { guardarHisterectomia, guardarPap, actualizarResultadoPap, getHistorialE
 import { useEffect } from "react";
 import { decodificarCodigoPap, DecodificacionPap } from "@/lib/decodificadorPap";
 import FormularioAtencionMujer from "@/app/(app)/mujer/components/FormularioAtencionMujer";
+import { CopyBadge } from "@/components/CopyBadge";
 
 type PacienteMujer = {
   rut: string;
@@ -1065,11 +1066,22 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                           )}
                         </div>
                         <div className="flex flex-wrap items-center text-[10px] text-slate-500 gap-x-2 gap-y-1 mt-0.5">
-                          <span className="font-mono font-bold bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 leading-none">{p.rut}-{p.dv}</span>
+                          <CopyBadge value={`${p.rut}-${p.dv}`} label="RUT" />
                           <span>•</span>
                           <span className="font-bold">{age} Años</span>
                           <span>•</span>
                           <span className="flex items-center"><MapPin size={10} className="mr-0.5 text-slate-400 shrink-0"/> {p.sector || "GENERAL"}</span>
+                          {p.telefono && (
+                            <>
+                              <span>•</span>
+                              <CopyBadge 
+                                value={p.telefono} 
+                                label="Teléfono" 
+                                prefixIcon="📞"
+                                className="font-mono font-bold bg-slate-100 hover:bg-slate-200 px-1.5 py-0.5 rounded text-slate-600 transition-colors cursor-copy inline-flex items-center" 
+                              />
+                            </>
+                          )}
                         </div>
                       </td>
                       
@@ -1130,14 +1142,13 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                           <td className="px-6 py-4">
                             <div className="flex flex-col gap-0.5">
                               {p.telefono ? (
-                                <a 
-                                  href={`tel:${p.telefono}`} 
-                                  className="flex items-center text-xs font-mono font-bold text-slate-700 hover:text-pink-600 transition-colors w-fit"
-                                  title="Llamar para rescate / citación"
-                                >
-                                  <Phone size={12} className="mr-1.5 text-pink-500 shrink-0" />
-                                  {p.telefono}
-                                </a>
+                                <CopyBadge 
+                                  value={p.telefono} 
+                                  label="Teléfono" 
+                                  prefixIcon={<Phone size={12} className="text-pink-500 shrink-0" />}
+                                  className="flex items-center text-xs font-mono font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded-md transition-colors cursor-copy w-fit"
+                                  title="Clic para copiar teléfono"
+                                />
                               ) : (
                                 <span className="text-xs text-slate-400 font-medium italic">Sin Teléfono</span>
                               )}
@@ -1230,7 +1241,18 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
                         </>
                       ) : (
                         <>
-                          <td className="px-6 py-4 text-sm text-slate-500 font-medium truncate">{p.telefono || "—"}</td>
+                          <td className="px-6 py-4 text-sm font-medium">
+                            {p.telefono ? (
+                              <CopyBadge 
+                                value={p.telefono} 
+                                label="Teléfono" 
+                                prefixIcon="📞"
+                                className="font-mono font-bold bg-slate-100 hover:bg-slate-200 px-1.5 py-0.5 rounded text-slate-600 transition-colors cursor-copy inline-flex items-center text-xs" 
+                              />
+                            ) : (
+                              <span className="text-slate-400">—</span>
+                            )}
+                          </td>
                           <td className="px-6 py-4">
                             <div className="flex flex-wrap gap-1.5 items-center">
                               {/* Embarazo */}

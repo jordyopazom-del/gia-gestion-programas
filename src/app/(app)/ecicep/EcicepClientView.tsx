@@ -6,6 +6,7 @@ import * as XLSX from "xlsx";
 import toast from "react-hot-toast";
 import { UserProfile } from "@/actions/userActions";
 import { saveEcicepRecord, obtenerClinicosActivos, EcicepSubmission } from "@/actions/ecicepActions";
+import { CopyBadge } from "@/components/CopyBadge";
 
 const ROLES_DISPONIBLES = [
   "Médico", "Enfermero", "Nutricionista", "Kinesiólogo", 
@@ -764,11 +765,22 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
                           )}
                         </div>
                         <div className="flex flex-wrap items-center text-[9px] text-slate-500 gap-x-1.5 gap-y-0.5 mt-1 font-medium">
-                          <span className="font-mono font-bold bg-slate-100 px-1 rounded text-slate-600 leading-none">{p.rut}-{p.dv}</span>
+                          <CopyBadge value={`${p.rut}-${p.dv}`} label="RUT" />
                           <span>•</span>
                           <span className="font-bold">{age} Años</span>
                           <span>•</span>
                           <span className="flex items-center"><MapPin size={8} className="mr-0.5 text-slate-400 shrink-0"/> {p.sector}</span>
+                          {p.telefono && (
+                            <>
+                              <span>•</span>
+                              <CopyBadge 
+                                value={p.telefono} 
+                                label="Teléfono" 
+                                prefixIcon="📞"
+                                className="font-mono font-bold bg-slate-100 hover:bg-slate-200 px-1 py-0.5 rounded text-slate-600 transition-colors cursor-copy inline-flex items-center" 
+                              />
+                            </>
+                          )}
                         </div>
                         {(() => {
                            const dc = getParsedDataClinica(p.data_clinica);
@@ -1034,7 +1046,9 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-900 leading-tight uppercase">{selectedPatient.nombre_completo}</h3>
-                  <p className="text-sm text-slate-500 font-mono">{selectedPatient.rut}-{selectedPatient.dv}</p>
+                  <div className="mt-0.5">
+                    <CopyBadge value={`${selectedPatient.rut}-${selectedPatient.dv}`} label="RUT" />
+                  </div>
                 </div>
               </div>
               <button 
@@ -1067,7 +1081,12 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center text-sm text-slate-600">
-                    <Phone size={14} className="mr-3 text-slate-400" /> {selectedPatient.telefono || 'Sin teléfono registrado'}
+                    <Phone size={14} className="mr-3 text-slate-400" />
+                    {selectedPatient.telefono ? (
+                      <CopyBadge value={selectedPatient.telefono} label="Teléfono" />
+                    ) : (
+                      'Sin teléfono registrado'
+                    )}
                   </div>
                   <div className="flex items-center text-sm text-slate-600">
                     <Map size={14} className="mr-3 text-slate-400" /> {selectedPatient.direccion || 'Sin dirección registrada'}

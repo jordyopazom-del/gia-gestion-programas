@@ -5,6 +5,7 @@ import { uploadAgendaDiaria, getOportunidadesHoy, marcarRescatado, getFechasConA
 import { Calendar, Upload, Search, User, AlertCircle, CheckCircle2, FileSpreadsheet, Printer, Activity, Wind, Flower2 } from "lucide-react";
 import * as XLSX from "xlsx";
 import AgendaCalendar from "@/components/AgendaCalendar";
+import { CopyBadge } from "@/components/CopyBadge";
 
 export default function OportunidadClientView({ initialData, initialDate, initialFechasConAgenda }: { initialData: Oportunidad[], initialDate: string, initialFechasConAgenda: string[] }) {
   const [data, setData] = useState<Oportunidad[]>(initialData);
@@ -324,10 +325,21 @@ export default function OportunidadClientView({ initialData, initialDate, initia
                       </span>
                     )}
                   </div>
-                  <p className="text-[11px] font-mono text-slate-400 mt-1">{item.rut}</p>
+                  <div className="mt-1">
+                    <CopyBadge value={item.rut} label="RUT" />
+                  </div>
                 </td>
                 <td className="px-6 py-5 text-center">
-                  <p className="text-xs font-black text-slate-700">{item.telefono || '—'}</p>
+                  {item.telefono ? (
+                    <CopyBadge 
+                      value={item.telefono} 
+                      label="Teléfono" 
+                      prefixIcon="📞"
+                      className="font-mono font-bold bg-slate-100 hover:bg-slate-200 px-1.5 py-0.5 rounded text-slate-600 transition-colors cursor-copy inline-flex items-center text-xs" 
+                    />
+                  ) : (
+                    <span className="text-xs text-slate-400 font-bold">—</span>
+                  )}
                 </td>
                 <td className="px-6 py-5 text-center">
                   <div className={`inline-flex items-center px-3 py-1.5 rounded-full text-[10px] font-black tracking-wide uppercase ${

@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { Search, MapPin, AlertTriangle, CheckCircle, Clock, Download, Activity, ClipboardList, X, User, Phone, Map, Calendar, Dumbbell, ShieldCheck, Stethoscope } from "lucide-react";
 import * as XLSX from "xlsx";
 import { UserProfile } from "@/actions/userActions";
+import { CopyBadge } from "@/components/CopyBadge";
 
 const getEmpamStatus = (fechaString: string | null, resultado: string | null) => {
   if (!fechaString) return { status: "Pendiente", color: "bg-red-100 text-red-800 border-red-200", icon: <AlertTriangle size={14} className="mr-1" /> };
@@ -405,7 +406,9 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
                       onClick={() => setSelectedPatient(p)}
                       className="hover:bg-blue-50 cursor-pointer transition-colors group"
                     >
-                      <td className="px-3 py-3 font-medium text-blue-600 group-hover:underline">{p.rut}-{p.dv}</td>
+                      <td className="px-3 py-3 font-medium">
+                        <CopyBadge value={`${p.rut}-${p.dv}`} label="RUT" />
+                      </td>
                       <td className="px-3 py-3 max-w-[200px]">
                         <div className="flex items-center space-x-2">
                           <span className="uppercase truncate">{p.nombre_completo}</span>
@@ -419,7 +422,18 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
                       </td>
                       <td className="px-3 py-3 text-center">{age}</td>
                       <td className="px-6 py-5 text-sm text-slate-600 uppercase whitespace-nowrap">{p.sector}</td>
-                      <td className="px-6 py-5 text-sm text-slate-500 whitespace-nowrap">{p.telefono || "—"}</td>
+                      <td className="px-6 py-5 text-sm whitespace-nowrap">
+                        {p.telefono ? (
+                          <CopyBadge 
+                            value={p.telefono} 
+                            label="Teléfono" 
+                            prefixIcon="📞"
+                            className="font-mono font-bold bg-slate-100 hover:bg-slate-200 px-1.5 py-0.5 rounded text-slate-600 transition-colors cursor-copy inline-flex items-center text-xs" 
+                          />
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </td>
                       
                       {tab === 'activos' ? (
                         <>
@@ -629,7 +643,9 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-900 leading-tight uppercase">{selectedPatient.nombre_completo}</h3>
-                  <p className="text-sm text-slate-500 font-mono">{selectedPatient.rut}-{selectedPatient.dv}</p>
+                  <div className="mt-0.5">
+                    <CopyBadge value={`${selectedPatient.rut}-${selectedPatient.dv}`} label="RUT" />
+                  </div>
                 </div>
               </div>
               <button 
@@ -662,7 +678,12 @@ export default function EmpamClientView({ data, user }: { data: any[], user: Use
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center text-sm text-slate-600">
-                    <Phone size={14} className="mr-3 text-slate-400" /> {selectedPatient.telefono || 'Sin teléfono registrado'}
+                    <Phone size={14} className="mr-3 text-slate-400" />
+                    {selectedPatient.telefono ? (
+                      <CopyBadge value={selectedPatient.telefono} label="Teléfono" />
+                    ) : (
+                      'Sin teléfono registrado'
+                    )}
                   </div>
                   <div className="flex items-center text-sm text-slate-600">
                     <Map size={14} className="mr-3 text-slate-400" /> {selectedPatient.direccion || 'Sin dirección registrada'}

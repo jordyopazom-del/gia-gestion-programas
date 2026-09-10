@@ -5,6 +5,7 @@ import { UserProfile } from "@/actions/userActions";
 import { Search, Info, CheckCircle2, AlertCircle, Phone, Calendar, Stethoscope, Carrot, ActivitySquare, AlertTriangle, ShieldAlert, Baby, X, User, Map, MapPin, CalendarX, Edit, Puzzle, Download } from "lucide-react";
 import toast from "react-hot-toast";
 import { registrarNspInfantil, editarPacienteInfantilAdmin } from "@/actions/infantilActions";
+import { CopyBadge } from "@/components/CopyBadge";
 
 function formatFecha(dateStr: string): string {
   if (!dateStr) return "-";
@@ -553,17 +554,7 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
                       <p className="text-sm font-bold text-slate-800 uppercase leading-none mr-1">{p.nombre_completo}</p>
                     </div>
                     <div className="flex flex-wrap items-center text-[10px] text-slate-500 gap-x-2 gap-y-1 mb-1.5">
-                      <button 
-                        onClick={(e) => { 
-                          e.stopPropagation(); 
-                          navigator.clipboard.writeText(`${p.rut}-${p.dv}`);
-                          toast.success("RUT copiado al portapapeles", { style: { fontSize: '12px', padding: '8px' } });
-                        }}
-                        className="font-mono font-bold bg-slate-100 hover:bg-slate-200 px-1.5 py-0.5 rounded text-slate-600 transition-colors cursor-copy"
-                        title="Clic para copiar RUT"
-                      >
-                        {p.rut}-{p.dv}
-                      </button>
+                      <CopyBadge value={`${p.rut}-${p.dv}`} label="RUT" />
                       <span>•</span>
                       <span className="font-bold">{p.edad_anios} Años, {p.edad_meses} M</span>
                       <span>•</span>
@@ -571,17 +562,12 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
                       {p.telefono && (
                         <>
                           <span>•</span>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigator.clipboard.writeText(p.telefono);
-                              toast.success("Teléfono copiado al portapapeles", { style: { fontSize: '12px', padding: '8px' } });
-                            }}
-                            className="flex items-center font-mono font-bold bg-slate-100 hover:bg-slate-200 px-1.5 py-0.5 rounded text-slate-600 transition-colors cursor-copy"
-                            title="Clic para copiar Teléfono"
-                          >
-                            📞 {p.telefono}
-                          </button>
+                          <CopyBadge 
+                            value={p.telefono} 
+                            label="Teléfono" 
+                            prefixIcon="📞"
+                            className="font-mono font-bold bg-slate-100 hover:bg-slate-200 px-1.5 py-0.5 rounded text-slate-600 transition-colors cursor-copy inline-flex items-center" 
+                          />
                         </>
                       )}
                     </div>
@@ -799,7 +785,9 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-900 leading-tight uppercase">{selectedPaciente.nombre_completo}</h3>
-                  <p className="text-sm text-slate-500 font-mono">{selectedPaciente.rut}-{selectedPaciente.dv}</p>
+                  <div className="mt-0.5">
+                    <CopyBadge value={`${selectedPaciente.rut}-${selectedPaciente.dv}`} label="RUT" />
+                  </div>
                 </div>
               </div>
               <button 
@@ -832,7 +820,12 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center text-sm text-slate-600">
-                    <Phone size={14} className="mr-3 text-slate-400" /> {selectedPaciente.telefono || 'Sin teléfono registrado'}
+                    <Phone size={14} className="mr-3 text-slate-400" />
+                    {selectedPaciente.telefono ? (
+                      <CopyBadge value={selectedPaciente.telefono} label="Teléfono" />
+                    ) : (
+                      'Sin teléfono registrado'
+                    )}
                   </div>
                   <div className="flex items-center text-sm text-slate-600">
                     <Map size={14} className="mr-3 text-slate-400" /> {selectedPaciente.direccion || 'Sin dirección registrada'}
