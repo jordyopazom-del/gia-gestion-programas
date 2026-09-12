@@ -105,12 +105,17 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
   // Edit Modal
   const [showEditModal, setShowEditModal] = useState(false);
   const [editPaciente, setEditPaciente] = useState<InfantilData | null>(null);
+  const [editTipoDsm, setEditTipoDsm] = useState("");
   const [editDsm, setEditDsm] = useState("");
   const [editNutri, setEditNutri] = useState("");
   const [editClasificacionEstatura, setEditClasificacionEstatura] = useState("");
+  const [editTipoAlimentacion, setEditTipoAlimentacion] = useState("");
+  const [editScoreIra, setEditScoreIra] = useState("");
   const [editEdimburgo, setEditEdimburgo] = useState("");
   const [editRiesgoBps, setEditRiesgoBps] = useState("");
   const [editTeaSenales, setEditTeaSenales] = useState("");
+  const [editMchat, setEditMchat] = useState("");
+  const [editObsTea, setEditObsTea] = useState(false);
   const [editNaneas, setEditNaneas] = useState(false);
   const [editSocial, setEditSocial] = useState(false);
   const [editSala, setEditSala] = useState(false);
@@ -156,12 +161,17 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
       ultimo_control_enfermera: editUltimoControlEnfermera || null,
       ultimo_control_nutri: editUltimoControlNutri || null,
       ultimo_control_dental: editUltimoControlDental || null,
+      tipo_evaluacion_dsm: editTipoDsm || null,
       dsm_resultado: editDsm || null,
       estado_nutricional: editNutri || null,
       clasificacion_estatura: editClasificacionEstatura || null,
+      tipo_alimentacion: editTipoAlimentacion || null,
+      score_ira: editScoreIra || null,
       edimburgo: editEdimburgo || null,
       riesgo_biopsicosocial: editRiesgoBps ? Number(editRiesgoBps) : null,
       tea_senales: editTeaSenales || null,
+      mchat: editMchat || null,
+      obs_tea: editObsTea,
       es_naneas: editNaneas,
       es_caso_social: editSocial,
       en_sala_estimulacion: editSala,
@@ -725,11 +735,22 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
                             onClick={(e) => {
                               e.stopPropagation();
                               setEditPaciente(p);
+                              setEditTipoDsm(p.tipo_evaluacion_dsm || "");
                               setEditDsm(p.dsm_resultado || "");
                               setEditNutri(p.estado_nutricional || "");
                               setEditClasificacionEstatura(
                                 p.dsm_detalle && typeof p.dsm_detalle === 'object'
                                   ? (p.dsm_detalle.clasificacion_estatura || "")
+                                  : ""
+                              );
+                              setEditTipoAlimentacion(
+                                p.dsm_detalle && typeof p.dsm_detalle === 'object'
+                                  ? (p.dsm_detalle.tipo_alimentacion || "")
+                                  : ""
+                              );
+                              setEditScoreIra(
+                                p.dsm_detalle && typeof p.dsm_detalle === 'object'
+                                  ? (p.dsm_detalle.score_ira || "")
                                   : ""
                               );
                               setEditEdimburgo(
@@ -746,6 +767,16 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
                                 p.dsm_detalle && typeof p.dsm_detalle === 'object'
                                   ? (p.dsm_detalle.tea_senales || "")
                                   : ""
+                              );
+                              setEditMchat(
+                                p.dsm_detalle && typeof p.dsm_detalle === 'object'
+                                  ? (p.dsm_detalle.mchat || "")
+                                  : ""
+                              );
+                              setEditObsTea(
+                                p.dsm_detalle && typeof p.dsm_detalle === 'object'
+                                  ? (p.dsm_detalle.obsTea || false)
+                                  : false
                               );
                               setEditNaneas(p.es_naneas || false);
                               setEditSocial(p.es_caso_social || false);
@@ -1120,14 +1151,42 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
                   <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b pb-2">Clínica</h4>
                   
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1">Desarrollo Psicomotor (DSM)</label>
+                    <label className="block text-xs font-bold text-slate-500 mb-1">Instrumento DSM</label>
+                    <select
+                      value={editTipoDsm}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setEditTipoDsm(val);
+                        if (val === "Pauta Breve" && !["Normal", "Alterada"].includes(editDsm)) {
+                          setEditDsm("");
+                        }
+                      }}
+                      className="w-full text-sm border-slate-300 rounded-lg mb-2 bg-slate-50 font-medium"
+                    >
+                      <option value="">Sin instrumento / No evaluado</option>
+                      <option value="Pauta Breve">Pauta Breve</option>
+                      <option value="EEDP">EEDP</option>
+                      <option value="TEPSI">TEPSI</option>
+                    </select>
+
+                    <label className="block text-xs font-bold text-slate-500 mb-1">Resultado DSM</label>
                     <select value={editDsm} onChange={e => setEditDsm(e.target.value)} className="w-full text-sm border-slate-300 rounded-lg">
                       <option value="">Sin registro / No evaluado</option>
-                      <option value="Normal">Normal</option>
-                      <option value="Normal con Rezago">Normal con Rezago</option>
-                      <option value="Riesgo">Riesgo</option>
-                      <option value="Retraso">Retraso</option>
-                      <option value="Déficit">Déficit</option>
+                      {editTipoDsm === "Pauta Breve" ? (
+                        <>
+                          <option value="Normal">Normal</option>
+                          <option value="Alterada">Alterada</option>
+                        </>
+                      ) : (
+                        <>
+                          <option value="Normal">Normal</option>
+                          <option value="Normal con Rezago">Normal con Rezago</option>
+                          <option value="Riesgo">Riesgo</option>
+                          <option value="Retraso">Retraso</option>
+                          <option value="Déficit">Déficit</option>
+                          <option value="Alterada">Alterada</option>
+                        </>
+                      )}
                     </select>
                   </div>
                   
@@ -1166,6 +1225,28 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
                     {editClasificacionEstatura === '-2DE' && (
                       <p className="text-[10px] text-red-600 font-bold mt-1">⚠ Derivar a médico</p>
                     )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Alimentación</label>
+                      <select value={editTipoAlimentacion} onChange={e => setEditTipoAlimentacion(e.target.value)} className="w-full text-xs border-slate-300 rounded-lg bg-white font-medium">
+                        <option value="">Sin registro</option>
+                        <option value="LME">LME (Exclusiva)</option>
+                        <option value="LA">LA (Fórmula)</option>
+                        <option value="LM+LA">LM + LA (Mixta)</option>
+                        <option value="Sólidos">Sólidos</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Score IRA</label>
+                      <select value={editScoreIra} onChange={e => setEditScoreIra(e.target.value)} className="w-full text-xs border-slate-300 rounded-lg bg-white font-medium">
+                        <option value="">Sin evaluar</option>
+                        <option value="Leve">Leve (0-5)</option>
+                        <option value="Moderado">Moderado (6-8)</option>
+                        <option value="Grave">Grave (9-12)</option>
+                      </select>
+                    </div>
                   </div>
 
                   {/* Otras Pautas Evaluadas */}
@@ -1213,6 +1294,31 @@ export default function InfantilClientView({ data, user }: { data: InfantilData[
                           <option value="Negativo">Negativo</option>
                           <option value="Positivo">Positivo</option>
                         </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-amber-50 p-4 rounded-xl border border-amber-200">
+                    <p className="text-[10px] font-black text-amber-800 uppercase tracking-widest mb-3">Tamizaje TEA (Ley 21.545)</p>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs font-bold text-amber-700 mb-1">M-CHAT-R/F (16 a 30 meses)</label>
+                        <select
+                          value={editMchat}
+                          onChange={e => setEditMchat(e.target.value)}
+                          className="w-full text-sm border-amber-200 bg-white rounded-lg font-medium text-amber-900"
+                        >
+                          <option value="">Sin aplicar</option>
+                          <option value="Bajo">Bajo (0-2 puntos)</option>
+                          <option value="Medio">Medio (3-7 puntos)</option>
+                          <option value="Alto">Alto (8-20 puntos)</option>
+                        </select>
+                      </div>
+                      <div className="pt-2">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input type="checkbox" checked={editObsTea} onChange={e => setEditObsTea(e.target.checked)} className="rounded border-amber-300 text-amber-600" />
+                          <span className="text-xs font-bold text-amber-900">Derivar a Médico (Observación TEA)</span>
+                        </label>
                       </div>
                     </div>
                   </div>

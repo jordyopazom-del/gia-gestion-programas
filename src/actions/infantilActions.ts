@@ -134,10 +134,16 @@ export async function guardarControlInfantil(data: {
 
 
 export async function buscarPacienteInfantilPorRut(rutInput: string) {
-  const cleanRut = rutInput.replace(/[^0-9kK]/g, "").toUpperCase();
-  if (cleanRut.length < 2) return { error: "RUT inválido" };
+  const raw = (rutInput || "").trim().toUpperCase();
+  if (raw.length < 2) return { error: "RUT inválido" };
   
-  const rutNum = cleanRut.slice(0, -1);
+  // Normalización TypeScript de alta fidelidad:
+  // Si trae guión (búsqueda con formato 12345678-9), se toma la parte antes del guión.
+  // Si viene sin guión desde llamadas internas (12345678), se toma directo.
+  // Fallback seguro sin último dígito por si se ingresó sin guión pero con DV.
+  const sinPuntos = raw.replace(/\./g, "");
+  const rutPrincipal = sinPuntos.includes("-") ? sinPuntos.split("-")[0].trim() : sinPuntos;
+  const sinUltimoDigito = sinPuntos.replace(/-/g, "").length > 2 ? sinPuntos.replace(/-/g, "").slice(0, -1) : rutPrincipal;
   
   try {
     const rows = await sql`
@@ -161,16 +167,16 @@ export async function buscarPacienteInfantilPorRut(rutInput: string) {
         inf.en_sala_estimulacion
       FROM gia_pacientes p
       LEFT JOIN UltimoControl inf ON p.rut = inf.rut_paciente AND inf.rn = 1
-      WHERE p.rut = ${rutNum}
+      WHERE p.rut IN (${rutPrincipal}, ${sinUltimoDigito})
+      LIMIT 1
     `;
     if (rows.length === 0) return { error: "Paciente no encontrado en el padrón." };
     
     const p = rows[0];
-    
     return { data: p };
   } catch (error: any) {
     console.error("Error al buscar paciente infantil:", error);
-    return { error: "Error de conexión con la base de datos." };
+    return { error: `Error de base de datos: ${error.message || error}` };
   }
 }
 
@@ -188,33 +194,38 @@ export async function registrarNspInfantil(data: {
     
     const p = res.data;
 
+    const cleanProxMedico = p.prox_control_medico ? String(p.prox_control_medico).substring(0, 7) : null;
+    const cleanProxEnfermera = p.prox_control_enfermera ? String(p.prox_control_enfermera).substring(0, 7) : null;
+    const cleanProxNutri = p.prox_control_nutri ? String(p.prox_control_nutri).substring(0, 7) : null;
+    const cleanProxDental = p.prox_control_dental ? String(p.prox_control_dental).substring(0, 7) : null;
+
     await sql`
       INSERT INTO gia_infantil (
         rut_paciente, 
         ultimo_control_medico, ultimo_control_enfermera, ultimo_control_nutri, ultimo_control_dental,
-        prox_control_medico, prox_control_enfermera, prox_control_nutri, prox_control_dental, es_naneas, es_caso_social, condicion_especial,
+        prox_control_medico, prox_control_enfermera, prox_control_nutri, prox_control_dental, es_naneas, es_caso_social, en_sala_estimulacion, condicion_especial,
         estado_nutricional, dsm_resultado, tipo_evaluacion_dsm, dsm_detalle, 
         estado_programa, observaciones,
         profesional_rut, fecha_registro
       )
       VALUES (
-        ${data.rut_paciente}, 
+        ${p.rut}, 
         ${p.hist_medico || null}, ${p.hist_enfermera || null}, 
         ${p.hist_nutri || null}, ${p.hist_dental || null},
-        ${p.prox_control_medico || null}, ${p.prox_control_enfermera || null}, 
-        ${p.prox_control_nutri || null}, ${p.prox_control_dental || null}, 
-        ${p.es_naneas || false}, ${p.es_caso_social || false}, ${p.condicion_especial || null},
+        ${cleanProxMedico}, ${cleanProxEnfermera}, 
+        ${cleanProxNutri}, ${cleanProxDental}, 
+        ${p.es_naneas || false}, ${p.es_caso_social || false}, ${p.en_sala_estimulacion || false}, ${p.condicion_especial || null},
         ${p.estado_nutricional || null}, ${p.dsm_resultado || null}, ${p.tipo_evaluacion_dsm || null}, 
         ${p.dsm_detalle ? sql.json(p.dsm_detalle) : null},
         'INASISTENTE', ${'NSP ' + data.estamento},
-        ${profesional_rut}, ${data.fecha_nsp}
+        ${profesional_rut}, ${data.fecha_nsp ? `${data.fecha_nsp} 12:00:00` : sql`CURRENT_TIMESTAMP`}
       )
     `;
     revalidatePath("/infantil");
     return { success: true };
   } catch (error: any) {
     console.error("Error al registrar NSP Infantil:", error);
-    return { error: "Error de base de datos al registrar inasistencia." };
+    return { error: `Error en base de datos al registrar inasistencia: ${error.message || error}` };
   }
 }
 
@@ -224,12 +235,17 @@ export async function editarPacienteInfantilAdmin(data: {
   ultimo_control_enfermera?: string | null;
   ultimo_control_nutri?: string | null;
   ultimo_control_dental?: string | null;
+  tipo_evaluacion_dsm?: string | null;
   dsm_resultado?: string | null;
   estado_nutricional?: string | null;
   clasificacion_estatura?: string | null;
+  tipo_alimentacion?: string | null;
+  score_ira?: string | null;
   edimburgo?: string | null;
   riesgo_biopsicosocial?: number | null;
   tea_senales?: string | null;
+  mchat?: string | null;
+  obs_tea?: boolean;
   es_naneas?: boolean;
   es_caso_social?: boolean;
   en_sala_estimulacion?: boolean;
@@ -252,9 +268,13 @@ export async function editarPacienteInfantilAdmin(data: {
     if (rows.length === 0) {
       const initialDetalle: any = {};
       if (data.clasificacion_estatura) initialDetalle.clasificacion_estatura = data.clasificacion_estatura;
+      if (data.tipo_alimentacion) initialDetalle.tipo_alimentacion = data.tipo_alimentacion;
+      if (data.score_ira) initialDetalle.score_ira = data.score_ira;
       if (data.edimburgo) initialDetalle.edimburgo = data.edimburgo;
       if (data.riesgo_biopsicosocial != null) initialDetalle.riesgo_biopsicosocial = data.riesgo_biopsicosocial;
       if (data.tea_senales) initialDetalle.tea_senales = data.tea_senales;
+      if (data.mchat) initialDetalle.mchat = data.mchat;
+      if (data.obs_tea !== undefined) initialDetalle.obsTea = data.obs_tea;
 
       return await guardarControlInfantil({
         rut_paciente: data.rut_paciente,
@@ -262,8 +282,9 @@ export async function editarPacienteInfantilAdmin(data: {
         ultimo_control_enfermera: data.ultimo_control_enfermera || null,
         ultimo_control_nutri: data.ultimo_control_nutri || null,
         ultimo_control_dental: data.ultimo_control_dental || null,
-        dsm_resultado: data.dsm_resultado,
-        estado_nutricional: data.estado_nutricional,
+        tipo_evaluacion_dsm: data.tipo_evaluacion_dsm || null,
+        dsm_resultado: data.dsm_resultado || null,
+        estado_nutricional: data.estado_nutricional || null,
         dsm_detalle: Object.keys(initialDetalle).length > 0 ? initialDetalle : null,
         es_naneas: data.es_naneas,
         es_caso_social: data.es_caso_social,
@@ -279,16 +300,20 @@ export async function editarPacienteInfantilAdmin(data: {
     
     const lastId = rows[0].id;
 
-    // Merge clasificacion_estatura dentro de dsm_detalle JSONB existente
+    // Merge clasificacion_estatura y otros datos dentro de dsm_detalle JSONB existente
     const currentDetalle = rows[0].dsm_detalle && typeof rows[0].dsm_detalle === 'object'
       ? rows[0].dsm_detalle
       : {};
     const newDetalle = {
       ...currentDetalle,
       clasificacion_estatura: data.clasificacion_estatura ?? currentDetalle.clasificacion_estatura ?? null,
+      tipo_alimentacion: data.tipo_alimentacion !== undefined ? data.tipo_alimentacion : (currentDetalle.tipo_alimentacion ?? null),
+      score_ira: data.score_ira !== undefined ? data.score_ira : (currentDetalle.score_ira ?? null),
       edimburgo: data.edimburgo !== undefined ? data.edimburgo : (currentDetalle.edimburgo ?? null),
       riesgo_biopsicosocial: data.riesgo_biopsicosocial !== undefined ? data.riesgo_biopsicosocial : (currentDetalle.riesgo_biopsicosocial ?? null),
       tea_senales: data.tea_senales !== undefined ? data.tea_senales : (currentDetalle.tea_senales ?? null),
+      mchat: data.mchat !== undefined ? data.mchat : (currentDetalle.mchat ?? null),
+      obsTea: data.obs_tea !== undefined ? data.obs_tea : (currentDetalle.obsTea ?? false),
     };
     
     await sql`
@@ -298,6 +323,7 @@ export async function editarPacienteInfantilAdmin(data: {
         ultimo_control_enfermera = ${data.ultimo_control_enfermera || null},
         ultimo_control_nutri = ${data.ultimo_control_nutri || null},
         ultimo_control_dental = ${data.ultimo_control_dental || null},
+        tipo_evaluacion_dsm = ${data.tipo_evaluacion_dsm ?? null},
         dsm_resultado = ${data.dsm_resultado ?? null},
         estado_nutricional = ${data.estado_nutricional ?? null},
         es_naneas = ${data.es_naneas ?? false},

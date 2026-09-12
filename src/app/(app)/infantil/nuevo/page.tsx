@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { buscarPacienteInfantilPorRut, guardarControlInfantil } from "@/actions/infantilActions";
-import { Baby, Search, ArrowLeft, Save, AlertCircle, ShieldCheck, Stethoscope, ActivitySquare, Carrot, Sparkles } from "lucide-react";
+import { Baby, Search, ArrowLeft, Save, AlertCircle, ShieldCheck, Stethoscope, ActivitySquare, Carrot, Sparkles, ClipboardList } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function NuevoControlInfantilPage() {
@@ -35,6 +35,7 @@ export default function NuevoControlInfantilPage() {
 
   const [mchatResultado, setMchatResultado] = useState("Bajo");
   const [obsTea, setObsTea] = useState(false);
+  const [aplicarMchat, setAplicarMchat] = useState(false);
 
   // Estados condicionales por edad
   const [scoreIra, setScoreIra] = useState("");
@@ -86,6 +87,10 @@ export default function NuevoControlInfantilPage() {
         setEsCasoSocial(p.es_caso_social || false);
         setEnSalaEstimulacion(p.en_sala_estimulacion || false);
         setCondicionEspecial(p.condicion_especial || "");
+
+        // Sugerir M-CHAT si está en rango normado MINSAL (16 a 30 meses, destacando 18 y 24 meses)
+        const totalMeses = (p.edad_anios * 12) + p.edad_meses;
+        setAplicarMchat(totalMeses >= 16 && totalMeses <= 30);
       }
     } catch (error) {
       toast.error("Error al buscar paciente");
@@ -109,24 +114,25 @@ export default function NuevoControlInfantilPage() {
           motricidad: tepsiMotricidad
         };
       } else if (tipoEvaluacionDsm === "EEDP") {
-        const reqMchat = eedpLenguaje === "Alterado" || eedpSocial === "Alterado";
         dsmDetalle = {
           lenguaje: eedpLenguaje,
           social: eedpSocial,
           coordinacion: eedpCoordinacion,
-          motricidad: eedpMotricidad,
-          mchat: reqMchat ? mchatResultado : null,
-          obsTea: reqMchat ? obsTea : false
+          motricidad: eedpMotricidad
         };
       }
 
-      // Payload dinámico — Lactante menor (edad_anios === 0)
-      if (pacienteInfo.edad_anios === 0) {
-        dsmDetalle = {
-          ...dsmDetalle,
-          score_ira: scoreIra,
-          tipo_alimentacion: pacienteInfo.edad_meses <= 7 ? (tipoAlimentacion || null) : null
-        };
+      // M-CHAT-R Autónomo
+      if (aplicarMchat) {
+        dsmDetalle = { ...dsmDetalle, mchat: mchatResultado, obsTea };
+      }
+
+      // Payload dinámico — Alimentación y Score IRA
+      if (scoreIra) {
+        dsmDetalle = { ...dsmDetalle, score_ira: scoreIra };
+      }
+      if (tipoAlimentacion) {
+        dsmDetalle = { ...dsmDetalle, tipo_alimentacion: tipoAlimentacion };
       }
 
       if (pacienteInfo.edad_anios >= 3) {
@@ -340,9 +346,9 @@ export default function NuevoControlInfantilPage() {
                   onChange={(e) => {
                     const val = e.target.value;
                     setTipoEvaluacionDsm(val);
-                    if (val === "Pauta Breve" && !["Normal", "Alterado"].includes(dsmResultado)) {
+                    if (val === "Pauta Breve" && !["Normal", "Alterada", "Alterado"].includes(dsmResultado)) {
                       setDsmResultado("");
-                    } else if (val !== "Pauta Breve" && dsmResultado === "Alterado") {
+                    } else if (val !== "Pauta Breve" && (dsmResultado === "Alterada" || dsmResultado === "Alterado")) {
                       setDsmResultado("");
                     }
                   }} 
@@ -354,6 +360,44 @@ export default function NuevoControlInfantilPage() {
                   <option value="TEPSI">TEPSI</option>
                 </select>
               </div>
+
+              {tipoEvaluacionDsm === "Pauta Breve" && (
+                <div className="bg-sky-50 border border-sky-200 p-4 rounded-xl space-y-3 animate-in fade-in duration-200">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-sky-900 flex items-center">
+                      <ClipboardList size={14} className="mr-1.5 text-sky-600" />
+                      Pauta Breve de Evaluación del DSM (Tamizaje Rápido)
+                    </h4>
+                    <span className="text-[10px] bg-sky-100 text-sky-800 font-bold px-2 py-0.5 rounded">Norma Ministerial</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Resultado de la Pauta Breve</label>
+                      <select
+                        value={dsmResultado}
+                        onChange={(e) => setDsmResultado(e.target.value)}
+                        className={`w-full text-sm rounded-lg font-bold py-2 ${
+                          dsmResultado === "Normal"
+                            ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                            : dsmResultado === "Alterada" || dsmResultado === "Alterado"
+                            ? "border-red-300 bg-red-50 text-red-700"
+                            : "border-slate-200 text-slate-500 bg-white"
+                        }`}
+                      >
+                        <option value="">Seleccionar resultado...</option>
+                        <option value="Normal">Normal (Cumple todos los hitos para la edad)</option>
+                        <option value="Alterada">Alterada (Falla en 1 o más hitos)</option>
+                      </select>
+                    </div>
+                    {(dsmResultado === "Alterada" || dsmResultado === "Alterado") && (
+                      <div className="bg-red-50 border border-red-200 p-3 rounded-lg flex items-center text-red-700 text-xs font-semibold">
+                        <AlertCircle size={16} className="mr-2 shrink-0 text-red-600" />
+                        <span>⚠ Derivar a médico o citar a reevaluación con EEDP / estimulación según flujograma APS.</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {tipoEvaluacionDsm === "EEDP" && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
@@ -417,30 +461,47 @@ export default function NuevoControlInfantilPage() {
                 </div>
               )}
 
-              {tipoEvaluacionDsm === "EEDP" && (eedpLenguaje === "Alterado" || eedpSocial === "Alterado") && (
-                <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl space-y-4">
-                  <h4 className="text-xs font-bold text-amber-800 flex items-center">
+              {/* M-CHAT-R / Tamizaje TEA */}
+              <div className={`p-4 rounded-xl border transition-colors ${aplicarMchat ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-200'}`}>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className={`text-xs font-bold flex items-center ${aplicarMchat ? 'text-amber-800' : 'text-slate-600'}`}>
                     <AlertCircle size={14} className="mr-1.5" /> 
-                    Corresponde aplicar M-CHAT-R
+                    Tamizaje TEA (M-CHAT-R/F)
                   </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex items-center">
+                    <label className="flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={aplicarMchat} 
+                        onChange={e => setAplicarMchat(e.target.checked)} 
+                        className="sr-only"
+                      />
+                      <div className={`relative w-9 h-5 rounded-full transition-colors ${aplicarMchat ? 'bg-amber-500' : 'bg-slate-300'}`}>
+                        <div className={`absolute left-1 top-1 bg-white w-3 h-3 rounded-full transition-transform ${aplicarMchat ? 'translate-x-4' : ''}`}></div>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                {aplicarMchat && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t border-amber-100 animate-in fade-in duration-200">
                     <div>
                       <label className="block text-[10px] font-bold text-amber-700 mb-1">Riesgo TEA (Puntaje M-CHAT-R)</label>
-                      <select value={mchatResultado} onChange={e => setMchatResultado(e.target.value)} className="w-full text-sm rounded-lg border-amber-200 bg-white py-1.5 text-amber-900">
+                      <select value={mchatResultado} onChange={e => setMchatResultado(e.target.value)} className="w-full text-sm rounded-lg border-amber-200 bg-white py-1.5 text-amber-900 font-medium">
                         <option value="Bajo">Bajo (0-2 puntos)</option>
                         <option value="Medio">Medio (3-7 puntos)</option>
                         <option value="Alto">Alto (8-20 puntos)</option>
                       </select>
                     </div>
-                    <div className="flex items-center pt-5">
+                    <div className="flex items-center md:pt-5">
                       <label className="flex items-center cursor-pointer">
                         <input type="checkbox" checked={obsTea} onChange={e => setObsTea(e.target.checked)} className="rounded border-amber-300 text-amber-600 mr-2" />
-                        <span className="text-sm font-semibold text-amber-900">Derivar a Confirmación (Observación TEA)</span>
+                        <span className="text-sm font-semibold text-amber-900">Derivar a Médico (Obs. TEA)</span>
                       </label>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-500 mb-2">Resultado Global DSM</label>
@@ -457,7 +518,7 @@ export default function NuevoControlInfantilPage() {
                   <option value="">Seleccionar Resultado DSM...</option>
                   <option value="Normal">Desarrollo Normal</option>
                   {tipoEvaluacionDsm === "Pauta Breve" ? (
-                    <option value="Alterado">Alterado</option>
+                    <option value="Alterada">Alterada</option>
                   ) : tipoEvaluacionDsm ? (
                     <>
                       <option value="Rezago">Rezago del Desarrollo</option>
@@ -524,28 +585,27 @@ export default function NuevoControlInfantilPage() {
               </div>
 
               {/* Controles Condicionales por Edad */}
-              {pacienteInfo.edad_anios === 0 && (
+              {pacienteInfo.edad_anios < 3 && (
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                  <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Controles Lactante Menor (menor de 1 año)</h4>
-                  <div className="space-y-3">
-                    {pacienteInfo.edad_meses <= 7 && (
-                      <div>
-                        <label className="block text-xs font-medium text-slate-500 mb-1">Tipo de Alimentación</label>
-                        <select value={tipoAlimentacion} onChange={e => setTipoAlimentacion(e.target.value)} className="w-full text-sm rounded-lg border-slate-200">
-                          <option value="">Seleccionar...</option>
-                          <option value="LME">LME (Lactancia Materna Exclusiva)</option>
-                          <option value="LA">LA (Lactancia Artificial)</option>
-                          <option value="LM+LA">LM + LA (Mixta)</option>
-                        </select>
-                      </div>
-                    )}
+                  <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Controles Lactante / Primera Infancia</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-medium text-slate-500 mb-1">Score IRA</label>
-                      <select value={scoreIra} onChange={e => setScoreIra(e.target.value)} className="w-full text-sm rounded-lg border-slate-200">
-                        <option value="">Seleccionar...</option>
-                        <option value="Leve">Leve</option>
-                        <option value="Moderado">Moderado</option>
-                        <option value="Grave">Grave</option>
+                      <label className="block text-xs font-bold text-slate-600 mb-1">Tipo de Alimentación</label>
+                      <select value={tipoAlimentacion} onChange={e => setTipoAlimentacion(e.target.value)} className="w-full text-sm rounded-lg border-slate-200 bg-white font-medium">
+                        <option value="">Seleccionar alimentación...</option>
+                        <option value="LME">LME (Lactancia Materna Exclusiva)</option>
+                        <option value="LA">LA (Lactancia Artificial / Fórmula)</option>
+                        <option value="LM+LA">LM + LA (Mixta)</option>
+                        <option value="Sólidos">Alimentación Complementaria / Sólidos</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 mb-1">Score IRA (Riesgo Respiratorio)</label>
+                      <select value={scoreIra} onChange={e => setScoreIra(e.target.value)} className="w-full text-sm rounded-lg border-slate-200 bg-white font-medium">
+                        <option value="">Seleccionar Score IRA...</option>
+                        <option value="Leve">Leve (0-5 pts)</option>
+                        <option value="Moderado">Moderado (6-8 pts)</option>
+                        <option value="Grave">Grave (9-12 pts)</option>
                       </select>
                     </div>
                   </div>
