@@ -438,6 +438,7 @@ export default function NuevoControlInfantilPage() {
                     <label className="block text-[10px] font-bold text-slate-500 mb-1">Lenguaje</label>
                     <select value={tepsiLenguaje} onChange={e => setTepsiLenguaje(e.target.value)} className="w-full text-sm rounded-lg border-slate-200 py-1.5">
                       <option value="Normal">Normal</option>
+                      <option value="Rezago">Rezago</option>
                       <option value="Riesgo">Riesgo</option>
                       <option value="Retraso">Retraso</option>
                     </select>
@@ -446,6 +447,7 @@ export default function NuevoControlInfantilPage() {
                     <label className="block text-[10px] font-bold text-slate-500 mb-1">Coordinación</label>
                     <select value={tepsiCoordinacion} onChange={e => setTepsiCoordinacion(e.target.value)} className="w-full text-sm rounded-lg border-slate-200 py-1.5">
                       <option value="Normal">Normal</option>
+                      <option value="Rezago">Rezago</option>
                       <option value="Riesgo">Riesgo</option>
                       <option value="Retraso">Retraso</option>
                     </select>
@@ -454,6 +456,7 @@ export default function NuevoControlInfantilPage() {
                     <label className="block text-[10px] font-bold text-slate-500 mb-1">Motricidad</label>
                     <select value={tepsiMotricidad} onChange={e => setTepsiMotricidad(e.target.value)} className="w-full text-sm rounded-lg border-slate-200 py-1.5">
                       <option value="Normal">Normal</option>
+                      <option value="Rezago">Rezago</option>
                       <option value="Riesgo">Riesgo</option>
                       <option value="Retraso">Retraso</option>
                     </select>
