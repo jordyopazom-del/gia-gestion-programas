@@ -16,29 +16,22 @@ export async function loginAction(rut: string, pass: string) {
     const dv = rutLimpio.slice(-1).toUpperCase();
     const rutStandar = `${cuerpo}-${dv}`;
     
-    // Fallback de SuperAdmin
-    const ADMIN_RUT = process.env.ADMIN_RUT;
-    const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
-    const isMockAuth = ADMIN_RUT && ADMIN_PASSWORD && rutStandar === ADMIN_RUT && pass === ADMIN_PASSWORD;
-
-    let isAuthenticated = isMockAuth;
+    let isAuthenticated = false;
     let mustChange = false;
 
-    if (!isAuthenticated) {
-      const result = await sql`SELECT * FROM gia_usuarios WHERE rut = ${rutStandar}`;
-      const user = result[0];
+    const result = await sql`SELECT * FROM gia_usuarios WHERE rut = ${rutStandar}`;
+    const user = result[0];
 
-      if (!user) {
-        return { error: "Credenciales incorrectas" };
-      }
-
-      if (user.rol === "INACTIVO") {
-        return { error: "Acceso desactivado. Contacte al Administrador." };
-      }
-
-      isAuthenticated = verifyPassword(pass, user.password);
-      mustChange = user.debe_cambiar_password || false;
+    if (!user) {
+      return { error: "Credenciales incorrectas" };
     }
+
+    if (user.rol === "INACTIVO") {
+      return { error: "Acceso desactivado. Contacte al Administrador." };
+    }
+
+    isAuthenticated = verifyPassword(pass, user.password);
+    mustChange = user.debe_cambiar_password || false;
 
     if (!isAuthenticated) {
       return { error: "Credenciales incorrectas" };
