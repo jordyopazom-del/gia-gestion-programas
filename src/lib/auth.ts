@@ -1,9 +1,9 @@
 import { cookies } from "next/headers";
 
-const SECRET = process.env.SESSION_SECRET || (process.env.NODE_ENV === "production" ? "" : "desarrollo_local_secreto_cesfam_gia_123");
+const SECRET = process.env.SESSION_SECRET;
 
-if (process.env.NODE_ENV === "production" && !process.env.SESSION_SECRET) {
-  throw new Error("CRÍTICO: Falta la variable de entorno SESSION_SECRET en producción.");
+if (!SECRET) {
+  throw new Error("CRÍTICO: Falta la variable de entorno SESSION_SECRET.");
 }
 
 // Convertir un ArrayBuffer a formato hexadecimal sin usar dependencias de Node
