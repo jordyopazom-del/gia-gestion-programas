@@ -18,6 +18,9 @@ const options: postgres.Options<{}> = {
   // Cerrar conexiones inactivas a los 10 segundos para liberar el servidor
   idle_timeout: 10,
   connect_timeout: 10,
+  // SSL obligatorio en producción (Vercel→Railway): encripta el tránsito de datos
+  // En desarrollo local se desactiva para evitar problemas con entornos sin certificados
+  ssl: process.env.NODE_ENV === "production" ? "require" : false,
 };
 
 export const sql = globalForPostgres.sql || postgres(connectionString, options);
