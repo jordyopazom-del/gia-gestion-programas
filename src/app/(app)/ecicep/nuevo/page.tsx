@@ -478,17 +478,11 @@ export default function NuevoEcicep() {
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-600 mb-1">Profesional que Registra / Modifica</label>
-                    <select 
-                      required
-                      value={profesionalRut} 
-                      onChange={e => setProfesionalRut(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none font-bold text-blue-600"
-                    >
-                      <option value="">-- Seleccione Profesional --</option>
-                      {clinicos.map(c => (
-                        <option key={c.rut} value={c.rut}>{c.nombre} ({c.profesion})</option>
-                      ))}
-                    </select>
+                    <div className="w-full bg-slate-100 border border-slate-200 rounded-md px-3 py-2 text-sm font-bold text-slate-500 uppercase select-none">
+                      {clinicos.find(c => c.rut === profesionalRut) 
+                        ? `${clinicos.find(c => c.rut === profesionalRut)?.nombre} (${clinicos.find(c => c.rut === profesionalRut)?.profesion})`
+                        : "Cargando..."}
+                    </div>
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-600 mb-1">Categoría ECICEP</label>
@@ -518,29 +512,13 @@ export default function NuevoEcicep() {
                           checked={seguimientoTelefonico}
                           onChange={e => {
                             setSeguimientoTelefonico(e.target.checked);
-                            if (!e.target.checked) setEstamentoSeguimiento("");
+                            setEstamentoSeguimiento(e.target.checked ? "TENS" : "");
                           }}
                         />
                         <span className="text-xs font-bold text-slate-700 uppercase tracking-wide select-none">
-                          📞 Requiere Seguimiento Telefónico
+                          📞 Requiere Seguimiento Telefónico (TENS)
                         </span>
                       </label>
-                      
-                      {seguimientoTelefonico && (
-                        <div className="mt-3 sm:mt-0 animate-in fade-in slide-in-from-left-4 duration-200">
-                          <select
-                            required
-                            value={estamentoSeguimiento}
-                            onChange={e => setEstamentoSeguimiento(e.target.value)}
-                            className="bg-white border border-slate-200 rounded-md px-3 py-1.5 text-xs font-bold text-blue-700 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
-                          >
-                            <option value="">-- Asignar a Estamento --</option>
-                            {ROLES_DISPONIBLES.map(r => (
-                              <option key={r} value={r}>{r}</option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
                     </div>
                     
                     {/* Gestión de Caso */}
