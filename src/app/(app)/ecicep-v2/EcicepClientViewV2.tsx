@@ -2542,15 +2542,15 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
                   onChange={e => setCasoRutInput(e.target.value)}
                   placeholder="Ej: 12345678"
                   maxLength={10}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-mono focus:ring-2 focus:ring-indigo-500 outline-none"
-                  autoFocus
+                  readOnly={isDerivacionDirecta}
+                  className={`w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-mono focus:ring-2 focus:ring-indigo-500 outline-none ${isDerivacionDirecta ? 'opacity-70 cursor-not-allowed' : ''}`}
+                  autoFocus={!isDerivacionDirecta}
                 />
-                {/* Paciente encontrado — clickeable para agregar directo */}
+                {/* Paciente encontrado */}
                 {casoPacienteEncontrado && (
-                  <button
-                    type="button"
-                    onClick={handleAgregarALista}
-                    className="mt-2 w-full p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-3 animate-in fade-in duration-150 hover:bg-emerald-100 hover:border-emerald-300 transition-colors group text-left"
+                  <div
+                    onClick={!isDerivacionDirecta ? handleAgregarALista : undefined}
+                    className={`mt-2 w-full p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-3 animate-in fade-in duration-150 text-left ${!isDerivacionDirecta ? 'hover:bg-emerald-100 hover:border-emerald-300 transition-colors group cursor-pointer' : ''}`}
                   >
                     <div className="h-9 w-9 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-sm shrink-0">
                       {casoPacienteEncontrado.nombre_completo?.charAt(0)}
@@ -2559,10 +2559,12 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
                       <p className="text-xs font-black text-emerald-800 uppercase">{casoPacienteEncontrado.nombre_completo}</p>
                       <p className="text-[10px] text-emerald-600">{casoPacienteEncontrado.sector} · {casoPacienteEncontrado.categoria || 'Sin categoría ECICEP'}</p>
                     </div>
-                    <span className="text-[10px] font-black text-emerald-600 bg-emerald-100 group-hover:bg-emerald-200 px-2 py-1 rounded-lg transition-colors shrink-0">
-                      + Agregar
-                    </span>
-                  </button>
+                    {!isDerivacionDirecta && (
+                      <span className="text-[10px] font-black text-emerald-600 bg-emerald-100 group-hover:bg-emerald-200 px-2 py-1 rounded-lg transition-colors shrink-0">
+                        + Agregar
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
 
