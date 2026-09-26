@@ -6,7 +6,7 @@ import { getCurrentUser } from "@/lib/currentUser";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
-export type TipoCaso = "POST_HOSPITALIZADO" | "POLICONSULTANTE";
+export type TipoCaso = "POST_HOSPITALIZADO" | "POLICONSULTANTE" | "DERIVACION_CLINICA";
 export type EstadoCaso = "PENDIENTE" | "CONTACTADO" | "VDI_PROGRAMADA" | "CERRADO";
 
 export type GestionCasoInput = {

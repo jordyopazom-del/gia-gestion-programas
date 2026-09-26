@@ -792,8 +792,9 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
             const postHosp = casos.filter(c => c.tipo === 'POST_HOSPITALIZADO');
             const criticos = postHosp.filter(c => { const h = calcularHorasDesdeAlta(c.fecha_alta); return h !== null && h > 48; });
             const policons = casos.filter(c => c.tipo === 'POLICONSULTANTE');
+            const derivClinica = casos.filter(c => c.tipo === 'DERIVACION_CLINICA');
             return (
-              <div className="grid grid-cols-3 gap-4 mb-6 mt-4">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6 mt-4">
                 <div className={`p-4 rounded-2xl border flex items-center gap-4 ${criticos.length > 0 ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
                   <div className={`h-11 w-11 rounded-xl flex items-center justify-center shrink-0 ${criticos.length > 0 ? 'bg-red-500 text-white' : 'bg-slate-200 text-slate-500'}`}>
                     <Hospital size={22} />
@@ -821,6 +822,15 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Policonsultantes Activos</p>
                   </div>
                 </div>
+                <div className="p-4 rounded-2xl border bg-slate-50 border-slate-200 flex items-center gap-4">
+                  <div className="h-11 w-11 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center shrink-0">
+                    <ClipboardCheck size={22} />
+                  </div>
+                  <div>
+                    <p className="text-3xl font-light text-slate-700">{derivClinica.length}</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Derivaciones Clínicas</p>
+                  </div>
+                </div>
               </div>
             );
           })()}
@@ -828,7 +838,7 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
           {/* Filtros rápidos + recargar */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex gap-2">
-              {(["Todos", "POST_HOSPITALIZADO", "POLICONSULTANTE"] as const).map(t => (
+              {(["Todos", "POST_HOSPITALIZADO", "POLICONSULTANTE", "DERIVACION_CLINICA"] as const).map(t => (
                 <button
                   key={t}
                   onClick={() => setFilterTipoCaso(t)}
@@ -836,11 +846,15 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
                     filterTipoCaso === t
                       ? t === 'POST_HOSPITALIZADO' ? 'bg-blue-600 text-white border-blue-600'
                         : t === 'POLICONSULTANTE' ? 'bg-amber-500 text-white border-amber-500'
+                        : t === 'DERIVACION_CLINICA' ? 'bg-purple-600 text-white border-purple-600'
                         : 'bg-slate-800 text-white border-slate-800'
                       : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                   }`}
                 >
-                  {t === 'Todos' ? 'Todos' : t === 'POST_HOSPITALIZADO' ? '🏥 Post-Hospitalizados' : '🔄 Policonsultantes'}
+                  {t === 'Todos' ? 'Todos'
+                    : t === 'POST_HOSPITALIZADO' ? '🏥 Post-Hospitalizados'
+                    : t === 'POLICONSULTANTE' ? '🔄 Policonsultantes'
+                    : '📋 Derivación Clínica'}
                 </button>
               ))}
             </div>
@@ -906,9 +920,13 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
                               <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-100 text-[10px] font-black">
                                 <Hospital size={10} /> POST-ALTA
                               </span>
-                            ) : (
+                            ) : caso.tipo === 'POLICONSULTANTE' ? (
                               <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-100 text-[10px] font-black">
                                 <RefreshCw size={10} /> POLICONSULTANTE
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-100 text-[10px] font-black">
+                                <ClipboardCheck size={10} /> DERIVACIÓN CLÍNICA
                               </span>
                             )}
                           </td>
@@ -2118,16 +2136,21 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
               {/* Tipo de Caso */}
               <div>
                 <label className="block text-xs font-bold text-slate-600 mb-2">Tipo de Caso <span className="text-red-500">*</span></label>
-                <div className="grid grid-cols-2 gap-3">
-                  <label className={`flex flex-col items-center p-3 rounded-xl border-2 cursor-pointer transition ${casoTipo === 'POST_HOSPITALIZADO' ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-slate-300'}`}>
+                <div className="grid grid-cols-3 gap-2">
+                  <label className={`flex flex-col items-center p-2.5 rounded-xl border-2 cursor-pointer transition ${casoTipo === 'POST_HOSPITALIZADO' ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-slate-300'}`}>
                     <input type="radio" className="sr-only" checked={casoTipo === 'POST_HOSPITALIZADO'} onChange={() => { setCasoTipo('POST_HOSPITALIZADO'); setCasoFechaAlta(''); }} />
-                    <Hospital size={22} className={casoTipo === 'POST_HOSPITALIZADO' ? 'text-blue-600' : 'text-slate-400'} />
-                    <span className={`mt-1 text-[11px] font-black ${casoTipo === 'POST_HOSPITALIZADO' ? 'text-blue-700' : 'text-slate-500'}`}>Post-Hospitalizado</span>
+                    <Hospital size={20} className={casoTipo === 'POST_HOSPITALIZADO' ? 'text-blue-600' : 'text-slate-400'} />
+                    <span className={`mt-1 text-[10px] font-black text-center ${casoTipo === 'POST_HOSPITALIZADO' ? 'text-blue-700' : 'text-slate-500'}`}>Post-Alta</span>
                   </label>
-                  <label className={`flex flex-col items-center p-3 rounded-xl border-2 cursor-pointer transition ${casoTipo === 'POLICONSULTANTE' ? 'border-amber-500 bg-amber-50' : 'border-slate-200 hover:border-slate-300'}`}>
+                  <label className={`flex flex-col items-center p-2.5 rounded-xl border-2 cursor-pointer transition ${casoTipo === 'POLICONSULTANTE' ? 'border-amber-500 bg-amber-50' : 'border-slate-200 hover:border-slate-300'}`}>
                     <input type="radio" className="sr-only" checked={casoTipo === 'POLICONSULTANTE'} onChange={() => setCasoTipo('POLICONSULTANTE')} />
-                    <RefreshCw size={22} className={casoTipo === 'POLICONSULTANTE' ? 'text-amber-600' : 'text-slate-400'} />
-                    <span className={`mt-1 text-[11px] font-black ${casoTipo === 'POLICONSULTANTE' ? 'text-amber-700' : 'text-slate-500'}`}>Policonsultante</span>
+                    <RefreshCw size={20} className={casoTipo === 'POLICONSULTANTE' ? 'text-amber-600' : 'text-slate-400'} />
+                    <span className={`mt-1 text-[10px] font-black text-center ${casoTipo === 'POLICONSULTANTE' ? 'text-amber-700' : 'text-slate-500'}`}>Policonsult.</span>
+                  </label>
+                  <label className={`flex flex-col items-center p-2.5 rounded-xl border-2 cursor-pointer transition ${casoTipo === 'DERIVACION_CLINICA' ? 'border-purple-500 bg-purple-50' : 'border-slate-200 hover:border-slate-300'}`}>
+                    <input type="radio" className="sr-only" checked={casoTipo === 'DERIVACION_CLINICA'} onChange={() => setCasoTipo('DERIVACION_CLINICA')} />
+                    <ClipboardCheck size={20} className={casoTipo === 'DERIVACION_CLINICA' ? 'text-purple-600' : 'text-slate-400'} />
+                    <span className={`mt-1 text-[10px] font-black text-center ${casoTipo === 'DERIVACION_CLINICA' ? 'text-purple-700' : 'text-slate-500'}`}>Derivación</span>
                   </label>
                 </div>
               </div>
@@ -2196,7 +2219,7 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
                         <div>
                           <p className="text-[11px] font-black text-slate-700 uppercase">{c.nombre_completo}</p>
                           <p className="text-[10px] text-slate-500">
-                            {c.rut_paciente} • {c.tipo === 'POST_HOSPITALIZADO' ? `🏥 Post-Hosp (${c.fecha_alta})` : '🔄 Policonsultante'}
+                            {c.rut_paciente} • {c.tipo === 'POST_HOSPITALIZADO' ? `🏥 Post-Hosp (${c.fecha_alta})` : c.tipo === 'POLICONSULTANTE' ? '🔄 Policonsultante' : '📋 Derivación Clínica'}
                           </p>
                         </div>
                         <button 

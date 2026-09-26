@@ -235,12 +235,12 @@ export async function initDatabase() {
       ON CONFLICT (rut) DO UPDATE SET rol = 'ADMINISTRADOR'
     `;
 
-    // 9. Tabla de Gestión de Casos ECICEP (Post-Hospitalizados y Policonsultantes)
+    // 9. Tabla de Gestión de Casos ECICEP (Post-Hospitalizados, Policonsultantes, Derivación Clínica)
     await sql`
       CREATE TABLE IF NOT EXISTS gia_gestion_casos (
         id               SERIAL PRIMARY KEY,
         rut_paciente     TEXT NOT NULL REFERENCES gia_pacientes(rut) ON DELETE CASCADE,
-        tipo             TEXT NOT NULL CHECK (tipo IN ('POST_HOSPITALIZADO','POLICONSULTANTE')),
+        tipo             TEXT NOT NULL CHECK (tipo IN ('POST_HOSPITALIZADO','POLICONSULTANTE','DERIVACION_CLINICA')),
         fecha_alta       DATE,
         diagnostico_alta TEXT,
         estado           TEXT NOT NULL DEFAULT 'PENDIENTE'
@@ -250,6 +250,12 @@ export async function initDatabase() {
         fecha_registro   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `;
+
+    // Migración no-destructiva: ampliar el CHECK de tipo si ya existe la tabla sin DERIVACION_CLINICA
+    try {
+      await sql`ALTER TABLE gia_gestion_casos DROP CONSTRAINT IF EXISTS gia_gestion_casos_tipo_check`;
+      await sql`ALTER TABLE gia_gestion_casos ADD CONSTRAINT gia_gestion_casos_tipo_check CHECK (tipo IN ('POST_HOSPITALIZADO','POLICONSULTANTE','DERIVACION_CLINICA'))`;
+    } catch (_) { /* si falla, el CREATE ya lo manejó */ }
 
     return { success: true, message: "Base de datos inicializada correctamente con esquemas GIA." };
   } catch (error: any) {

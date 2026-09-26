@@ -153,6 +153,25 @@ export async function saveEcicepRecord(data: EcicepSubmission) {
       )
     `;
 
+    // ── Sync automático a Gestión de Casos (Derivación Clínica) ──────────────
+    if (payloadDataClinica.gestion_caso) {
+      // Solo crea si no existe ya un caso DERIVACION_CLINICA activo para este paciente
+      const casoActivo = await sql`
+        SELECT id FROM gia_gestion_casos
+        WHERE rut_paciente = ${data.rut_paciente}
+          AND tipo = 'DERIVACION_CLINICA'
+          AND estado <> 'CERRADO'
+        LIMIT 1
+      `;
+      if (casoActivo.length === 0) {
+        await sql`
+          INSERT INTO gia_gestion_casos (rut_paciente, tipo, estado, profesional_rut)
+          VALUES (${data.rut_paciente}, 'DERIVACION_CLINICA', 'PENDIENTE', ${userRut})
+        `;
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     revalidatePath("/ecicep");
     return { success: true };
   } catch (error: any) {
