@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { loginAction, cambiarPasswordAction, getPreguntaAction, resetPasswordAction } from "@/actions/authActions";
-import { solicitarAcceso } from "@/actions/userActions";
+import { solicitarAcceso, PROFESIONES_APS } from "@/actions/userActions";
 import { Activity, UserPlus, X, Contact, User, Briefcase, Key, CheckCircle, ShieldAlert } from "lucide-react";
 
 // Mensajes de error SSO estandarizados
@@ -570,15 +570,17 @@ function LoginContent() {
                     <label className="text-[10px] font-bold text-slate-400 uppercase flex items-center tracking-widest">
                       <Briefcase size={12} className="mr-1" /> Profesión / Cargo
                     </label>
-                    <input 
+                    <select 
                       required
-                      type="text"
                       value={solicitudData.profesion}
-                      onChange={(e) => setSolicitudData({...solicitudData, profesion: e.target.value.toUpperCase()})}
-                      placeholder="MEDICO, ENFERMERO, ETC."
-                      maxLength={100}
-                      className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-200 outline-none uppercase"
-                    />
+                      onChange={(e) => setSolicitudData({...solicitudData, profesion: e.target.value})}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-200 outline-none uppercase appearance-none"
+                    >
+                      <option value="" disabled>SELECCIONE UNA OPCIÓN</option>
+                      {PROFESIONES_APS.map(p => (
+                        <option key={p} value={p}>{p}</option>
+                      ))}
+                    </select>
                   </div>
 
                   <div className="pt-4 flex space-x-3">

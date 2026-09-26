@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { UserProfile, UserRole, crearUsuario, eliminarUsuario, procesarSolicitud, desactivarUsuario, resetearPasswordAdmin } from "@/actions/userActions";
+import { UserProfile, UserRole, crearUsuario, eliminarUsuario, procesarSolicitud, desactivarUsuario, resetearPasswordAdmin, PROFESIONES_APS } from "@/actions/userActions";
 import { UserPlus, Trash2, Key, ShieldCheck, User, Briefcase, Contact, X, AlertCircle, Edit2, CheckCircle, XCircle, Clock } from "lucide-react";
 
 export default function UsuariosClientView({ 
@@ -538,15 +538,17 @@ export default function UsuariosClientView({
                 <label className="text-[10px] font-bold text-slate-400 uppercase flex items-center tracking-widest">
                   <Briefcase size={12} className="mr-1" /> Profesión / Cargo
                 </label>
-                <input 
+                <select 
                   required
-                  type="text"
                   value={formData.profesion}
-                  onChange={(e) => setFormData({...formData, profesion: e.target.value.toUpperCase()})}
-                  placeholder="MEDICO"
-                  maxLength={100}
-                  className="w-full bg-slate-50 border-slate-100 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-purple-200 outline-none uppercase"
-                />
+                  onChange={(e) => setFormData({...formData, profesion: e.target.value})}
+                  className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-purple-200 outline-none uppercase appearance-none"
+                >
+                  <option value="" disabled>SELECCIONE UNA OPCIÓN</option>
+                  {PROFESIONES_APS.map(p => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
               </div>
 
               <div className="space-y-2">
