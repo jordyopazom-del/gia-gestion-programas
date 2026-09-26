@@ -450,7 +450,9 @@ export default function UsuariosClientView({
 
             <div className="flex flex-col gap-3">
               <a 
-                href={`mailto:${showAprobado.email || ''}?subject=${showAprobado.isReset ? 'Reinicio de Clave' : 'Acceso Aprobado'} - GIA CESFAM&body=Hola ${showAprobado.nombre || ''},%0D%0A%0D%0A${showAprobado.isReset ? 'Tu contraseña para la plataforma GIA ha sido reseteada.' : 'Tu acceso a la plataforma GIA ha sido aprobado.'}%0D%0A%0D%0ATu clave temporal para ingresar es: ${showAprobado.temporalPass || ''}%0D%0A%0D%0AEl sistema te pedirá cambiarla al ingresar.%0D%0A%0D%0ASaludos.`}
+                href={`https://mail.google.com/mail/?view=cm&fs=1&authuser=some.cesfam@munifutrono.cl&to=${showAprobado.email || ''}&su=${showAprobado.isReset ? 'Reinicio de Clave' : 'Acceso Aprobado'} - GIA CESFAM&body=Hola ${showAprobado.nombre || ''},%0D%0A%0D%0A${showAprobado.isReset ? 'Tu contraseña para la plataforma GIA ha sido reseteada.' : 'Tu acceso a la plataforma GIA ha sido aprobado.'}%0D%0A%0D%0ATu clave temporal para ingresar es: ${showAprobado.temporalPass || ''}%0D%0A%0D%0AEl sistema te pedirá cambiarla al ingresar.%0D%0A%0D%0ASaludos.`}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="w-full px-4 py-3 rounded-xl text-sm font-bold bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all text-center flex items-center justify-center gap-2"
               >
                 ✉️ Enviar por correo
