@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { Search, MapPin, AlertTriangle, CheckCircle, Clock, Download, ClipboardCheck, X, User, Phone, Map, Calendar, Plus, Save, Briefcase, Hospital, RefreshCw, ArrowUpRight } from "lucide-react";
+import { 
+  Search, MapPin, AlertTriangle, CheckCircle, Clock, Download, ClipboardCheck, X, User, Phone, Map, Calendar, Plus, Save, Briefcase, Hospital, RefreshCw, ArrowUpRight,
+  TrendingUp, Users, Activity, Filter, ArrowRight, ShieldAlert, Stethoscope, Pill, HeartHandshake, Brain, ChevronRight
+} from "lucide-react";
 import * as XLSX from "xlsx";
 import toast from "react-hot-toast";
 import { UserProfile } from "@/actions/userActions";
@@ -21,6 +24,24 @@ import {
   ProfesionalAsignable 
 } from "@/actions/gestionCasosActions";
 import { CopyBadge } from "@/components/CopyBadge";
+
+export interface SectorDetail {
+  total: number;
+  vigentes: number;
+  proximos: number;
+  vencidos: number;
+  pendientes: number;
+  criticosVencidos: number;
+  g3Vencidos: number;
+  g2Vencidos: number;
+  g3Total: number;
+  g2Total: number;
+  g1Total: number;
+  g0Total: number;
+  sinPlan: number;
+  conBrechaCita: number;
+  coberturaPct: number;
+}
 
 const ROLES_DISPONIBLES = [
   "Médico", "Enfermero", "Nutricionista", "Kinesiólogo", 
@@ -147,6 +168,72 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 100;
+
+  // ── Tab 2: Análisis Estadístico y Demanda ──────────────────────────────────
+  const [tab2SectorSort, setTab2SectorSort] = useState<'criticos' | 'cobertura' | 'poblacion'>('criticos');
+
+  const irABrechaCritica = (categoria?: string) => {
+    setFilterSector("Todos");
+    setFilterStatus("Vencido");
+    if (categoria) setFilterCategory(categoria);
+    else setFilterCategory("Todos");
+    setOnlyBrecha(false);
+    setOnlySinPlan(false);
+    setOnlyOrdenes(false);
+    setFilterPendienteEstamento("Todos");
+    setFilterSeguimientoEstamento("Todos");
+    setView("lista");
+  };
+
+  const irASinPlan = (categoria?: string) => {
+    setFilterSector("Todos");
+    setFilterStatus("Todos");
+    if (categoria) setFilterCategory(categoria);
+    else setFilterCategory("Todos");
+    setOnlySinPlan(true);
+    setOnlyBrecha(false);
+    setOnlyOrdenes(false);
+    setFilterPendienteEstamento("Todos");
+    setFilterSeguimientoEstamento("Todos");
+    setView("lista");
+  };
+
+  const irABrechaCitas = (rol?: string) => {
+    setFilterSector("Todos");
+    setFilterStatus("Todos");
+    setFilterCategory("Todos");
+    setOnlyBrecha(true);
+    setOnlySinPlan(false);
+    setOnlyOrdenes(false);
+    if (rol) setFilterPendienteEstamento(rol);
+    else setFilterPendienteEstamento("Todos");
+    setFilterSeguimientoEstamento("Todos");
+    setView("lista");
+  };
+
+  const irASeguimiento = () => {
+    setFilterSector("Todos");
+    setFilterStatus("Todos");
+    setFilterCategory("Todos");
+    setOnlyBrecha(false);
+    setOnlySinPlan(false);
+    setOnlyOrdenes(false);
+    setFilterPendienteEstamento("Todos");
+    setFilterSeguimientoEstamento("Solo con Seguimiento");
+    setView("lista");
+  };
+
+  const irASector = (sectorName: string, soloBrecha = false) => {
+    setFilterSector(sectorName);
+    setFilterStatus("Todos");
+    setFilterCategory("Todos");
+    setOnlyBrecha(soloBrecha);
+    setOnlySinPlan(false);
+    setOnlyOrdenes(false);
+    setFilterPendienteEstamento("Todos");
+    setFilterSeguimientoEstamento("Todos");
+    setView("lista");
+  };
 
   // ── Gestión de Casos ──────────────────────────────────────────────────────
   const [casos, setCasos] = useState<GestionCaso[]>([]);
@@ -776,18 +863,60 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
     const catCounts: Record<string, number> = { "G0": 0, "G1": 0, "G2": 0, "G3": 0, "PENDIENTE": 0 };
     const funcCounts: Record<string, number> = {};
     const sectorStats: Record<string, { total: number, vigentes: number, g0: number, g1: number, g2: number, g3: number }> = {};
+    const sectorDetails: Record<string, SectorDetail> = {};
     const professionalStats: Record<string, number> = {};
+
+    const matrix: Record<string, {
+      total: number;
+      vigentes: number;
+      proximos: number;
+      vencidos: number;
+      pendientes: number;
+      conBrechaCita: number;
+      sinPlan: number;
+    }> = {
+      "G3": { total: 0, vigentes: 0, proximos: 0, vencidos: 0, pendientes: 0, conBrechaCita: 0, sinPlan: 0 },
+      "G2": { total: 0, vigentes: 0, proximos: 0, vencidos: 0, pendientes: 0, conBrechaCita: 0, sinPlan: 0 },
+      "G1": { total: 0, vigentes: 0, proximos: 0, vencidos: 0, pendientes: 0, conBrechaCita: 0, sinPlan: 0 },
+      "G0": { total: 0, vigentes: 0, proximos: 0, vencidos: 0, pendientes: 0, conBrechaCita: 0, sinPlan: 0 },
+      "PENDIENTE": { total: 0, vigentes: 0, proximos: 0, vencidos: 0, pendientes: 0, conBrechaCita: 0, sinPlan: 0 },
+    };
+
+    const estamentoBrechas: Record<string, number> = {
+      "Médico": 0,
+      "Enfermero": 0,
+      "Nutricionista": 0,
+      "Kinesiólogo": 0,
+    };
+
     let totalVigentes = 0;
+    let totalProximos = 0;
+    let totalVencidos = 0;
+    let totalPendientes = 0;
     let totalPolifarmacia = 0;
     let totalRiesgoSocial = 0;
     let totalDeterioroCognitivo = 0;
     let totalSeguimiento = 0;
+    let totalSeguimientoG3 = 0;
+    let totalSeguimientoG2 = 0;
+    let totalSeguimientoG1 = 0;
+    let totalSinPlan = 0;
+    let totalConBrechaCita = 0;
 
     data.forEach(p => {
       const dataClinica = getParsedDataClinica(p.data_clinica);
-      if (dataClinica?.seguimiento_telefonico) totalSeguimiento++;
-      const cat = p.categoria || "PENDIENTE";
+      const isSeg = !!dataClinica?.seguimiento_telefonico;
+      if (isSeg) {
+        totalSeguimiento++;
+        if (p.categoria === "G3") totalSeguimientoG3++;
+        if (p.categoria === "G2") totalSeguimientoG2++;
+        if (p.categoria === "G1") totalSeguimientoG1++;
+      }
+
+      const rawCat = p.categoria;
+      const cat = (rawCat && matrix[rawCat]) ? rawCat : "PENDIENTE";
       catCounts[cat] = (catCounts[cat] || 0) + 1;
+      matrix[cat].total++;
 
       if (p.polifarmacia) totalPolifarmacia++;
       if (p.riesgo_social) totalRiesgoSocial++;
@@ -800,16 +929,95 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
       if (!sectorStats[sec]) sectorStats[sec] = { total: 0, vigentes: 0, g0: 0, g1: 0, g2: 0, g3: 0 };
       sectorStats[sec].total++;
 
+      if (!sectorDetails[sec]) {
+        sectorDetails[sec] = {
+          total: 0,
+          vigentes: 0,
+          proximos: 0,
+          vencidos: 0,
+          pendientes: 0,
+          criticosVencidos: 0,
+          g3Vencidos: 0,
+          g2Vencidos: 0,
+          g3Total: 0,
+          g2Total: 0,
+          g1Total: 0,
+          g0Total: 0,
+          sinPlan: 0,
+          conBrechaCita: 0,
+          coberturaPct: 0
+        };
+      }
+      sectorDetails[sec].total++;
+
       const statusObj = getEcicepStatus(p.ultima_atencion);
-      if (statusObj.status === "Vigente") {
+      const st = statusObj.status;
+      if (st === "Vigente") {
         sectorStats[sec].vigentes++;
+        sectorDetails[sec].vigentes++;
+        matrix[cat].vigentes++;
         totalVigentes++;
+      } else if (st === "Próximo a Vencer") {
+        sectorDetails[sec].proximos++;
+        matrix[cat].proximos++;
+        totalProximos++;
+      } else if (st === "Vencido") {
+        sectorDetails[sec].vencidos++;
+        matrix[cat].vencidos++;
+        totalVencidos++;
+      } else {
+        sectorDetails[sec].pendientes++;
+        matrix[cat].pendientes++;
+        totalPendientes++;
       }
 
-      if (cat === "G0") sectorStats[sec].g0++;
-      if (cat === "G1") sectorStats[sec].g1++;
-      if (cat === "G2") sectorStats[sec].g2++;
-      if (cat === "G3") sectorStats[sec].g3++;
+      const isPacVencidoOInactivo = (st === "Vencido" || st === "Pendiente");
+
+      if (cat === "G0") {
+        sectorStats[sec].g0++;
+        sectorDetails[sec].g0Total++;
+      } else if (cat === "G1") {
+        sectorStats[sec].g1++;
+        sectorDetails[sec].g1Total++;
+      } else if (cat === "G2") {
+        sectorStats[sec].g2++;
+        sectorDetails[sec].g2Total++;
+        if (isPacVencidoOInactivo) {
+          sectorDetails[sec].g2Vencidos++;
+          sectorDetails[sec].criticosVencidos++;
+        }
+      } else if (cat === "G3") {
+        sectorStats[sec].g3++;
+        sectorDetails[sec].g3Total++;
+        if (isPacVencidoOInactivo) {
+          sectorDetails[sec].g3Vencidos++;
+          sectorDetails[sec].criticosVencidos++;
+        }
+      }
+
+      // Brecha de citas en plan
+      const pacBrecha = hasBrecha(p);
+      if (pacBrecha) {
+        totalConBrechaCita++;
+        matrix[cat].conBrechaCita++;
+        sectorDetails[sec].conBrechaCita++;
+      }
+
+      // Sin plan anual (solo aplica a crónicos G1, G2, G3)
+      const pacSinPlan = isCronicoSinPlan(p);
+      if (pacSinPlan) {
+        totalSinPlan++;
+        matrix[cat].sinPlan++;
+        sectorDetails[sec].sinPlan++;
+      }
+
+      // Estamentos con citas vencidas
+      ["Médico", "Enfermero", "Nutricionista", "Kinesiólogo"].forEach(rol => {
+        const citaStatus = getCitaDisplayStatus(p, rol);
+        if (citaStatus.isExpired) {
+          estamentoBrechas[rol]++;
+        }
+      });
 
       const profName = p.profesional_nombre || "SIN REGISTRO";
       if (p.ultima_atencion) {
@@ -817,19 +1025,59 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
       }
     });
 
+    // Calcular coberturas de sector
+    Object.keys(sectorDetails).forEach(sec => {
+      const s = sectorDetails[sec];
+      s.coberturaPct = s.total > 0 ? Number(((s.vigentes / s.total) * 100).toFixed(1)) : 0;
+    });
+
+    const g3VencidosTotal = matrix["G3"].vencidos + matrix["G3"].pendientes;
+    const g2VencidosTotal = matrix["G2"].vencidos + matrix["G2"].pendientes;
+    const criticosVencidosTotal = g3VencidosTotal + g2VencidosTotal;
+    const totalCronicos = (catCounts["G1"] || 0) + (catCounts["G2"] || 0) + (catCounts["G3"] || 0);
+
     return { 
       catCounts, 
       funcCounts, 
       sectorStats, 
+      sectorDetails,
+      matrix,
+      estamentoBrechas,
       total, 
       totalVigentes, 
+      totalProximos,
+      totalVencidos,
+      totalPendientes,
+      g3VencidosTotal,
+      g2VencidosTotal,
+      criticosVencidosTotal,
+      totalSinPlan,
+      totalCronicos,
+      totalConBrechaCita,
       totalPolifarmacia, 
       totalRiesgoSocial, 
       totalDeterioroCognitivo,
       totalSeguimiento,
+      totalSeguimientoG3,
+      totalSeguimientoG2,
+      totalSeguimientoG1,
       professionalStats 
     };
   }, [data]);
+
+  const sortedSectors = useMemo(() => {
+    if (!stats.sectorDetails) return [];
+    const entries = Object.entries(stats.sectorDetails);
+    return entries.sort((a, b) => {
+      if (tab2SectorSort === 'criticos') {
+        return b[1].criticosVencidos - a[1].criticosVencidos;
+      }
+      if (tab2SectorSort === 'cobertura') {
+        return a[1].coberturaPct - b[1].coberturaPct;
+      }
+      return b[1].total - a[1].total;
+    });
+  }, [stats.sectorDetails, tab2SectorSort]);
 
   const exportToExcel = () => {
     const dataset = filtered.map(p => {
@@ -1660,131 +1908,631 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
           </div>
         </>
       ) : (
-        /* Vista de Análisis Estadístico */
-        <div className="px-6 pb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        /* ─── Vista de Análisis Estadístico y Gestión de la Demanda ─────────── */
+        <div className="px-6 pb-16 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          
+          {/* Header de la Vista */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-6 rounded-3xl shadow-xl">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="bg-indigo-500/20 text-indigo-300 text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border border-indigo-500/30 tracking-wider">
+                  Módulo de Gestión de la Demanda
+                </span>
+                <span className="bg-emerald-500/20 text-emerald-300 text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border border-emerald-500/30">
+                  Enfoque Rescate APS
+                </span>
+              </div>
+              <h2 className="text-xl md:text-2xl font-black tracking-tight">
+                Tablero Epidemiológico y Brechas de Continuidad
+              </h2>
+              <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
+                Identificación proactiva de pacientes vencidos, inasistentes a planes de cuidado y distribución de brechas por sector territorial para priorización de horas clínicas.
+              </p>
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
+              <button 
+                onClick={exportToExcel}
+                className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition flex items-center gap-2 border border-white/10 backdrop-blur-sm"
+              >
+                <Download size={14} />
+                <span>Exportar Padrón</span>
+              </button>
+            </div>
+          </div>
+
+          {/* ─── 1. Scorecard de Brechas (3 KPIs Fundamentales) ─────────────── */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             
-            {/* Categorías ECICEP */}
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-              <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center">
-                <span className="bg-blue-100 text-blue-600 p-1.5 rounded-lg mr-2">📊</span>
-                Distribución Niveles ECICEP
-              </h3>
-              <div className="space-y-4">
-                {[
-                  { key: "G3", label: "G3 - Riesgo Alto / Complejo", color: "bg-red-500" },
-                  { key: "G2", label: "G2 - Riesgo Moderado", color: "bg-amber-500" },
-                  { key: "G1", label: "G1 - Riesgo Bajo", color: "bg-blue-500" },
-                  { key: "G0", label: "G0 - Sin Riesgo / Bajo", color: "bg-emerald-500" },
-                  { key: "PENDIENTE", label: "Sin Estratificación (Pendiente)", color: "bg-slate-400" },
-                ].map(({ key, label, color }) => {
-                  const count = stats.catCounts[key] || 0;
-                  const percentage = stats.total > 0 ? ((count / stats.total) * 100).toFixed(1) : "0.0";
-                  return (
-                    <div key={key}>
-                      <div className="flex justify-between text-xs font-bold text-slate-600 mb-1">
-                        <span>{label}</span>
-                        <span>{count} pac. ({percentage}%)</span>
-                      </div>
-                      <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
-                        <div 
-                          className={`${color} h-full rounded-full transition-all duration-1000`} 
-                          style={{ width: `${percentage}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  );
-                })}
+            {/* KPI 1: Cobertura Padrón Total */}
+            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between hover:border-slate-300 transition-all">
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[11px] font-black uppercase text-slate-400 tracking-wider">Cobertura Padrón</span>
+                  <span className="bg-blue-50 text-blue-700 p-2.5 rounded-2xl border border-blue-100">
+                    <TrendingUp size={18} />
+                  </span>
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <p className="text-4xl font-black text-slate-900">
+                    {stats.total > 0 ? ((stats.totalVigentes / stats.total) * 100).toFixed(1) : "0.0"}%
+                  </p>
+                  <span className="text-xs font-bold text-slate-500">vigente</span>
+                </div>
+                <div className="mt-3 w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                  <div 
+                    className="bg-blue-600 h-full rounded-full transition-all duration-700" 
+                    style={{ width: `${Math.min(100, stats.total > 0 ? (stats.totalVigentes / stats.total) * 100 : 0)}%` }}
+                  />
+                </div>
+              </div>
+              <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                <span className="text-slate-500 font-medium">
+                  {stats.totalVigentes.toLocaleString("es-CL")} de {stats.total.toLocaleString("es-CL")} pac.
+                </span>
+                <span className="text-[10px] font-bold bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full">
+                  Meta IAAPS: 80%
+                </span>
               </div>
             </div>
 
-            {/* Gestión de Seguimiento */}
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-              <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center">
-                <span className="bg-blue-100 text-blue-600 p-1.5 rounded-lg mr-2">📞</span>
-                Seguimiento y Rescate Activo
-              </h3>
-              <div className="space-y-4">
-                {[
-                  { label: "Pacientes en Seguimiento Telefónico (TENS)", count: stats.totalSeguimiento, color: "bg-blue-600" },
-                ].map(({ label, count, color }) => {
-                  const percentage = stats.total > 0 ? ((count / stats.total) * 100).toFixed(1) : "0.0";
-                  return (
-                    <div key={label}>
-                      <div className="flex justify-between text-xs font-bold text-slate-600 mb-1">
-                        <span>{label}</span>
-                        <span>{count} pac. ({percentage}%)</span>
-                      </div>
-                      <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
-                        <div 
-                          className={`${color} h-full rounded-full transition-all duration-1000`} 
-                          style={{ width: `${percentage}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  );
-                })}
+            {/* KPI 2: Brecha Crítica (G3 + G2 Vencidos) */}
+            <div className="bg-white p-6 rounded-3xl border-2 border-red-200 shadow-sm flex flex-col justify-between hover:border-red-300 transition-all bg-gradient-to-br from-white via-white to-red-50/40">
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] font-black uppercase text-red-600 tracking-wider">Brecha Crítica</span>
+                    <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+                  </div>
+                  <span className="bg-red-100 text-red-700 p-2.5 rounded-2xl border border-red-200">
+                    <ShieldAlert size={18} />
+                  </span>
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <p className="text-4xl font-black text-red-600">
+                    {stats.criticosVencidosTotal.toLocaleString("es-CL")}
+                  </p>
+                  <span className="text-xs font-bold text-red-500">pacientes</span>
+                </div>
+                <p className="text-xs text-slate-600 mt-2 font-medium">
+                  G3 (Alto): <strong className="text-red-700 font-black">{stats.g3VencidosTotal}</strong> · G2 (Mod): <strong className="text-amber-700 font-black">{stats.g2VencidosTotal}</strong>
+                </p>
+              </div>
+              <div className="mt-5 pt-3 border-t border-red-100 flex items-center justify-between">
+                <span className="text-[10px] font-black text-red-600 uppercase bg-red-100/70 px-2.5 py-0.5 rounded-md">
+                  Foco Rescate 1
+                </span>
+                <button
+                  type="button"
+                  onClick={() => irABrechaCritica()}
+                  className="text-xs font-bold text-red-600 hover:text-red-800 flex items-center gap-1 group"
+                >
+                  <span>Ver en Padrón</span>
+                  <ArrowRight size={13} className="group-hover:translate-x-1 transition-transform" />
+                </button>
               </div>
             </div>
 
-            {/* Cobertura e Índices por Sector */}
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm lg:col-span-2">
-              <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center">
-                <span className="bg-purple-100 text-purple-600 p-1.5 rounded-lg mr-2">📍</span>
-                Estratificación y Cobertura Territorial por Sector
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {Object.entries(stats.sectorStats).sort((a,b) => b[1].total - a[1].total).map(([sector, sData]) => {
-                  const cob = ((sData.vigentes / sData.total) * 100).toFixed(1);
-                  return (
-                    <div key={sector} className="p-4 bg-slate-50 rounded-xl border border-slate-100">
-                      <p className="text-xs font-black text-slate-400 uppercase mb-2">{sector}</p>
-                      <div className="flex items-end space-x-2">
-                        <p className="text-3xl font-light text-slate-800">{cob}%</p>
-                        <p className="text-xs text-slate-500 mb-1">Cobertura</p>
-                      </div>
-                      <div className="mt-3 w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                        <div 
-                          className="bg-blue-600 h-full rounded-full" 
-                          style={{ width: `${cob}%` }}
-                        ></div>
-                      </div>
-                      <div className="mt-3 grid grid-cols-4 gap-1 text-[9px] font-bold text-center text-slate-500 uppercase">
-                        <div className="bg-emerald-100/50 text-emerald-700 p-1 rounded">G0: {sData.g0}</div>
-                        <div className="bg-blue-100/50 text-blue-700 p-1 rounded">G1: {sData.g1}</div>
-                        <div className="bg-amber-100/50 text-amber-700 p-1 rounded">G2: {sData.g2}</div>
-                        <div className="bg-red-100/50 text-red-700 p-1 rounded">G3: {sData.g3}</div>
-                      </div>
-                    </div>
-                  );
-                })}
+            {/* KPI 3: Brecha de Programación (Sin Plan Anual) */}
+            <div className="bg-white p-6 rounded-3xl border border-amber-200 shadow-sm flex flex-col justify-between hover:border-amber-300 transition-all bg-gradient-to-br from-white via-white to-amber-50/40">
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[11px] font-black uppercase text-amber-700 tracking-wider">Sin Plan Anual</span>
+                  <span className="bg-amber-100 text-amber-700 p-2.5 rounded-2xl border border-amber-200">
+                    <Calendar size={18} />
+                  </span>
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <p className="text-4xl font-black text-amber-700">
+                    {stats.totalSinPlan.toLocaleString("es-CL")}
+                  </p>
+                  <span className="text-xs font-bold text-amber-600">crónicos</span>
+                </div>
+                <p className="text-xs text-slate-500 mt-2 leading-relaxed">
+                  Pacientes G1/G2/G3 estratificados sin citas programadas en agenda anual.
+                </p>
               </div>
-            </div>
-
-            {/* Rendimiento por Profesional */}
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm lg:col-span-2">
-              <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center">
-                <span className="bg-teal-100 text-teal-600 p-1.5 rounded-lg mr-2">🩺</span>
-                Estratificaciones Realizadas por Profesional
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {Object.entries(stats.professionalStats).sort((a,b) => b[1] - a[1]).map(([prof, count]) => {
-                  return (
-                    <div key={prof} className="p-4 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
-                      <div className="truncate pr-2">
-                        <span className="text-xs font-black text-slate-600 uppercase truncate block" title={prof}>{prof}</span>
-                        <span className="text-[10px] text-slate-400">Profesional Clínico</span>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <span className="text-2xl font-light text-slate-800">{count}</span>
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="mt-5 pt-3 border-t border-amber-100 flex items-center justify-between">
+                <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2.5 py-0.5 rounded-md">
+                  {stats.totalCronicos > 0 ? ((stats.totalSinPlan / stats.totalCronicos) * 100).toFixed(0) : 0}% de crónicos
+                </span>
+                <button
+                  type="button"
+                  onClick={() => irASinPlan()}
+                  className="text-xs font-bold text-amber-700 hover:text-amber-900 flex items-center gap-1 group"
+                >
+                  <span>Asignar Citas</span>
+                  <ArrowRight size={13} className="group-hover:translate-x-1 transition-transform" />
+                </button>
               </div>
             </div>
 
           </div>
+
+          {/* ─── 2. Matriz Clínica de Demanda y Riesgo (Riesgo vs Continuidad) ── */}
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/50">
+              <div>
+                <h3 className="text-base font-black text-slate-800 flex items-center gap-2">
+                  <span className="bg-indigo-100 text-indigo-700 p-1.5 rounded-lg text-sm">📊</span>
+                  Matriz de Continuidad y Riesgo Clínico ECICEP
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Cruce bidimensional entre estratificación de riesgo poblacional y estado del plan de cuidados
+                </p>
+              </div>
+              <div className="flex items-center gap-2 text-xs">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <CheckCircle size={12} /> Vigente: &lt; 365 días
+                </span>
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-bold bg-red-50 text-red-700 border border-red-200">
+                  <AlertTriangle size={12} /> Vencido: &gt; 365 días
+                </span>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-100/70 text-slate-600 uppercase font-black tracking-wider text-[10px] border-b border-slate-200">
+                  <tr>
+                    <th className="py-3.5 px-6">Nivel de Riesgo ECICEP</th>
+                    <th className="py-3.5 px-4 text-center">Población Total</th>
+                    <th className="py-3.5 px-4 text-center">Vigentes (&lt;12m)</th>
+                    <th className="py-3.5 px-4 text-center">Próximos (&lt;30d)</th>
+                    <th className="py-3.5 px-4 text-center text-red-600">Vencidos (&gt;12m)</th>
+                    <th className="py-3.5 px-4 text-center text-amber-700">Sin Plan Anual</th>
+                    <th className="py-3.5 px-4 text-center text-rose-700">Citas Atrasadas</th>
+                    <th className="py-3.5 px-4 text-center">Cobertura</th>
+                    <th className="py-3.5 px-6 text-right">Acción Rápida</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {/* Fila G3 */}
+                  <tr className="hover:bg-red-50/40 transition">
+                    <td className="py-4 px-6">
+                      <div className="flex items-center gap-3">
+                        <span className="px-2.5 py-1 rounded-lg text-xs font-black bg-red-600 text-white shadow-sm shrink-0">
+                          G3
+                        </span>
+                        <div>
+                          <p className="font-black text-slate-800 text-xs">Riesgo Alto / Complejo</p>
+                          <p className="text-[10px] text-slate-400">Multimorbilidad severa y polifarmacia</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-4 px-4 text-center font-bold text-slate-700">
+                      {stats.matrix["G3"].total.toLocaleString("es-CL")}
+                    </td>
+                    <td className="py-4 px-4 text-center font-black text-emerald-700 bg-emerald-50/30">
+                      {stats.matrix["G3"].vigentes.toLocaleString("es-CL")}
+                    </td>
+                    <td className="py-4 px-4 text-center font-bold text-orange-600 bg-orange-50/30">
+                      {stats.matrix["G3"].proximos.toLocaleString("es-CL")}
+                    </td>
+                    <td className="py-4 px-4 text-center font-black text-red-700 bg-red-50/50">
+                      {(stats.matrix["G3"].vencidos + stats.matrix["G3"].pendientes).toLocaleString("es-CL")}
+                    </td>
+                    <td className="py-4 px-4 text-center font-bold text-amber-700">
+                      {stats.matrix["G3"].sinPlan.toLocaleString("es-CL")}
+                    </td>
+                    <td className="py-4 px-4 text-center font-bold text-rose-700">
+                      {stats.matrix["G3"].conBrechaCita.toLocaleString("es-CL")}
+                    </td>
+                    <td className="py-4 px-4 text-center">
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="font-bold text-slate-700">
+                          {stats.matrix["G3"].total > 0 ? ((stats.matrix["G3"].vigentes / stats.matrix["G3"].total) * 100).toFixed(1) : 0}%
+                        </span>
+                        <div className="w-16 bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                          <div 
+                            className="bg-red-600 h-full rounded-full" 
+                            style={{ width: `${stats.matrix["G3"].total > 0 ? (stats.matrix["G3"].vigentes / stats.matrix["G3"].total) * 100 : 0}%` }}
+                          />
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-4 px-6 text-right">
+                      <button
+                        type="button"
+                        onClick={() => irABrechaCritica("G3")}
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-600 text-white hover:bg-red-700 transition shadow-sm inline-flex items-center gap-1"
+                      >
+                        <span>Rescatar G3</span>
+                        <ArrowRight size={11} />
+                      </button>
+                    </td>
+                  </tr>
+
+                  {/* Fila G2 */}
+                  <tr className="hover:bg-amber-50/40 transition">
+                    <td className="py-4 px-6">
+                      <div className="flex items-center gap-3">
+                        <span className="px-2.5 py-1 rounded-lg text-xs font-black bg-amber-500 text-white shadow-sm shrink-0">
+                          G2
+                        </span>
+                        <div>
+                          <p className="font-black text-slate-800 text-xs">Riesgo Moderado</p>
+                          <p className="text-[10px] text-slate-400">2 a 4 condiciones crónicas en control</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-4 px-4 text-center font-bold text-slate-700">
+                      {stats.matrix["G2"].total.toLocaleString("es-CL")}
+                    </td>
+                    <td className="py-4 px-4 text-center font-black text-emerald-700 bg-emerald-50/30">
+                      {stats.matrix["G2"].vigentes.toLocaleString("es-CL")}
+                    </td>
+                    <td className="py-4 px-4 text-center font-bold text-orange-600 bg-orange-50/30">
+                      {stats.matrix["G2"].proximos.toLocaleString("es-CL")}
+                    </td>
+                    <td className="py-4 px-4 text-center font-black text-red-700 bg-red-50/50">
+                      {(stats.matrix["G2"].vencidos + stats.matrix["G2"].pendientes).toLocaleString("es-CL")}
+                    </td>
+                    <td className="py-4 px-4 text-center font-bold text-amber-700">
+                      {stats.matrix["G2"].sinPlan.toLocaleString("es-CL")}
+                    </td>
+                    <td className="py-4 px-4 text-center font-bold text-rose-700">
+                      {stats.matrix["G2"].conBrechaCita.toLocaleString("es-CL")}
+                    </td>
+                    <td className="py-4 px-4 text-center">
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="font-bold text-slate-700">
+                          {stats.matrix["G2"].total > 0 ? ((stats.matrix["G2"].vigentes / stats.matrix["G2"].total) * 100).toFixed(1) : 0}%
+                        </span>
+                        <div className="w-16 bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                          <div 
+                            className="bg-amber-500 h-full rounded-full" 
+                            style={{ width: `${stats.matrix["G2"].total > 0 ? (stats.matrix["G2"].vigentes / stats.matrix["G2"].total) * 100 : 0}%` }}
+                          />
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-4 px-6 text-right">
+                      <button
+                        type="button"
+                        onClick={() => irABrechaCritica("G2")}
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-600 text-white hover:bg-amber-700 transition shadow-sm inline-flex items-center gap-1"
+                      >
+                        <span>Rescatar G2</span>
+                        <ArrowRight size={11} />
+                      </button>
+                    </td>
+                  </tr>
+
+                  {/* Fila G1 */}
+                  <tr className="hover:bg-blue-50/40 transition">
+                    <td className="py-4 px-6">
+                      <div className="flex items-center gap-3">
+                        <span className="px-2.5 py-1 rounded-lg text-xs font-black bg-blue-600 text-white shadow-sm shrink-0">
+                          G1
+                        </span>
+                        <div>
+                          <p className="font-black text-slate-800 text-xs">Riesgo Bajo</p>
+                          <p className="text-[10px] text-slate-400">1 patología compensada o bajo RCV</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-4 px-4 text-center font-bold text-slate-700">
+                      {stats.matrix["G1"].total.toLocaleString("es-CL")}
+                    </td>
+                    <td className="py-4 px-4 text-center font-black text-emerald-700 bg-emerald-50/30">
+                      {stats.matrix["G1"].vigentes.toLocaleString("es-CL")}
+                    </td>
+                    <td className="py-4 px-4 text-center font-bold text-orange-600 bg-orange-50/30">
+                      {stats.matrix["G1"].proximos.toLocaleString("es-CL")}
+                    </td>
+                    <td className="py-4 px-4 text-center font-bold text-red-600 bg-red-50/30">
+                      {(stats.matrix["G1"].vencidos + stats.matrix["G1"].pendientes).toLocaleString("es-CL")}
+                    </td>
+                    <td className="py-4 px-4 text-center font-bold text-amber-700">
+                      {stats.matrix["G1"].sinPlan.toLocaleString("es-CL")}
+                    </td>
+                    <td className="py-4 px-4 text-center font-bold text-rose-700">
+                      {stats.matrix["G1"].conBrechaCita.toLocaleString("es-CL")}
+                    </td>
+                    <td className="py-4 px-4 text-center">
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="font-bold text-slate-700">
+                          {stats.matrix["G1"].total > 0 ? ((stats.matrix["G1"].vigentes / stats.matrix["G1"].total) * 100).toFixed(1) : 0}%
+                        </span>
+                        <div className="w-16 bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                          <div 
+                            className="bg-blue-600 h-full rounded-full" 
+                            style={{ width: `${stats.matrix["G1"].total > 0 ? (stats.matrix["G1"].vigentes / stats.matrix["G1"].total) * 100 : 0}%` }}
+                          />
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-4 px-6 text-right">
+                      <button
+                        type="button"
+                        onClick={() => irABrechaCritica("G1")}
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-600 text-white hover:bg-blue-700 transition shadow-sm inline-flex items-center gap-1"
+                      >
+                        <span>Ver G1</span>
+                        <ArrowRight size={11} />
+                      </button>
+                    </td>
+                  </tr>
+
+                  {/* Fila Sin Estratificar */}
+                  <tr className="hover:bg-slate-50 transition">
+                    <td className="py-4 px-6">
+                      <div className="flex items-center gap-3">
+                        <span className="px-2 py-1 rounded-lg text-xs font-black bg-slate-400 text-white shadow-sm shrink-0">
+                          PEND
+                        </span>
+                        <div>
+                          <p className="font-black text-slate-800 text-xs">Sin Estratificación</p>
+                          <p className="text-[10px] text-slate-400">Población inscrita sin evaluación de riesgo</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-4 px-4 text-center font-bold text-slate-700">
+                      {stats.matrix["PENDIENTE"].total.toLocaleString("es-CL")}
+                    </td>
+                    <td className="py-4 px-4 text-center text-slate-400">—</td>
+                    <td className="py-4 px-4 text-center text-slate-400">—</td>
+                    <td className="py-4 px-4 text-center font-bold text-red-600 bg-red-50/30">
+                      {stats.matrix["PENDIENTE"].total.toLocaleString("es-CL")}
+                    </td>
+                    <td className="py-4 px-4 text-center text-slate-400">—</td>
+                    <td className="py-4 px-4 text-center text-slate-400">—</td>
+                    <td className="py-4 px-4 text-center text-slate-400">0.0%</td>
+                    <td className="py-4 px-6 text-right">
+                      <button
+                        type="button"
+                        onClick={() => { setFilterCategory("PENDIENTE"); setView("lista"); }}
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-600 text-white hover:bg-slate-700 transition shadow-sm inline-flex items-center gap-1"
+                      >
+                        <span>Estratificar</span>
+                        <ArrowRight size={11} />
+                      </button>
+                    </td>
+                  </tr>
+
+                  {/* Fila G0 (Población Sana) */}
+                  <tr className="hover:bg-emerald-50/30 transition bg-slate-50/30">
+                    <td className="py-4 px-6">
+                      <div className="flex items-center gap-3">
+                        <span className="px-2.5 py-1 rounded-lg text-xs font-black bg-emerald-600 text-white shadow-sm shrink-0">
+                          G0
+                        </span>
+                        <div>
+                          <p className="font-black text-slate-800 text-xs">Sin Riesgo Crónico / Población Sana</p>
+                          <p className="text-[10px] text-slate-400">Enfoque promocional y preventivo</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-4 px-4 text-center font-bold text-slate-700">
+                      {stats.matrix["G0"].total.toLocaleString("es-CL")}
+                    </td>
+                    <td className="py-4 px-4 text-center font-black text-emerald-700 bg-emerald-50/30">
+                      {stats.matrix["G0"].vigentes.toLocaleString("es-CL")}
+                    </td>
+                    <td className="py-4 px-4 text-center font-bold text-orange-600 bg-orange-50/30">
+                      {stats.matrix["G0"].proximos.toLocaleString("es-CL")}
+                    </td>
+                    <td className="py-4 px-4 text-center font-bold text-slate-500">
+                      {(stats.matrix["G0"].vencidos + stats.matrix["G0"].pendientes).toLocaleString("es-CL")}
+                    </td>
+                    <td className="py-4 px-4 text-center text-slate-400" title="G0 no requiere plan de crónico">
+                      No aplica
+                    </td>
+                    <td className="py-4 px-4 text-center text-slate-400" title="G0 no tiene citas crónicas">
+                      No aplica
+                    </td>
+                    <td className="py-4 px-4 text-center">
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="font-bold text-slate-700">
+                          {stats.matrix["G0"].total > 0 ? ((stats.matrix["G0"].vigentes / stats.matrix["G0"].total) * 100).toFixed(1) : 0}%
+                        </span>
+                        <div className="w-16 bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                          <div 
+                            className="bg-emerald-600 h-full rounded-full" 
+                            style={{ width: `${stats.matrix["G0"].total > 0 ? (stats.matrix["G0"].vigentes / stats.matrix["G0"].total) * 100 : 0}%` }}
+                          />
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-4 px-6 text-right">
+                      <button
+                        type="button"
+                        onClick={() => { setFilterCategory("G0"); setView("lista"); }}
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition shadow-sm inline-flex items-center gap-1"
+                      >
+                        <span>Ver G0</span>
+                        <ArrowRight size={11} />
+                      </button>
+                    </td>
+                  </tr>
+
+                  {/* Fila de Totales */}
+                  <tr className="bg-slate-100/90 font-black text-slate-900 border-t-2 border-slate-300">
+                    <td className="py-4 px-6 text-xs uppercase">
+                      Total Padrón Centro
+                    </td>
+                    <td className="py-4 px-4 text-center font-mono">
+                      {stats.total.toLocaleString("es-CL")}
+                    </td>
+                    <td className="py-4 px-4 text-center text-emerald-800 font-mono">
+                      {stats.totalVigentes.toLocaleString("es-CL")}
+                    </td>
+                    <td className="py-4 px-4 text-center text-orange-700 font-mono">
+                      {stats.totalProximos.toLocaleString("es-CL")}
+                    </td>
+                    <td className="py-4 px-4 text-center text-red-700 font-mono">
+                      {(stats.totalVencidos + stats.totalPendientes).toLocaleString("es-CL")}
+                    </td>
+                    <td className="py-4 px-4 text-center text-amber-800 font-mono">
+                      {stats.totalSinPlan.toLocaleString("es-CL")}
+                    </td>
+                    <td className="py-4 px-4 text-center text-rose-800 font-mono">
+                      {stats.totalConBrechaCita.toLocaleString("es-CL")}
+                    </td>
+                    <td className="py-4 px-4 text-center font-mono text-blue-700">
+                      {stats.total > 0 ? ((stats.totalVigentes / stats.total) * 100).toFixed(1) : 0}%
+                    </td>
+                    <td className="py-4 px-6 text-right">
+                      <button
+                        type="button"
+                        onClick={() => { setFilterCategory("Todos"); setFilterStatus("Todos"); setView("lista"); }}
+                        className="text-xs font-black text-indigo-700 hover:text-indigo-900"
+                      >
+                        Ver Todos ↗
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+              <span className="flex items-center gap-1.5">
+                ℹ️ <strong>Criterio Clínico APS:</strong> La población G0 no computa brechas de inasistencia ya que su abordaje es promocional y preventivo.
+              </span>
+              <span className="font-medium text-slate-400">
+                Padrón activo total
+              </span>
+            </div>
+          </div>
+
+          {/* ─── 3. Ranking Territorial de Brechas por Sector (Tabla Compacta) ── */}
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/50">
+              <div>
+                <h3 className="text-base font-black text-slate-800 flex items-center gap-2">
+                  <span className="bg-purple-100 text-purple-700 p-1.5 rounded-lg text-sm">📍</span>
+                  Ranking Territorial de Brechas por Sector
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Priorización de sectores territoriales según volumen de pacientes críticos vencidos para asignación de horas clínicas
+                </p>
+              </div>
+
+              {/* Controles de Ordenación */}
+              <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl self-start sm:self-auto text-xs">
+                <span className="text-[11px] font-bold text-slate-400 px-2 uppercase">Ordenar por:</span>
+                <button
+                  type="button"
+                  onClick={() => setTab2SectorSort("criticos")}
+                  className={`px-3 py-1.5 rounded-lg font-bold transition ${tab2SectorSort === "criticos" ? "bg-white text-red-600 shadow-sm" : "text-slate-600 hover:text-slate-900"}`}
+                >
+                  Mayor Brecha Crítica
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTab2SectorSort("cobertura")}
+                  className={`px-3 py-1.5 rounded-lg font-bold transition ${tab2SectorSort === "cobertura" ? "bg-white text-blue-600 shadow-sm" : "text-slate-600 hover:text-slate-900"}`}
+                >
+                  Menor Cobertura
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTab2SectorSort("poblacion")}
+                  className={`px-3 py-1.5 rounded-lg font-bold transition ${tab2SectorSort === "poblacion" ? "bg-white text-slate-800 shadow-sm" : "text-slate-600 hover:text-slate-900"}`}
+                >
+                  Población Total
+                </button>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-100/70 text-slate-600 uppercase font-black tracking-wider text-[10px] border-b border-slate-200">
+                  <tr>
+                    <th className="py-3.5 px-6">Sector Territorial</th>
+                    <th className="py-3.5 px-4 text-center">Estado Prioridad</th>
+                    <th className="py-3.5 px-4 text-center">Inscritos</th>
+                    <th className="py-3.5 px-4 text-center">Cobertura Vigente</th>
+                    <th className="py-3.5 px-4 text-center text-red-600">Críticos Vencidos (G3+G2)</th>
+                    <th className="py-3.5 px-4 text-center text-amber-700">Sin Plan Anual</th>
+                    <th className="py-3.5 px-4 text-center text-rose-700">Citas Atrasadas</th>
+                    <th className="py-3.5 px-6 text-right">Acción Rápida</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {sortedSectors.map(([sector, sData]) => {
+                    const cob = sData.coberturaPct;
+                    const isCritico = sData.criticosVencidos >= 25 || cob < 55;
+                    const isMedio = !isCritico && (sData.criticosVencidos >= 10 || cob < 70);
+
+                    return (
+                      <tr 
+                        key={sector} 
+                        className={`transition hover:bg-slate-50/80 ${isCritico ? "bg-red-50/20" : ""}`}
+                      >
+                        <td className="py-4 px-6 font-black text-slate-800 uppercase">
+                          {sector}
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          {isCritico ? (
+                            <span className="text-[10px] font-black uppercase bg-red-100 text-red-700 border border-red-200 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
+                              <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
+                              Prioridad Alta
+                            </span>
+                          ) : isMedio ? (
+                            <span className="text-[10px] font-black uppercase bg-amber-100 text-amber-700 border border-amber-200 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
+                              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                              Prioridad Media
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-black uppercase bg-emerald-100 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
+                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                              Bajo Control
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-4 px-4 text-center font-bold text-slate-600">
+                          {sData.total.toLocaleString("es-CL")}
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          <div className="flex flex-col items-center gap-1 max-w-[100px] mx-auto">
+                            <span className="font-bold text-slate-800">{cob}%</span>
+                            <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                              <div 
+                                className={`h-full rounded-full ${cob >= 75 ? "bg-emerald-500" : cob >= 60 ? "bg-blue-600" : "bg-red-500"}`} 
+                                style={{ width: `${cob}%` }}
+                              />
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 text-center font-black text-red-700 bg-red-50/30">
+                          {sData.criticosVencidos}
+                        </td>
+                        <td className="py-4 px-4 text-center font-bold text-amber-800">
+                          {sData.sinPlan}
+                        </td>
+                        <td className="py-4 px-4 text-center font-bold text-rose-800">
+                          {sData.conBrechaCita}
+                        </td>
+                        <td className="py-4 px-6 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => irASector(sector, true)}
+                              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-600 hover:bg-red-700 text-white transition shadow-sm inline-flex items-center gap-1"
+                            >
+                              <span>Ver Brechas</span>
+                              <ArrowRight size={11} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => irASector(sector, false)}
+                              className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 transition"
+                              title="Ver todo el sector"
+                            >
+                              Todo
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
         </div>
       )}
 
