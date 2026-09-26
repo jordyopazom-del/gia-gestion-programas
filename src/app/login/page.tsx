@@ -269,7 +269,7 @@ function LoginContent() {
 
         <div className="mt-4 bg-slate-50 p-3.5 rounded-xl border border-slate-100/80">
           <p className="text-[11px] text-slate-500 font-medium leading-relaxed text-center">
-            💡 <strong>¿Primera vez ingresando?</strong> Si tu solicitud de acceso ya fue aprobada por el Administrador, inicia sesión con tu RUT y la contraseña provisoria <strong className="text-blue-600 font-bold">cesfam123</strong>.
+            💡 <strong>¿Primera vez ingresando?</strong> Si tu solicitud de acceso ya fue aprobada, inicia sesión con la contraseña provisoria que el <strong>Administrador te envió por correo electrónico</strong>.
           </p>
         </div>
         
@@ -515,7 +515,7 @@ function LoginContent() {
                   <div>
                     <h4 className="font-bold text-slate-800 text-lg">¡Solicitud Enviada!</h4>
                     <p className="text-xs text-slate-500 px-4 mt-2 leading-relaxed">
-                      Tu solicitud ha sido enviada al Administrador. Una vez que aprueben tu acceso, podrás ingresar utilizando tu RUT y la contraseña provisoria: <strong className="text-blue-600 font-bold">cesfam123</strong>.
+                      Tu solicitud ha sido enviada al Administrador. Una vez que aprueben tu acceso, te enviarán un correo electrónico con tu <strong>contraseña provisoria</strong> para ingresar.
                     </p>
                   </div>
                 </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { UserProfile, UserRole, crearUsuario, eliminarUsuario, procesarSolicitud, desactivarUsuario } from "@/actions/userActions";
+import { UserProfile, UserRole, crearUsuario, eliminarUsuario, procesarSolicitud, desactivarUsuario, resetearPasswordAdmin } from "@/actions/userActions";
 import { UserPlus, Trash2, Key, ShieldCheck, User, Briefcase, Contact, X, AlertCircle, Edit2, CheckCircle, XCircle, Clock } from "lucide-react";
 
 export default function UsuariosClientView({ 
@@ -143,6 +143,27 @@ export default function UsuariosClientView({
       }
     } else {
       alert(res.error || "Ocurrió un error al eliminar.");
+    }
+  };
+
+  
+  const handleReset = async (rut: string) => {
+    if (!confirm("¿Está seguro de resetear la contraseña de este usuario? Se generará una nueva clave temporal.")) return;
+    
+    setLoading(true);
+    const res = await resetearPasswordAdmin(rut);
+    setLoading(false);
+    
+    if (res.success) {
+      setShowAprobado({ 
+        rut, 
+        nombre: res.nombre, 
+        email: res.email, 
+        temporalPass: res.temporalPass,
+        isReset: true
+      });
+    } else {
+      alert(res.error || "Ocurrió un error.");
     }
   };
 
@@ -288,6 +309,13 @@ export default function UsuariosClientView({
                         >
                           <Trash2 size={16} />
                         </button>
+                        <button 
+                          onClick={() => handleReset(u.rut)}
+                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" 
+                          title="Resetear Clave"
+                        >
+                          <Key size={16} />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -406,8 +434,8 @@ export default function UsuariosClientView({
             <div className="h-16 w-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
               <CheckCircle size={32} />
             </div>
-            <h3 className="text-xl font-bold text-slate-800 mb-2">¡Acceso Autorizado!</h3>
-            <p className="text-sm text-slate-500 mb-6">El funcionario ya puede ingresar a la plataforma.</p>
+            <h3 className="text-xl font-bold text-slate-800 mb-2">{showAprobado.isReset ? '¡Contraseña Reseteada!' : '¡Acceso Autorizado!'}</h3>
+            <p className="text-sm text-slate-500 mb-6">{showAprobado.isReset ? 'La clave temporal ha sido generada.' : 'El funcionario ya puede ingresar a la plataforma.'}</p>
             
             <div className="bg-slate-50 rounded-xl p-4 mb-6 space-y-3 text-left border border-slate-100">
               <div className="flex justify-between items-center text-xs">
@@ -422,7 +450,7 @@ export default function UsuariosClientView({
 
             <div className="flex flex-col gap-3">
               <a 
-                href={`mailto:${showAprobado.email || ''}?subject=Acceso Aprobado - GIA CESFAM&body=Hola ${showAprobado.nombre || ''},%0D%0A%0D%0ATu acceso a la plataforma GIA ha sido aprobado.%0D%0A%0D%0ATu clave temporal para ingresar es: ${showAprobado.temporalPass || ''}%0D%0A%0D%0AEl sistema te pedirá cambiarla al ingresar por primera vez.%0D%0A%0D%0ASaludos.`}
+                href={`mailto:${showAprobado.email || ''}?subject=${showAprobado.isReset ? 'Reinicio de Clave' : 'Acceso Aprobado'} - GIA CESFAM&body=Hola ${showAprobado.nombre || ''},%0D%0A%0D%0A${showAprobado.isReset ? 'Tu contraseña para la plataforma GIA ha sido reseteada.' : 'Tu acceso a la plataforma GIA ha sido aprobado.'}%0D%0A%0D%0ATu clave temporal para ingresar es: ${showAprobado.temporalPass || ''}%0D%0A%0D%0AEl sistema te pedirá cambiarla al ingresar.%0D%0A%0D%0ASaludos.`}
                 className="w-full px-4 py-3 rounded-xl text-sm font-bold bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all text-center flex items-center justify-center gap-2"
               >
                 ✉️ Enviar por correo
