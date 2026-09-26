@@ -291,3 +291,15 @@ export async function cerrarCaso(id: number, motivo_cierre: string) {
     return { error: "Error al cerrar el caso." };
   }
 }
+
+// ─── Eliminar/Anular Caso ───────────────────────────────────────────────────
+export async function anularCaso(casoId: number) {
+  try {
+    await sql`DELETE FROM gia_gestion_casos WHERE id = ${casoId} AND estado = 'PENDIENTE_ASIGNACION'`;
+    revalidatePath("/ecicep-v2");
+    revalidatePath("/ecicep");
+    return { success: true };
+  } catch (error: any) {
+    return { error: error.message };
+  }
+}

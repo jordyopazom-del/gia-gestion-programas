@@ -14,6 +14,7 @@ import {
   cerrarCaso, 
   obtenerProfesionalesAsignables, 
   ingresarCasosMultiples, 
+  anularCaso,
   GestionCaso, 
   TipoCaso, 
   EstadoCaso,
@@ -378,6 +379,17 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
       loadProfesionales();
     }
   }, [view]);
+
+  // Anular caso
+  const handleAnularCaso = async (id: number) => {
+    if (!confirm("¿Seguro que deseas anular esta derivación?")) return;
+    const res = await anularCaso(id);
+    if (res.error) toast.error(res.error);
+    else {
+      toast.success("Derivación anulada correctamente.");
+      await cargarCasos();
+    }
+  };
 
   // Tomar caso (Autogestión del usuario logueado)
   const handleTomarCaso = async (id: number) => {
@@ -1217,6 +1229,13 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
                             <div className="flex items-center justify-end gap-1.5">
                               {caso.estado === 'PENDIENTE_ASIGNACION' ? (
                                 <>
+                                  <button
+                                    onClick={() => handleAnularCaso(caso.id)}
+                                    className="px-2.5 py-1.5 text-[10px] font-black bg-rose-50 text-rose-600 border border-rose-200 rounded-lg hover:bg-rose-100 transition flex items-center gap-1"
+                                    title="Anular derivación"
+                                  >
+                                    <X size={12} />
+                                  </button>
                                   <button
                                     onClick={() => handleTomarCaso(caso.id)}
                                     className="px-2.5 py-1.5 text-[10px] font-black bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition shadow-sm flex items-center gap-1"
