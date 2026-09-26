@@ -153,6 +153,7 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
 
   // Modal: Ingresar Caso
   const [showIngresarCasoModal, setShowIngresarCasoModal] = useState(false);
+  const [isDerivacionDirecta, setIsDerivacionDirecta] = useState(false);
   const [casoRutInput, setCasoRutInput] = useState("");
   const [casoRutSearch, setCasoRutSearch] = useState("");
   const [casoPacienteEncontrado, setCasoPacienteEncontrado] = useState<any>(null);
@@ -269,6 +270,7 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
     setCasoTipo("POST_HOSPITALIZADO");
     setCasoSaving(false);
     setCasosPendientes([]);
+    setIsDerivacionDirecta(false);
   };
 
   const handleDerivarPacienteACaso = (paciente: any) => {
@@ -276,6 +278,7 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
     setCasoRutInput(paciente.rut);
     setCasoPacienteEncontrado(paciente);
     setCasoTipo("DERIVACION_CLINICA");
+    setIsDerivacionDirecta(true);
     setShowIngresarCasoModal(true);
   };
 
@@ -331,6 +334,37 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
       setShowIngresarCasoModal(false);
       resetCasoModal();
       await cargarCasos();
+    }
+  };
+
+  const handleGuardarDerivacionDirecta = async () => {
+    if (!casoPacienteEncontrado) return;
+    setCasoSaving(true);
+    setCasoError("");
+
+    const newCaso = {
+      rut_paciente: casoPacienteEncontrado.rut,
+      tipo: casoTipo,
+      fecha_alta: casoFechaAlta || undefined,
+      diagnostico_alta: casoDiagnostico || undefined,
+      estamento_solicitado: casoEstamentoSolicitado || undefined,
+      observaciones: casoObservaciones || undefined
+    };
+
+    const res = await ingresarCasosMultiples([newCaso]);
+    setCasoSaving(false);
+
+    if (res.error) {
+      setCasoError(res.error);
+    } else {
+      if ((res.insertados ?? 0) > 0) {
+        toast.success("Paciente derivado exitosamente.");
+        setShowIngresarCasoModal(false);
+        resetCasoModal();
+        await cargarCasos();
+      } else {
+        setCasoError("El paciente ya se encuentra en seguimiento o hubo un error.");
+      }
     }
   };
 
@@ -2464,8 +2498,12 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
               <div className="flex items-center space-x-3">
                 <Briefcase className="text-indigo-600" size={22} />
                 <div>
-                  <h3 className="font-bold text-slate-800 text-base">Ingresar a Gestión de Casos</h3>
-                  <p className="text-xs text-slate-500">Busca al paciente por RUT en el padrón</p>
+                  <h3 className="font-bold text-slate-800 text-base">
+                    {isDerivacionDirecta ? "Confirmar Derivación a Caso" : "Ingresar a Gestión de Casos"}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    {isDerivacionDirecta ? "Derivación clínica desde el Padrón" : "Busca al paciente por RUT en el padrón"}
+                  </p>
                 </div>
               </div>
               <button onClick={() => { setShowIngresarCasoModal(false); resetCasoModal(); }} className="text-slate-400 hover:text-slate-600 p-1 bg-white border rounded-full">
@@ -2585,14 +2623,16 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
               )}
 
               {/* Botón "Agregar a la Lista" — alternativa al click en la tarjeta */}
-              <button
-                type="button"
-                onClick={handleAgregarALista}
-                disabled={!casoPacienteEncontrado}
-                className="w-full py-3 border-2 border-dashed border-indigo-200 bg-indigo-50/50 hover:bg-indigo-50 text-indigo-600 rounded-xl font-bold text-sm transition-colors flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Plus size={16} /> Agregar a la Lista
-              </button>
+              {!isDerivacionDirecta && (
+                <button
+                  type="button"
+                  onClick={handleAgregarALista}
+                  disabled={!casoPacienteEncontrado}
+                  className="w-full py-3 border-2 border-dashed border-indigo-200 bg-indigo-50/50 hover:bg-indigo-50 text-indigo-600 rounded-xl font-bold text-sm transition-colors flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Plus size={16} /> Agregar a la Lista
+                </button>
+              )}
 
               {/* Error */}
               {casoError && (
@@ -2602,7 +2642,7 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
               )}
               
               {/* Lista Temporal de Casos (Carrito) */}
-              {casosPendientes.length > 0 && (
+              {!isDerivacionDirecta && casosPendientes.length > 0 && (
                 <div className="mt-4 pt-4 border-t border-slate-200">
                   <div className="flex justify-between items-center mb-3">
                     <h4 className="text-xs font-bold text-slate-700">Casos en Lista ({casosPendientes.length})</h4>
@@ -2642,11 +2682,22 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
               </button>
               <button
                 type="button"
-                onClick={handleGuardarLista}
-                disabled={casoSaving || casosPendientes.length === 0}
+                onClick={() => {
+                  if (isDerivacionDirecta) {
+                    handleGuardarDerivacionDirecta();
+                  } else {
+                    handleGuardarLista();
+                  }
+                }}
+                disabled={casoSaving || (!isDerivacionDirecta && casosPendientes.length === 0)}
                 className="flex-1 px-4 py-3 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-md disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                {casoSaving ? 'Guardando...' : <><Briefcase size={14} /> Guardar {casosPendientes.length} Casos</>}
+                {casoSaving 
+                  ? 'Guardando...' 
+                  : isDerivacionDirecta 
+                    ? <><ArrowUpRight size={14} /> Confirmar Derivación</> 
+                    : <><Briefcase size={14} /> Guardar {casosPendientes.length} Casos</>
+                }
               </button>
             </div>
           </div>
