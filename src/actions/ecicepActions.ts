@@ -164,9 +164,12 @@ export async function saveEcicepRecord(data: EcicepSubmission) {
         LIMIT 1
       `;
       if (casoActivo.length === 0) {
+        const estamento = payloadDataClinica.estamento_gestion
+          ? String(payloadDataClinica.estamento_gestion).toUpperCase()
+          : "SIN ASIGNAR";
         await sql`
-          INSERT INTO gia_gestion_casos (rut_paciente, tipo, estado, profesional_rut)
-          VALUES (${data.rut_paciente}, 'DERIVACION_CLINICA', 'PENDIENTE', ${userRut})
+          INSERT INTO gia_gestion_casos (rut_paciente, tipo, estado, estamento_solicitado, profesional_rut)
+          VALUES (${data.rut_paciente}, 'DERIVACION_CLINICA', 'PENDIENTE_ASIGNACION', ${estamento}, ${userRut})
         `;
       }
     }

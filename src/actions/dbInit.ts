@@ -238,24 +238,37 @@ export async function initDatabase() {
     // 9. Tabla de Gestión de Casos ECICEP (Post-Hospitalizados, Policonsultantes, Derivación Clínica)
     await sql`
       CREATE TABLE IF NOT EXISTS gia_gestion_casos (
-        id               SERIAL PRIMARY KEY,
-        rut_paciente     TEXT NOT NULL REFERENCES gia_pacientes(rut) ON DELETE CASCADE,
-        tipo             TEXT NOT NULL CHECK (tipo IN ('POST_HOSPITALIZADO','POLICONSULTANTE','DERIVACION_CLINICA')),
-        fecha_alta       DATE,
-        diagnostico_alta TEXT,
-        estado           TEXT NOT NULL DEFAULT 'PENDIENTE'
-                           CHECK (estado IN ('PENDIENTE','CONTACTADO','VDI_PROGRAMADA','CERRADO')),
-        observaciones    TEXT,
-        profesional_rut  TEXT REFERENCES gia_usuarios(rut),
-        fecha_registro   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        id                   SERIAL PRIMARY KEY,
+        rut_paciente         TEXT NOT NULL REFERENCES gia_pacientes(rut) ON DELETE CASCADE,
+        tipo                 TEXT NOT NULL CHECK (tipo IN ('POST_HOSPITALIZADO','POLICONSULTANTE','DERIVACION_CLINICA')),
+        fecha_alta           DATE,
+        diagnostico_alta     TEXT,
+        estado               TEXT NOT NULL DEFAULT 'PENDIENTE_ASIGNACION'
+                               CHECK (estado IN ('PENDIENTE_ASIGNACION','EN_SEGUIMIENTO','CERRADO')),
+        estamento_solicitado TEXT,
+        gestor_asignado_rut  TEXT REFERENCES gia_usuarios(rut),
+        fecha_asignacion     TIMESTAMP,
+        fecha_cierre         TIMESTAMP,
+        motivo_cierre        TEXT,
+        observaciones        TEXT,
+        profesional_rut      TEXT REFERENCES gia_usuarios(rut),
+        fecha_registro       TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `;
 
-    // Migración no-destructiva: ampliar el CHECK de tipo si ya existe la tabla sin DERIVACION_CLINICA
+    // Migraciones no-destructivas
     try {
       await sql`ALTER TABLE gia_gestion_casos DROP CONSTRAINT IF EXISTS gia_gestion_casos_tipo_check`;
       await sql`ALTER TABLE gia_gestion_casos ADD CONSTRAINT gia_gestion_casos_tipo_check CHECK (tipo IN ('POST_HOSPITALIZADO','POLICONSULTANTE','DERIVACION_CLINICA'))`;
-    } catch (_) { /* si falla, el CREATE ya lo manejó */ }
+      await sql`ALTER TABLE gia_gestion_casos ADD COLUMN IF NOT EXISTS estamento_solicitado TEXT`;
+      await sql`ALTER TABLE gia_gestion_casos ADD COLUMN IF NOT EXISTS gestor_asignado_rut TEXT REFERENCES gia_usuarios(rut)`;
+      await sql`ALTER TABLE gia_gestion_casos ADD COLUMN IF NOT EXISTS fecha_asignacion TIMESTAMP`;
+      await sql`ALTER TABLE gia_gestion_casos ADD COLUMN IF NOT EXISTS fecha_cierre TIMESTAMP`;
+      await sql`ALTER TABLE gia_gestion_casos ADD COLUMN IF NOT EXISTS motivo_cierre TEXT`;
+      await sql`ALTER TABLE gia_gestion_casos DROP CONSTRAINT IF EXISTS gia_gestion_casos_estado_check`;
+      await sql`ALTER TABLE gia_gestion_casos ALTER COLUMN estado SET DEFAULT 'PENDIENTE_ASIGNACION'`;
+      await sql`ALTER TABLE gia_gestion_casos ADD CONSTRAINT gia_gestion_casos_estado_check CHECK (estado IN ('PENDIENTE_ASIGNACION','EN_SEGUIMIENTO','CERRADO'))`;
+    } catch (_) { /* ya manejado */ }
 
     return { success: true, message: "Base de datos inicializada correctamente con esquemas GIA." };
   } catch (error: any) {
