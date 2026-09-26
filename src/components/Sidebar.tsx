@@ -12,7 +12,8 @@ import {
   Shield,
   HeartPulse,
   ClipboardCheck,
-  Baby
+  Baby,
+  Sparkles
 } from "lucide-react";
 import { logoutAction } from "@/actions/authActions";
 import { useRouter } from "next/navigation";
@@ -27,6 +28,7 @@ const navigation = [
   { key: "respiratorio", name: "Programa Respiratorio", href: "/respiratorio", icon: Stethoscope, roles: ["ADMINISTRADOR", "REFERENTE", "CLINICO", "ADMINISTRATIVO"] },
   { key: "infantil", name: "Programa Infantil", href: "/infantil", icon: Baby, roles: ["ADMINISTRADOR", "REFERENTE", "CLINICO", "ADMINISTRATIVO"] },
   { key: "ecicep", name: "Cuidado Crónico ECICEP", href: "/ecicep", icon: ClipboardCheck, roles: ["ADMINISTRADOR", "REFERENTE", "CLINICO", "ADMINISTRATIVO"] },
+  { key: "ecicep", name: "ECICEP (V2 Beta) 🧪", href: "/ecicep-v2", icon: Sparkles, roles: ["ADMINISTRADOR", "REFERENTE", "CLINICO", "ADMINISTRATIVO"] },
 ];
 
 export default function Sidebar({ user }: { user: UserProfile }) {

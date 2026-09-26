@@ -1,0 +1,59 @@
+import { Suspense } from "react";
+import { getEcicepDashboardData } from "@/actions/ecicepActions";
+import EcicepClientViewV2 from "./EcicepClientViewV2";
+import { ClipboardCheck, Plus, Sparkles } from "lucide-react";
+import Link from "next/link";
+import { getCurrentUser, UserProfile } from "@/lib/currentUser";
+import SkeletonDashboard from "@/components/SkeletonDashboard";
+import { redirect } from "next/navigation";
+
+export const dynamic = 'force-dynamic';
+
+async function EcicepDataWrapper({ user }: { user: UserProfile }) {
+  const data = await getEcicepDashboardData();
+  return <EcicepClientViewV2 data={data as any} user={user} />;
+}
+
+export default async function EcicepDashboardPage() {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const hasAccess = user.rol === "ADMINISTRADOR" || user.accesos?.includes("ecicep");
+  if (!hasAccess) redirect("/dashboard");
+
+  const canCreate = user.rol !== "ADMINISTRATIVO";
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <div className="flex items-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 mr-4">
+            <ClipboardCheck size={24} />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold text-slate-800">Panel de Estratificación ECICEP</h1>
+              <span className="bg-indigo-600 text-white text-xs font-black px-2 py-0.5 rounded-full flex items-center gap-1">
+                <Sparkles size={11} /> V2 BETA
+              </span>
+            </div>
+            <p className="text-slate-500">Cuidado Integral Centrado en la Persona y Gestión de la Multimorbilidad (Versión de Prueba)</p>
+          </div>
+        </div>
+        {canCreate && (
+          <div>
+            <Link href="/ecicep/nuevo" className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg flex items-center font-medium shadow-sm transition">
+              <Plus size={18} className="mr-2" /> Nueva Estratificación
+            </Link>
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden flex flex-col min-h-[600px]">
+        <Suspense fallback={<SkeletonDashboard showHeader={false} />}>
+          <EcicepDataWrapper user={user} />
+        </Suspense>
+      </div>
+    </div>
+  );
+}
