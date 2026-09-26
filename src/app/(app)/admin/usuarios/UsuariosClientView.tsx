@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { UserProfile, UserRole, crearUsuario, eliminarUsuario, procesarSolicitud, desactivarUsuario, resetearPasswordAdmin, PROFESIONES_APS } from "@/actions/userActions";
+import { UserProfile, UserRole, crearUsuario, eliminarUsuario, procesarSolicitud, desactivarUsuario, resetearPasswordAdmin } from "@/actions/userActions";
+import { PROFESIONES_APS } from "@/lib/constants";
 import { UserPlus, Trash2, Key, ShieldCheck, User, Briefcase, Contact, X, AlertCircle, Edit2, CheckCircle, XCircle, Clock } from "lucide-react";
 
 export default function UsuariosClientView({ 

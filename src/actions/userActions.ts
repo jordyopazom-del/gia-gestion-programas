@@ -6,25 +6,6 @@ import { revalidatePath } from "next/cache";
 import { hashPassword } from "@/lib/password";
 import { getSession } from "@/lib/auth";
 
-
-export const PROFESIONES_APS = [
-  "MÉDICO",
-  "ENFERMERA(O)",
-  "MATRONA / MATRÓN",
-  "KINESIÓLOGO(A)",
-  "NUTRICIONISTA",
-  "PSICÓLOGO(A)",
-  "ODONTÓLOGO(A)",
-  "TRABAJADOR(A) SOCIAL",
-  "TERAPEUTA OCUPACIONAL",
-  "FONOAUDIÓLOGO(A)",
-  "QUÍMICO FARMACÉUTICO",
-  "TENS",
-  "ADMINISTRATIVO",
-  "INGENIERO(A) / TI",
-  "OTRO"
-];
-
 export type UserRole = "ADMINISTRADOR" | "ADMINISTRATIVO" | "REFERENTE" | "CLINICO" | "INACTIVO";
 
 export type UserProfile = {

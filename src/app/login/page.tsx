@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { loginAction, cambiarPasswordAction, getPreguntaAction, resetPasswordAction } from "@/actions/authActions";
-import { solicitarAcceso, PROFESIONES_APS } from "@/actions/userActions";
+import { solicitarAcceso } from "@/actions/userActions";
+import { PROFESIONES_APS } from "@/lib/constants";
 import { Activity, UserPlus, X, Contact, User, Briefcase, Key, CheckCircle, ShieldAlert } from "lucide-react";
 
 // Mensajes de error SSO estandarizados
