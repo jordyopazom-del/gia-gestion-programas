@@ -2077,11 +2077,17 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-600 mb-1">Profesional que Registra / Modifica</label>
-                  <div className="w-full bg-slate-100 border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold text-slate-500 uppercase select-none">
-                    {clinicos.find(c => c.rut === profesionalRut) 
-                      ? `${clinicos.find(c => c.rut === profesionalRut)?.nombre} (${clinicos.find(c => c.rut === profesionalRut)?.profesion})`
-                      : "Cargando..."}
-                  </div>
+                  <select 
+                    required
+                    value={profesionalRut} 
+                    onChange={e => setProfesionalRut(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none font-bold text-blue-600"
+                  >
+                    <option value="">-- Seleccione Profesional --</option>
+                    {clinicos.map(c => (
+                      <option key={c.rut} value={c.rut}>{c.nombre} ({c.profesion})</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-600 mb-1">Categoría ECICEP</label>
