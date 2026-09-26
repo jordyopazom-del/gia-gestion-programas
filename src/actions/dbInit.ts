@@ -235,6 +235,22 @@ export async function initDatabase() {
       ON CONFLICT (rut) DO UPDATE SET rol = 'ADMINISTRADOR'
     `;
 
+    // 9. Tabla de Gestión de Casos ECICEP (Post-Hospitalizados y Policonsultantes)
+    await sql`
+      CREATE TABLE IF NOT EXISTS gia_gestion_casos (
+        id               SERIAL PRIMARY KEY,
+        rut_paciente     TEXT NOT NULL REFERENCES gia_pacientes(rut) ON DELETE CASCADE,
+        tipo             TEXT NOT NULL CHECK (tipo IN ('POST_HOSPITALIZADO','POLICONSULTANTE')),
+        fecha_alta       DATE,
+        diagnostico_alta TEXT,
+        estado           TEXT NOT NULL DEFAULT 'PENDIENTE'
+                           CHECK (estado IN ('PENDIENTE','CONTACTADO','VDI_PROGRAMADA','CERRADO')),
+        observaciones    TEXT,
+        profesional_rut  TEXT REFERENCES gia_usuarios(rut),
+        fecha_registro   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
+
     return { success: true, message: "Base de datos inicializada correctamente con esquemas GIA." };
   } catch (error: any) {
     console.error("Error inicializando la base de datos:", error);

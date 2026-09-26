@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
-import { Search, MapPin, AlertTriangle, CheckCircle, Clock, Download, ClipboardCheck, X, User, Phone, Map, Calendar, Plus, Save } from "lucide-react";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { Search, MapPin, AlertTriangle, CheckCircle, Clock, Download, ClipboardCheck, X, User, Phone, Map, Calendar, Plus, Save, Briefcase, Hospital, RefreshCw } from "lucide-react";
 import * as XLSX from "xlsx";
 import toast from "react-hot-toast";
 import { UserProfile } from "@/actions/userActions";
 import { saveEcicepRecord, obtenerClinicosActivos, EcicepSubmission } from "@/actions/ecicepActions";
+import { ingresarCasoGestion, obtenerCasosGestion, actualizarEstadoCaso, GestionCaso, TipoCaso, EstadoCaso } from "@/actions/gestionCasosActions";
 import { CopyBadge } from "@/components/CopyBadge";
 
 const ROLES_DISPONIBLES = [
@@ -120,7 +121,7 @@ const getCitaDisplayStatus = (p: any, rol: string) => {
 };
 
 export default function EcicepClientView({ data, user }: { data: any[], user: UserProfile }) {
-  const [view, setView] = useState<'lista' | 'analisis'>('lista');
+  const [view, setView] = useState<'lista' | 'analisis' | 'gestion'>('lista');
   const [searchRut, setSearchRut] = useState("");
   const [filterSector, setFilterSector] = useState("Todos");
   const [filterStatus, setFilterStatus] = useState("Todos");
@@ -129,6 +130,23 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
   const [filterSeguimientoEstamento, setFilterSeguimientoEstamento] = useState("Todos");
   const [onlyBrecha, setOnlyBrecha] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
+
+  // ── Gestión de Casos ──────────────────────────────────────────────────────
+  const [casos, setCasos] = useState<GestionCaso[]>([]);
+  const [loadingCasos, setLoadingCasos] = useState(false);
+
+  // Modal: Ingresar Caso
+  const [showIngresarCasoModal, setShowIngresarCasoModal] = useState(false);
+  const [casoRutInput, setCasoRutInput] = useState("");
+  const [casoRutSearch, setCasoRutSearch] = useState("");
+  const [casoPacienteEncontrado, setCasoPacienteEncontrado] = useState<any>(null);
+  const [casoTipo, setCasoTipo] = useState<TipoCaso>("POST_HOSPITALIZADO");
+  const [casoFechaAlta, setCasoFechaAlta] = useState("");
+  const [casoDiagnostico, setCasoDiagnostico] = useState("");
+  const [casoObservaciones, setCasoObservaciones] = useState("");
+  const [casoSaving, setCasoSaving] = useState(false);
+  const [casoError, setCasoError] = useState("");
+  const [filterTipoCaso, setFilterTipoCaso] = useState<"Todos" | TipoCaso>("Todos");
 
   // Modal State
   const [showFormModal, setShowFormModal] = useState(false);
@@ -175,6 +193,93 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
     }
     load();
   }, []);
+
+  // ── Lógica Gestión de Casos ───────────────────────────────────────────────
+
+  const cargarCasos = useCallback(async () => {
+    setLoadingCasos(true);
+    const result = await obtenerCasosGestion();
+    setCasos(result);
+    setLoadingCasos(false);
+  }, []);
+
+  useEffect(() => {
+    if (view === "gestion") cargarCasos();
+  }, [view, cargarCasos]);
+
+  // Buscar paciente en el padrón por RUT al escribir en el modal
+  const handleBuscarPacienteCaso = useCallback(() => {
+    const q = casoRutInput.replace(/[^0-9kK]/g, "").toLowerCase();
+    if (q.length < 5) { setCasoPacienteEncontrado(null); return; }
+    const encontrado = data.find(p => p.rut.replace(/[^0-9kK]/g, "").toLowerCase().startsWith(q));
+    setCasoPacienteEncontrado(encontrado || null);
+    if (!encontrado) setCasoError("RUT no encontrado en el padrón activo.");
+    else setCasoError("");
+  }, [casoRutInput, data]);
+
+  useEffect(() => {
+    handleBuscarPacienteCaso();
+  }, [casoRutInput, handleBuscarPacienteCaso]);
+
+  const resetCasoModal = () => {
+    setCasoRutInput("");
+    setCasoPacienteEncontrado(null);
+    setCasoTipo("POST_HOSPITALIZADO");
+    setCasoFechaAlta("");
+    setCasoDiagnostico("");
+    setCasoObservaciones("");
+    setCasoError("");
+    setCasoSaving(false);
+  };
+
+  const handleGuardarCaso = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!casoPacienteEncontrado) { setCasoError("Selecciona un paciente válido primero."); return; }
+    setCasoSaving(true);
+    setCasoError("");
+    const res = await ingresarCasoGestion({
+      rut_paciente: casoPacienteEncontrado.rut,
+      tipo: casoTipo,
+      fecha_alta: casoTipo === "POST_HOSPITALIZADO" ? casoFechaAlta : null,
+      diagnostico_alta: casoDiagnostico || null,
+      observaciones: casoObservaciones || null,
+    });
+    setCasoSaving(false);
+    if (res.error) {
+      setCasoError(res.error);
+    } else {
+      toast.success("Caso ingresado correctamente.");
+      setShowIngresarCasoModal(false);
+      resetCasoModal();
+      await cargarCasos();
+    }
+  };
+
+  const handleActualizarEstado = async (id: number, estado: EstadoCaso) => {
+    const res = await actualizarEstadoCaso(id, estado);
+    if (res.error) toast.error(res.error);
+    else {
+      toast.success("Estado actualizado.");
+      await cargarCasos();
+    }
+  };
+
+  // Cálculo de horas desde el alta para el semáforo
+  const calcularHorasDesdeAlta = (fechaAlta: string | null): number | null => {
+    if (!fechaAlta) return null;
+    const alta = new Date(fechaAlta + "T00:00:00");
+    const ahora = new Date();
+    return Math.floor((ahora.getTime() - alta.getTime()) / (1000 * 60 * 60));
+  };
+
+  const getSemaforoConfig = (horas: number | null) => {
+    if (horas === null) return { color: "bg-slate-100 text-slate-500 border-slate-200", label: "Sin fecha", dot: "bg-slate-400" };
+    if (horas > 72) return { color: "bg-red-50 text-red-700 border-red-200", label: `${horas}h`, dot: "bg-red-500 animate-pulse" };
+    if (horas > 48) return { color: "bg-orange-50 text-orange-700 border-orange-200", label: `${horas}h`, dot: "bg-orange-400" };
+    return { color: "bg-emerald-50 text-emerald-700 border-emerald-200", label: `${horas}h`, dot: "bg-emerald-500" };
+  };
+
+
 
   const patientAge = useMemo(() => {
     if (!selectedPatient || !selectedPatient.fecha_nacimiento) return null;
@@ -602,21 +707,235 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
             >
                 Análisis Estadístico
             </button>
+            <button 
+                onClick={() => setView('gestion')}
+                className={`px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-1.5 ${view === 'gestion' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+                <Briefcase size={14} />
+                Gestión de Casos
+                {casos.filter(c => c.tipo === 'POST_HOSPITALIZADO').length > 0 && (
+                  <span className="ml-1 bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full leading-none">
+                    {casos.filter(c => c.tipo === 'POST_HOSPITALIZADO').length}
+                  </span>
+                )}
+            </button>
         </div>
         <div className="flex space-x-2">
-            <button onClick={exportToExcel} className="flex items-center space-x-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100 hover:bg-emerald-100 transition shadow-sm font-bold text-sm">
-                <Download size={16} />
-                <span>Exportar Padrón</span>
-            </button>
-            <button onClick={exportCampanaExcel} className="flex items-center space-x-2 px-4 py-2 bg-amber-50 text-amber-700 rounded-xl border border-amber-100 hover:bg-amber-100 transition shadow-sm font-bold text-sm">
-                <Download size={16} />
-                <span>Campaña Rescate</span>
-            </button>
+            {view === 'gestion' ? (
+              <button
+                onClick={() => { resetCasoModal(); setShowIngresarCasoModal(true); }}
+                className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition shadow-sm font-bold text-sm"
+              >
+                <Plus size={16} />
+                <span>Ingresar Caso</span>
+              </button>
+            ) : (
+              <>
+                <button onClick={exportToExcel} className="flex items-center space-x-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100 hover:bg-emerald-100 transition shadow-sm font-bold text-sm">
+                    <Download size={16} />
+                    <span>Exportar Padrón</span>
+                </button>
+                <button onClick={exportCampanaExcel} className="flex items-center space-x-2 px-4 py-2 bg-amber-50 text-amber-700 rounded-xl border border-amber-100 hover:bg-amber-100 transition shadow-sm font-bold text-sm">
+                    <Download size={16} />
+                    <span>Campaña Rescate</span>
+                </button>
+              </>
+            )}
         </div>
       </div>
 
-      {view === 'lista' ? (
+
+
+      {view === 'gestion' ? (
+        /* ───── VISTA GESTIÓN DE CASOS ───── */
+        <div className="px-6 pb-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
+
+          {/* KPIs */}
+          {(() => {
+            const postHosp = casos.filter(c => c.tipo === 'POST_HOSPITALIZADO');
+            const criticos = postHosp.filter(c => { const h = calcularHorasDesdeAlta(c.fecha_alta); return h !== null && h > 48; });
+            const policons = casos.filter(c => c.tipo === 'POLICONSULTANTE');
+            return (
+              <div className="grid grid-cols-3 gap-4 mb-6 mt-4">
+                <div className={`p-4 rounded-2xl border flex items-center gap-4 ${criticos.length > 0 ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
+                  <div className={`h-11 w-11 rounded-xl flex items-center justify-center shrink-0 ${criticos.length > 0 ? 'bg-red-500 text-white' : 'bg-slate-200 text-slate-500'}`}>
+                    <Hospital size={22} />
+                  </div>
+                  <div>
+                    <p className={`text-3xl font-light ${criticos.length > 0 ? 'text-red-700' : 'text-slate-700'}`}>{criticos.length}</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Post-Hosp. Críticos (&gt;48h)</p>
+                  </div>
+                </div>
+                <div className="p-4 rounded-2xl border bg-slate-50 border-slate-200 flex items-center gap-4">
+                  <div className="h-11 w-11 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                    <Hospital size={22} />
+                  </div>
+                  <div>
+                    <p className="text-3xl font-light text-slate-700">{postHosp.length}</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Post-Hospitalizados Activos</p>
+                  </div>
+                </div>
+                <div className="p-4 rounded-2xl border bg-slate-50 border-slate-200 flex items-center gap-4">
+                  <div className="h-11 w-11 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                    <RefreshCw size={22} />
+                  </div>
+                  <div>
+                    <p className="text-3xl font-light text-slate-700">{policons.length}</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Policonsultantes Activos</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Filtros rápidos + recargar */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex gap-2">
+              {(["Todos", "POST_HOSPITALIZADO", "POLICONSULTANTE"] as const).map(t => (
+                <button
+                  key={t}
+                  onClick={() => setFilterTipoCaso(t)}
+                  className={`px-4 py-1.5 rounded-full text-xs font-bold border transition-all ${
+                    filterTipoCaso === t
+                      ? t === 'POST_HOSPITALIZADO' ? 'bg-blue-600 text-white border-blue-600'
+                        : t === 'POLICONSULTANTE' ? 'bg-amber-500 text-white border-amber-500'
+                        : 'bg-slate-800 text-white border-slate-800'
+                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  {t === 'Todos' ? 'Todos' : t === 'POST_HOSPITALIZADO' ? '🏥 Post-Hospitalizados' : '🔄 Policonsultantes'}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={cargarCasos}
+              disabled={loadingCasos}
+              className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-700 border border-slate-200 px-3 py-1.5 rounded-lg bg-white transition"
+            >
+              <RefreshCw size={13} className={loadingCasos ? 'animate-spin' : ''} />
+              Actualizar
+            </button>
+          </div>
+
+          {/* Tabla de casos */}
+          {loadingCasos ? (
+            <div className="flex justify-center items-center py-16 text-slate-400 text-sm">Cargando casos...</div>
+          ) : casos.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-slate-400 border-2 border-dashed border-slate-200 rounded-2xl">
+              <Briefcase size={32} className="mb-3 opacity-40" />
+              <p className="text-sm font-semibold">No hay casos activos en gestión.</p>
+              <p className="text-xs mt-1">Usa el botón "Ingresar Caso" para añadir el primero.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-2xl border border-slate-200">
+              <table className="w-full text-left text-xs whitespace-nowrap">
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold">
+                  <tr>
+                    <th className="px-4 py-3 w-[35%]">Paciente</th>
+                    <th className="px-4 py-3">Tipo</th>
+                    <th className="px-4 py-3 text-center">Tiempo / Alta</th>
+                    <th className="px-4 py-3">Diagnóstico</th>
+                    <th className="px-4 py-3">Estado</th>
+                    <th className="px-4 py-3">Acción Rápida</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {casos
+                    .filter(c => filterTipoCaso === 'Todos' || c.tipo === filterTipoCaso)
+                    .map(caso => {
+                      const horas = caso.tipo === 'POST_HOSPITALIZADO' ? calcularHorasDesdeAlta(caso.fecha_alta) : null;
+                      const semaforo = getSemaforoConfig(horas);
+                      return (
+                        <tr key={caso.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-4 py-3.5">
+                            <p className="font-black text-slate-800 uppercase text-xs">{caso.nombre_completo}</p>
+                            <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-500">
+                              <CopyBadge value={`${caso.rut_paciente}`} label="RUT" />
+                              <span>•</span>
+                              <span className="flex items-center gap-0.5"><MapPin size={8} />{caso.sector}</span>
+                              {caso.telefono && <><span>•</span><CopyBadge value={caso.telefono} label="Teléfono" prefixIcon="📞" className="font-mono font-bold bg-slate-100 hover:bg-slate-200 px-1 py-0.5 rounded text-slate-600 transition-colors cursor-copy inline-flex items-center" /></>}
+                            </div>
+                            {caso.categoria && (
+                              <span className={`mt-1 inline-flex px-1.5 py-0.5 rounded text-[9px] font-black tracking-wider ${
+                                caso.categoria === 'G3' ? 'bg-red-100 text-red-700' :
+                                caso.categoria === 'G2' ? 'bg-amber-100 text-amber-700' :
+                                caso.categoria === 'G1' ? 'bg-blue-100 text-blue-700' :
+                                'bg-emerald-100 text-emerald-700'
+                              }`}>{caso.categoria}</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3.5">
+                            {caso.tipo === 'POST_HOSPITALIZADO' ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-100 text-[10px] font-black">
+                                <Hospital size={10} /> POST-ALTA
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-100 text-[10px] font-black">
+                                <RefreshCw size={10} /> POLICONSULTANTE
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3.5 text-center">
+                            {caso.tipo === 'POST_HOSPITALIZADO' ? (
+                              <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-black ${semaforo.color}`}>
+                                <span className={`h-2 w-2 rounded-full shrink-0 ${semaforo.dot}`} />
+                                {semaforo.label}
+                              </div>
+                            ) : (
+                              <span className="text-slate-400">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3.5 max-w-[200px]">
+                            <p className="truncate text-slate-600">{caso.diagnostico_alta || <span className="text-slate-300">Sin diagnóstico</span>}</p>
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-black border ${
+                              caso.estado === 'CONTACTADO' ? 'bg-blue-50 text-blue-700 border-blue-100' :
+                              caso.estado === 'VDI_PROGRAMADA' ? 'bg-purple-50 text-purple-700 border-purple-100' :
+                              'bg-slate-100 text-slate-600 border-slate-200'
+                            }`}>
+                              {caso.estado === 'PENDIENTE' ? 'Pendiente' :
+                               caso.estado === 'CONTACTADO' ? 'Contactado' :
+                               caso.estado === 'VDI_PROGRAMADA' ? 'VDI Programada' : caso.estado}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <div className="flex gap-1.5 flex-wrap">
+                              {caso.estado === 'PENDIENTE' && (
+                                <button
+                                  onClick={() => handleActualizarEstado(caso.id, 'CONTACTADO')}
+                                  className="px-2.5 py-1 text-[10px] font-black bg-blue-50 text-blue-700 border border-blue-100 rounded-lg hover:bg-blue-100 transition"
+                                >
+                                  ✅ Contactado
+                                </button>
+                              )}
+                              {(caso.estado === 'PENDIENTE' || caso.estado === 'CONTACTADO') && (
+                                <button
+                                  onClick={() => handleActualizarEstado(caso.id, 'VDI_PROGRAMADA')}
+                                  className="px-2.5 py-1 text-[10px] font-black bg-purple-50 text-purple-700 border border-purple-100 rounded-lg hover:bg-purple-100 transition"
+                                >
+                                  🏠 VDI
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleActualizarEstado(caso.id, 'CERRADO')}
+                                className="px-2.5 py-1 text-[10px] font-black bg-slate-100 text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-200 transition"
+                              >
+                                Cerrar
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      ) : view === 'lista' ? (
         <>
+
           <div className="px-6 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
             <div>
               <label className="flex items-center text-xs font-semibold text-slate-500 mb-1">
@@ -1699,6 +2018,146 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
                 className="px-5 py-2 text-sm font-black text-white bg-blue-600 rounded-xl hover:bg-blue-700 shadow-sm transition flex items-center"
               >
                 <Save size={16} className="mr-2" /> Guardar Resoluciones
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Modal: Ingresar Caso a Gestión ─────────────────────────────────── */}
+      {showIngresarCasoModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-indigo-50/50">
+              <div className="flex items-center space-x-3">
+                <Briefcase className="text-indigo-600" size={22} />
+                <div>
+                  <h3 className="font-bold text-slate-800 text-base">Ingresar a Gestión de Casos</h3>
+                  <p className="text-xs text-slate-500">Busca al paciente por RUT en el padrón</p>
+                </div>
+              </div>
+              <button onClick={() => { setShowIngresarCasoModal(false); resetCasoModal(); }} className="text-slate-400 hover:text-slate-600 p-1 bg-white border rounded-full">
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <form onSubmit={handleGuardarCaso} className="flex-1 overflow-y-auto p-6 space-y-5">
+
+              {/* Búsqueda de paciente por RUT */}
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">RUT del Paciente <span className="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  value={casoRutInput}
+                  onChange={e => setCasoRutInput(e.target.value)}
+                  placeholder="Ej: 12345678"
+                  maxLength={10}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-mono focus:ring-2 focus:ring-indigo-500 outline-none"
+                  autoFocus
+                />
+                {/* Paciente encontrado */}
+                {casoPacienteEncontrado && (
+                  <div className="mt-2 p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-3 animate-in fade-in duration-150">
+                    <div className="h-9 w-9 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-sm shrink-0">
+                      {casoPacienteEncontrado.nombre_completo?.charAt(0)}
+                    </div>
+                    <div>
+                      <p className="text-xs font-black text-emerald-800 uppercase">{casoPacienteEncontrado.nombre_completo}</p>
+                      <p className="text-[10px] text-emerald-600">{casoPacienteEncontrado.sector} · {casoPacienteEncontrado.categoria || 'Sin categoría ECICEP'}</p>
+                    </div>
+                    <CheckCircle size={16} className="ml-auto text-emerald-500 shrink-0" />
+                  </div>
+                )}
+              </div>
+
+              {/* Tipo de Caso */}
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-2">Tipo de Caso <span className="text-red-500">*</span></label>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className={`flex flex-col items-center p-3 rounded-xl border-2 cursor-pointer transition ${casoTipo === 'POST_HOSPITALIZADO' ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-slate-300'}`}>
+                    <input type="radio" className="sr-only" checked={casoTipo === 'POST_HOSPITALIZADO'} onChange={() => { setCasoTipo('POST_HOSPITALIZADO'); setCasoFechaAlta(''); }} />
+                    <Hospital size={22} className={casoTipo === 'POST_HOSPITALIZADO' ? 'text-blue-600' : 'text-slate-400'} />
+                    <span className={`mt-1 text-[11px] font-black ${casoTipo === 'POST_HOSPITALIZADO' ? 'text-blue-700' : 'text-slate-500'}`}>Post-Hospitalizado</span>
+                  </label>
+                  <label className={`flex flex-col items-center p-3 rounded-xl border-2 cursor-pointer transition ${casoTipo === 'POLICONSULTANTE' ? 'border-amber-500 bg-amber-50' : 'border-slate-200 hover:border-slate-300'}`}>
+                    <input type="radio" className="sr-only" checked={casoTipo === 'POLICONSULTANTE'} onChange={() => setCasoTipo('POLICONSULTANTE')} />
+                    <RefreshCw size={22} className={casoTipo === 'POLICONSULTANTE' ? 'text-amber-600' : 'text-slate-400'} />
+                    <span className={`mt-1 text-[11px] font-black ${casoTipo === 'POLICONSULTANTE' ? 'text-amber-700' : 'text-slate-500'}`}>Policonsultante</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Fecha de Alta — solo POST_HOSPITALIZADO */}
+              {casoTipo === 'POST_HOSPITALIZADO' && (
+                <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+                  <label className="block text-xs font-bold text-slate-600 mb-1">
+                    Fecha de Alta <span className="text-red-500">*</span>
+                    <span className="ml-2 text-slate-400 font-normal normal-case">(Motor del semáforo de 48h)</span>
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={casoFechaAlta}
+                    max={new Date().toISOString().slice(0, 10)}
+                    onChange={e => setCasoFechaAlta(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-indigo-700"
+                  />
+                </div>
+              )}
+
+              {/* Diagnóstico (texto libre) */}
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">
+                  {casoTipo === 'POST_HOSPITALIZADO' ? 'Diagnóstico de Alta' : 'Motivo / Contexto del Caso'}
+                  <span className="ml-2 text-slate-400 font-normal normal-case">(opcional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={casoDiagnostico}
+                  onChange={e => setCasoDiagnostico(e.target.value)}
+                  maxLength={200}
+                  placeholder={casoTipo === 'POST_HOSPITALIZADO' ? 'Ej: Insuficiencia cardíaca descompensada' : 'Ej: 8 consultas de morbilidad en 6 meses'}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+
+              {/* Observaciones */}
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Observaciones <span className="text-slate-400 font-normal normal-case">(opcional)</span></label>
+                <textarea
+                  value={casoObservaciones}
+                  onChange={e => setCasoObservaciones(e.target.value)}
+                  maxLength={500}
+                  placeholder="Notas adicionales para el equipo..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none min-h-[70px] resize-none"
+                />
+              </div>
+
+              {/* Error */}
+              {casoError && (
+                <div className="bg-red-50 text-red-700 p-3 rounded-xl text-xs border border-red-200 font-medium">
+                  ⚠️ {casoError}
+                </div>
+              )}
+            </form>
+
+            {/* Footer */}
+            <div className="p-5 bg-slate-50 border-t border-slate-100 flex gap-3">
+              <button
+                type="button"
+                onClick={() => { setShowIngresarCasoModal(false); resetCasoModal(); }}
+                className="flex-1 px-4 py-3 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-200 transition-colors border border-slate-200 bg-white"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleGuardarCaso}
+                disabled={casoSaving || !casoPacienteEncontrado}
+                className="flex-1 px-4 py-3 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-md disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {casoSaving ? 'Guardando...' : <><Briefcase size={14} /> Ingresar Caso</>}
               </button>
             </div>
           </div>
