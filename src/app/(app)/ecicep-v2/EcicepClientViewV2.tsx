@@ -1488,7 +1488,7 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
                             p.categoria === 'G1' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 
                             'bg-emerald-50 text-emerald-700 border border-emerald-200'
                           }`}>
-                            {p.categoria} • {isG3 ? 'ALTO' : p.categoria === 'G2' ? 'MODERADO' : p.categoria === 'G1' ? 'BAJO' : 'G0'}
+                            {p.categoria} • {isG3 ? 'ALTO' : p.categoria === 'G2' ? 'MODERADO' : p.categoria === 'G1' ? 'BAJO' : 'SIN RIESGO'}
                           </span>
                         ) : (
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
