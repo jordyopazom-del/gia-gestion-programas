@@ -279,8 +279,9 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
       setCasoError(res.error);
     } else {
       let msg = `Se ingresaron ${res.insertados} casos exitosamente.`;
-      if (res.errores?.length > 0) {
-        msg += ` Hubo ${res.errores.length} errores (pacientes ya ingresados o inactivos).`;
+      const numErrores = res.errores?.length ?? 0;
+      if (numErrores > 0) {
+        msg += ` Hubo ${numErrores} errores (pacientes ya ingresados o inactivos).`;
         toast.error(msg, { duration: 5000 });
       } else {
         toast.success(msg);
