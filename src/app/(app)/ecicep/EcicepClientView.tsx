@@ -2094,18 +2094,24 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-mono focus:ring-2 focus:ring-indigo-500 outline-none"
                   autoFocus
                 />
-                {/* Paciente encontrado */}
+                {/* Paciente encontrado — clickeable para agregar directo */}
                 {casoPacienteEncontrado && (
-                  <div className="mt-2 p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-3 animate-in fade-in duration-150">
+                  <button
+                    type="button"
+                    onClick={handleAgregarALista}
+                    className="mt-2 w-full p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-3 animate-in fade-in duration-150 hover:bg-emerald-100 hover:border-emerald-300 transition-colors group text-left"
+                  >
                     <div className="h-9 w-9 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-sm shrink-0">
                       {casoPacienteEncontrado.nombre_completo?.charAt(0)}
                     </div>
-                    <div>
+                    <div className="flex-1">
                       <p className="text-xs font-black text-emerald-800 uppercase">{casoPacienteEncontrado.nombre_completo}</p>
                       <p className="text-[10px] text-emerald-600">{casoPacienteEncontrado.sector} · {casoPacienteEncontrado.categoria || 'Sin categoría ECICEP'}</p>
                     </div>
-                    <CheckCircle size={16} className="ml-auto text-emerald-500 shrink-0" />
-                  </div>
+                    <span className="text-[10px] font-black text-emerald-600 bg-emerald-100 group-hover:bg-emerald-200 px-2 py-1 rounded-lg transition-colors shrink-0">
+                      + Agregar
+                    </span>
+                  </button>
                 )}
               </div>
 
@@ -2126,53 +2132,41 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
                 </div>
               </div>
 
-              {/* Fecha de Alta — solo POST_HOSPITALIZADO */}
+              {/* Campos exclusivos de POST_HOSPITALIZADO */}
               {casoTipo === 'POST_HOSPITALIZADO' && (
-                <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-                  <label className="block text-xs font-bold text-slate-600 mb-1">
-                    Fecha de Alta <span className="text-red-500">*</span>
-                    <span className="ml-2 text-slate-400 font-normal normal-case">(Motor del semáforo de 48h)</span>
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    value={casoFechaAlta}
-                    max={new Date().toISOString().slice(0, 10)}
-                    onChange={e => setCasoFechaAlta(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-indigo-700"
-                  />
-                </div>
+                <>
+                  <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+                    <label className="block text-xs font-bold text-slate-600 mb-1">
+                      Fecha de Alta <span className="text-red-500">*</span>
+                      <span className="ml-2 text-slate-400 font-normal normal-case">(Motor del semáforo de 48h)</span>
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={casoFechaAlta}
+                      max={new Date().toISOString().slice(0, 10)}
+                      onChange={e => setCasoFechaAlta(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-indigo-700"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">
+                      Diagnóstico de Alta
+                      <span className="ml-2 text-slate-400 font-normal normal-case">(opcional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={casoDiagnostico}
+                      onChange={e => setCasoDiagnostico(e.target.value)}
+                      maxLength={200}
+                      placeholder="Ej: Insuficiencia cardíaca descompensada"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                    />
+                  </div>
+                </>
               )}
 
-              {/* Diagnóstico (texto libre) */}
-              <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">
-                  {casoTipo === 'POST_HOSPITALIZADO' ? 'Diagnóstico de Alta' : 'Motivo / Contexto del Caso'}
-                  <span className="ml-2 text-slate-400 font-normal normal-case">(opcional)</span>
-                </label>
-                <input
-                  type="text"
-                  value={casoDiagnostico}
-                  onChange={e => setCasoDiagnostico(e.target.value)}
-                  maxLength={200}
-                  placeholder={casoTipo === 'POST_HOSPITALIZADO' ? 'Ej: Insuficiencia cardíaca descompensada' : 'Ej: 8 consultas de morbilidad en 6 meses'}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                />
-              </div>
-
-              {/* Observaciones */}
-              <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">Observaciones <span className="text-slate-400 font-normal normal-case">(opcional)</span></label>
-                <textarea
-                  value={casoObservaciones}
-                  onChange={e => setCasoObservaciones(e.target.value)}
-                  maxLength={500}
-                  placeholder="Notas adicionales para el equipo..."
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none min-h-[70px] resize-none"
-                />
-              </div>
-
-              {/* Botón para agregar a la lista temporal */}
+              {/* Botón "Agregar a la Lista" — alternativa al click en la tarjeta */}
               <button
                 type="button"
                 onClick={handleAgregarALista}
