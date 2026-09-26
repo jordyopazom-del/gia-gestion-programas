@@ -137,7 +137,7 @@ export async function obtenerCasosGestion(): Promise<GestionCaso[]> {
         gc.fecha_alta ASC NULLS LAST,
         gc.fecha_registro ASC
     `;
-    return result as GestionCaso[];
+    return result as unknown as GestionCaso[];
   } catch (error) {
     console.error("Error al obtener casos de gestión:", error);
     return [];
