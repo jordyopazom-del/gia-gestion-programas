@@ -534,7 +534,7 @@ export default function NuevoEcicep() {
                           }}
                         />
                         <span className="text-xs font-bold text-slate-700 uppercase tracking-wide select-none">
-                          📋 Derivar a Gestión de Caso
+                          📋 Requiere Gestión de Caso
                         </span>
                       </label>
 
