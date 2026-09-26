@@ -142,6 +142,7 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
   const [filterSeguimientoEstamento, setFilterSeguimientoEstamento] = useState("Todos");
   const [onlyBrecha, setOnlyBrecha] = useState(false);
   const [onlyOrdenes, setOnlyOrdenes] = useState(false);
+  const [onlySinPlan, setOnlySinPlan] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
 
   // ── Gestión de Casos ──────────────────────────────────────────────────────
@@ -647,7 +648,22 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
     return ["Todos", ...Array.from(s)].sort();
   }, [data]);
 
+  const hasPlanRegistrado = (p: any) => {
+    const dc = getParsedDataClinica(p.data_clinica);
+    const plan = dc?.plan || [];
+    if (plan.length > 0) return true;
+    if (p.cita_medico || p.cita_enfermero || p.cita_nutri || p.cita_kine) return true;
+    return false;
+  };
+
+  const isCronicoSinPlan = (p: any) => {
+    const cat = p.categoria;
+    if (!cat || cat === "G0" || cat === "PENDIENTE") return false;
+    return !hasPlanRegistrado(p);
+  };
+
   const hasBrecha = (p: any) => {
+    if (p.categoria === "G0") return false; // G0 es población sana/promocional, no tiene brechas crónicas
     return ROLES_DISPONIBLES.some(rol => {
       const status = getCitaDisplayStatus(p, rol);
       return status.isExpired;
@@ -664,13 +680,15 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
     let brechas = 0;
     let ordenes = 0;
     let seguimiento = 0;
+    let sinPlan = 0;
     data.forEach(p => {
       if (hasBrecha(p)) brechas++;
       if (hasOrdenes(p)) ordenes++;
+      if (isCronicoSinPlan(p)) sinPlan++;
       const dc = getParsedDataClinica(p.data_clinica);
       if (dc?.seguimiento_telefonico) seguimiento++;
     });
-    return { brechas, ordenes, seguimiento };
+    return { brechas, ordenes, seguimiento, sinPlan };
   }, [data]);
 
   const filtered = useMemo(() => {
@@ -690,15 +708,16 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
         (!!dataClinica?.seguimiento_telefonico && dataClinica?.estamento_seguimiento === filterSeguimientoEstamento));
       const matchBrecha = !onlyBrecha || hasBrecha(p);
       const matchOrdenes = !onlyOrdenes || hasOrdenes(p);
+      const matchSinPlan = !onlySinPlan || isCronicoSinPlan(p);
       
       const matchPendienteEstamento = filterPendienteEstamento === "Todos" || (() => {
         const status = getCitaDisplayStatus(p, filterPendienteEstamento);
         return status.isExpired;
       })();
       
-      return matchRut && matchSector && matchStatus && matchCategory && matchSeguimiento && matchBrecha && matchOrdenes && matchPendienteEstamento;
+      return matchRut && matchSector && matchStatus && matchCategory && matchSeguimiento && matchBrecha && matchOrdenes && matchSinPlan && matchPendienteEstamento;
     });
-  }, [data, searchRut, filterSector, filterStatus, filterCategory, filterSeguimientoEstamento, onlyBrecha, onlyOrdenes, filterPendienteEstamento]);
+  }, [data, searchRut, filterSector, filterStatus, filterCategory, filterSeguimientoEstamento, onlyBrecha, onlyOrdenes, onlySinPlan, filterPendienteEstamento]);
 
   const stats = useMemo(() => {
     const total = data.length;
@@ -1321,6 +1340,23 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
                 </span>
               </button>
 
+              {/* Píldora: Sin Plan Anual (G1, G2, G3 sin controles) */}
+              <button
+                type="button"
+                onClick={() => setOnlySinPlan(!onlySinPlan)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                  onlySinPlan 
+                    ? 'bg-amber-500 text-white shadow-sm ring-2 ring-amber-200' 
+                    : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                }`}
+              >
+                <span>📋</span>
+                <span>Sin Plan Anual</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${onlySinPlan ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                  {counts.sinPlan}
+                </span>
+              </button>
+
               {/* Píldora: Seguimiento Activo */}
               <button
                 type="button"
@@ -1464,9 +1500,21 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
                       {/* 3. Plan de Cuidado Anual (Unificada) */}
                       <td className="px-4 py-3.5">
                         <div className="flex flex-col gap-1.5">
-                          {/* Estado de Controles */}
+                          {/* Estado de Controles (5 Estados Clínicos APS) */}
                           <div className="flex flex-wrap items-center gap-1.5">
-                            {brechasRoles.length > 0 ? (
+                            {p.categoria === "G0" ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md" title="Población sin multimorbilidad crónica. Enfoque promocional/preventivo.">
+                                🛡️ No Requiere Plan Crónico
+                              </span>
+                            ) : !p.categoria || p.categoria === "PENDIENTE" ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-400 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md italic">
+                                ⚪ Sin Estratificar
+                              </span>
+                            ) : !hasPlanRegistrado(p) ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-black text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md" title="Paciente estratificado pero aún sin atenciones ni controles programados">
+                                ⚠️ Sin Plan Programado
+                              </span>
+                            ) : brechasRoles.length > 0 ? (
                               <div className="flex items-center gap-1">
                                 <span className="text-[10px] font-black text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md flex items-center gap-1">
                                   <AlertTriangle size={10} />
@@ -1480,12 +1528,10 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
                                   ))}
                                 </div>
                               </div>
-                            ) : p.categoria ? (
+                            ) : (
                               <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
                                 <CheckCircle size={10} /> Plan de Controles al Día
                               </span>
-                            ) : (
-                              <span className="text-[10px] text-slate-400 italic">Sin plan registrado</span>
                             )}
                           </div>
 
