@@ -144,6 +144,8 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
   const [onlyOrdenes, setOnlyOrdenes] = useState(false);
   const [onlySinPlan, setOnlySinPlan] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 100;
 
   // ── Gestión de Casos ──────────────────────────────────────────────────────
   const [casos, setCasos] = useState<GestionCaso[]>([]);
@@ -719,6 +721,10 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
     });
   }, [data, searchRut, filterSector, filterStatus, filterCategory, filterSeguimientoEstamento, onlyBrecha, onlyOrdenes, onlySinPlan, filterPendienteEstamento]);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchRut, filterSector, filterStatus, filterCategory, filterSeguimientoEstamento, onlyBrecha, onlyOrdenes, onlySinPlan, filterPendienteEstamento]);
+
   const stats = useMemo(() => {
     const total = data.length;
     const catCounts: Record<string, number> = { "G0": 0, "G1": 0, "G2": 0, "G3": 0, "PENDIENTE": 0 };
@@ -861,6 +867,9 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
     proximos: data.filter(p => getEcicepStatus(p.ultima_atencion).status === "Próximo a Vencer").length,
   };
   const cobPorcentaje = totalPacientes > 0 ? ((statusCounts.vigentes / totalPacientes) * 100).toFixed(1) : "0.0";
+
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const paginatedData = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
     <div className="flex flex-col space-y-6">
@@ -1378,7 +1387,7 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
             <div className="flex items-center gap-3">
               {/* Filtro compacto por estamento */}
               <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                <span className="font-semibold text-[11px]">Brecha por:</span>
+                <span className="font-semibold text-[11px]">Vencidos por:</span>
                 <select 
                   value={filterPendienteEstamento} 
                   onChange={e => setFilterPendienteEstamento(e.target.value)}
@@ -1410,7 +1419,7 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filtered.slice(0, 500).map((p, i) => {
+                {paginatedData.map((p, i) => {
                   let age = "-";
                   if (p.fecha_nacimiento) {
                      const bd = new Date(p.fecha_nacimiento);
@@ -1572,8 +1581,28 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
                 })}
               </tbody>
             </table>
-            {filtered.length > 500 && (
-              <div className="p-3 text-center text-xs text-slate-400 border-t border-slate-100">Visualizando 500 filas máximo.</div>
+            {totalPages > 1 && (
+              <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-500">
+                  Mostrando {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, filtered.length)} de {filtered.length} pac.
+                </span>
+                <div className="flex space-x-2">
+                  <button
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(prev => prev - 1)}
+                    className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 bg-white hover:bg-slate-50 disabled:opacity-50 transition-colors"
+                  >
+                    Anterior
+                  </button>
+                  <button
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(prev => prev + 1)}
+                    className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 bg-white hover:bg-slate-50 disabled:opacity-50 transition-colors"
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         </>
@@ -2061,19 +2090,6 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">Gestor de Caso (Titular)</label>
-                  <select 
-                    value={gestorRut} 
-                    onChange={e => setGestorRut(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none font-bold text-indigo-700"
-                  >
-                    <option value="">-- Seleccionar Gestor (Opcional) --</option>
-                    {clinicos.map(c => (
-                      <option key={c.rut} value={c.rut}>{c.nombre} ({c.profesion})</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
                   <label className="block text-xs font-bold text-slate-600 mb-1">Categoría ECICEP</label>
                   <select 
                     value={categoria} 
@@ -2087,70 +2103,79 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
                   </select>
                 </div>
               </div>
-              <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 pt-4 border-t border-slate-100">
-                <label className="flex items-center space-x-2.5 cursor-pointer">
-                  <input 
-                    type="checkbox" 
-                    className="h-4.5 w-4.5 text-blue-600 focus:ring-blue-500 border-slate-300 rounded"
-                    checked={seguimientoTelefonico}
-                    onChange={e => {
-                      setSeguimientoTelefonico(e.target.checked);
-                      if (!e.target.checked) setEstamentoSeguimiento("");
-                    }}
-                  />
-                  <span className="text-xs font-bold text-slate-700 uppercase tracking-wide select-none">
-                    📞 Requiere Seguimiento Telefónico
-                  </span>
-                </label>
 
-                {seguimientoTelefonico && (
-                  <div className="mt-3 sm:mt-0 animate-in fade-in slide-in-from-left-4 duration-200">
-                    <select
-                      required
-                      value={estamentoSeguimiento}
-                      onChange={e => setEstamentoSeguimiento(e.target.value)}
-                      className="bg-slate-50 border border-slate-200 rounded-md px-3 py-1.5 text-xs font-bold text-blue-700 outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">-- Asignar a Estamento --</option>
-                      {ROLES_DISPONIBLES.map(r => (
-                        <option key={r} value={r}>{r}</option>
-                      ))}
-                    </select>
+              {/* Acciones y Derivaciones (Checkboxes) */}
+              <div className="mt-6 pt-5 border-t border-slate-100 bg-slate-50/50 p-4 rounded-xl border border-slate-100">
+                <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-4">Derivaciones Inmediatas</h4>
+                <div className="space-y-4">
+                  {/* Seguimiento Telefónico */}
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4">
+                    <label className="flex items-center space-x-2.5 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        className="h-4.5 w-4.5 text-blue-600 focus:ring-blue-500 border-slate-300 rounded"
+                        checked={seguimientoTelefonico}
+                        onChange={e => {
+                          setSeguimientoTelefonico(e.target.checked);
+                          if (!e.target.checked) setEstamentoSeguimiento("");
+                        }}
+                      />
+                      <span className="text-xs font-bold text-slate-700 uppercase tracking-wide select-none">
+                        📞 Requiere Seguimiento Telefónico
+                      </span>
+                    </label>
+                    
+                    {seguimientoTelefonico && (
+                      <div className="mt-3 sm:mt-0 animate-in fade-in slide-in-from-left-4 duration-200">
+                        <select
+                          required
+                          value={estamentoSeguimiento}
+                          onChange={e => setEstamentoSeguimiento(e.target.value)}
+                          className="bg-white border border-slate-200 rounded-md px-3 py-1.5 text-xs font-bold text-blue-700 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                        >
+                          <option value="">-- Asignar a Estamento --</option>
+                          {ROLES_DISPONIBLES.map(r => (
+                            <option key={r} value={r}>{r}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                  
+                  {/* Gestión de Caso */}
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4">
+                    <label className="flex items-center space-x-2.5 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        className="h-4.5 w-4.5 text-indigo-600 focus:ring-indigo-500 border-slate-300 rounded"
+                        checked={gestionCaso}
+                        onChange={e => {
+                          setGestionCaso(e.target.checked);
+                          if (!e.target.checked) setEstamentoGestion("");
+                        }}
+                      />
+                      <span className="text-xs font-bold text-slate-700 uppercase tracking-wide select-none">
+                        📋 Derivar a Gestión de Caso
+                      </span>
+                    </label>
 
-              <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 pt-4 border-t border-slate-100">
-                <label className="flex items-center space-x-2.5 cursor-pointer">
-                  <input 
-                    type="checkbox" 
-                    className="h-4.5 w-4.5 text-indigo-600 focus:ring-indigo-500 border-slate-300 rounded"
-                    checked={gestionCaso}
-                    onChange={e => {
-                      setGestionCaso(e.target.checked);
-                      if (!e.target.checked) setEstamentoGestion("");
-                    }}
-                  />
-                  <span className="text-xs font-bold text-slate-700 uppercase tracking-wide select-none">
-                    📋 Requiere Gestión de Caso
-                  </span>
-                </label>
-
-                {gestionCaso && (
-                  <div className="mt-3 sm:mt-0 animate-in fade-in slide-in-from-left-4 duration-200">
-                    <select
-                      required
-                      value={estamentoGestion}
-                      onChange={e => setEstamentoGestion(e.target.value)}
-                      className="bg-slate-50 border border-slate-200 rounded-md px-3 py-1.5 text-xs font-bold text-indigo-700 outline-none focus:ring-2 focus:ring-indigo-500"
-                    >
-                      <option value="">-- Asignar a Estamento --</option>
-                      {ROLES_DISPONIBLES.map(r => (
-                        <option key={r} value={r}>{r}</option>
-                      ))}
-                    </select>
+                    {gestionCaso && (
+                      <div className="mt-3 sm:mt-0 animate-in fade-in slide-in-from-left-4 duration-200">
+                        <select
+                          required
+                          value={estamentoGestion}
+                          onChange={e => setEstamentoGestion(e.target.value)}
+                          className="bg-white border border-slate-200 rounded-md px-3 py-1.5 text-xs font-bold text-indigo-700 outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+                        >
+                          <option value="">-- Asignar a Estamento --</option>
+                          {ROLES_DISPONIBLES.map(r => (
+                            <option key={r} value={r}>{r}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
               {/* Plan de Cuidado Anual (Próximas Citas) */}
               <div className="space-y-3">
