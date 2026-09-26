@@ -205,20 +205,29 @@ export async function procesarSolicitud(id: number, accion: 'APROBAR' | 'RECHAZA
   try {
     if (accion === 'RECHAZAR') {
       await sql`UPDATE gia_solicitudes_acceso SET estado = 'RECHAZADO' WHERE id = ${id}`;
+      revalidatePath("/admin/usuarios");
+      return { success: true };
     } else {
       const solicitud = await sql`SELECT * FROM gia_solicitudes_acceso WHERE id = ${id}`;
       if (solicitud.length === 0) return { error: "Solicitud no encontrada" };
 
       const { rut, nombre, email, profesion } = solicitud[0];
-      const defaultPass = hashPassword("cesfam123");
+      
+      // Generar contraseña aleatoria de 6 caracteres (fácil de leer)
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+      let temporalPass = '';
+      for (let i = 0; i < 6; i++) temporalPass += chars.charAt(Math.floor(Math.random() * chars.length));
+
+      const defaultPass = hashPassword(temporalPass);
 
       await sql.begin(async (sql) => {
         await sql`INSERT INTO gia_usuarios (rut, nombre, email, profesion, rol, password, debe_cambiar_password, accesos) VALUES (${rut}, ${nombre}, ${email}, ${profesion}, ${rol || 'CLINICO'}, ${defaultPass}, TRUE, ARRAY[]::TEXT[])`;
         await sql`UPDATE gia_solicitudes_acceso SET estado = 'APROBADO' WHERE id = ${id}`;
       });
+      
+      revalidatePath("/admin/usuarios");
+      return { success: true, temporalPass };
     }
-    revalidatePath("/admin/usuarios");
-    return { success: true };
   } catch (error) {
     return { error: "Error al procesar solicitud" };
   }

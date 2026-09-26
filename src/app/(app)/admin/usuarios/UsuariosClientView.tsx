@@ -155,7 +155,7 @@ export default function UsuariosClientView({
     
     if (res.success) {
       if (accion === 'APROBAR') {
-        setShowAprobado(isAprobar);
+        setShowAprobado({ ...isAprobar, temporalPass: res.temporalPass });
         setIsAprobar(null);
       } else {
         window.location.reload();
@@ -416,16 +416,24 @@ export default function UsuariosClientView({
               </div>
               <div className="flex justify-between items-center text-xs">
                 <span className="text-slate-400 font-bold uppercase tracking-widest">Clave Temporal</span>
-                <span className="font-mono font-bold text-blue-600">cesfam123</span>
+                <span className="font-mono font-bold text-blue-600">{showAprobado.temporalPass || 'Error generando'}</span>
               </div>
             </div>
 
-            <button 
-              onClick={() => window.location.reload()}
-              className="w-full px-4 py-3 rounded-xl text-sm font-bold bg-slate-800 text-white hover:bg-slate-900 transition-all shadow-lg shadow-slate-200"
-            >
-              Entendido y Copiado
-            </button>
+            <div className="flex flex-col gap-3">
+              <a 
+                href={`mailto:${showAprobado.email || ''}?subject=Acceso Aprobado - GIA CESFAM&body=Hola ${showAprobado.nombre || ''},%0D%0A%0D%0ATu acceso a la plataforma GIA ha sido aprobado.%0D%0A%0D%0ATu clave temporal para ingresar es: ${showAprobado.temporalPass || ''}%0D%0A%0D%0AEl sistema te pedirá cambiarla al ingresar por primera vez.%0D%0A%0D%0ASaludos.`}
+                className="w-full px-4 py-3 rounded-xl text-sm font-bold bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all text-center flex items-center justify-center gap-2"
+              >
+                ✉️ Enviar por correo
+              </a>
+              <button 
+                onClick={() => window.location.reload()}
+                className="w-full px-4 py-3 rounded-xl text-sm font-bold bg-slate-800 text-white hover:bg-slate-900 transition-all shadow-lg shadow-slate-200"
+              >
+                Entendido y Cerrar
+              </button>
+            </div>
           </div>
         </div>
       )}
