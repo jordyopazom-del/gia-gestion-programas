@@ -6,7 +6,7 @@ import * as XLSX from "xlsx";
 import toast from "react-hot-toast";
 import { UserProfile } from "@/actions/userActions";
 import { saveEcicepRecord, obtenerClinicosActivos, EcicepSubmission } from "@/actions/ecicepActions";
-import { ingresarCasoGestion, obtenerCasosGestion, actualizarEstadoCaso, GestionCaso, TipoCaso, EstadoCaso } from "@/actions/gestionCasosActions";
+import { ingresarCasoGestion, obtenerCasosGestion, actualizarEstadoCaso, ingresarCasosMultiples, GestionCaso, TipoCaso, EstadoCaso } from "@/actions/gestionCasosActions";
 import { CopyBadge } from "@/components/CopyBadge";
 
 const ROLES_DISPONIBLES = [
@@ -217,38 +217,74 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
     else setCasoError("");
   }, [casoRutInput, data]);
 
+  const [casosPendientes, setCasosPendientes] = useState<any[]>([]);
+
   useEffect(() => {
     handleBuscarPacienteCaso();
   }, [casoRutInput, handleBuscarPacienteCaso]);
 
-  const resetCasoModal = () => {
+  const resetCasoForm = () => {
     setCasoRutInput("");
     setCasoPacienteEncontrado(null);
-    setCasoTipo("POST_HOSPITALIZADO");
     setCasoFechaAlta("");
     setCasoDiagnostico("");
     setCasoObservaciones("");
     setCasoError("");
-    setCasoSaving(false);
   };
 
-  const handleGuardarCaso = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const resetCasoModal = () => {
+    resetCasoForm();
+    setCasoTipo("POST_HOSPITALIZADO");
+    setCasoSaving(false);
+    setCasosPendientes([]);
+  };
+
+  const handleAgregarALista = () => {
     if (!casoPacienteEncontrado) { setCasoError("Selecciona un paciente válido primero."); return; }
-    setCasoSaving(true);
-    setCasoError("");
-    const res = await ingresarCasoGestion({
+    if (casoTipo === "POST_HOSPITALIZADO" && !casoFechaAlta) { setCasoError("La Fecha de Alta es obligatoria."); return; }
+    if (casosPendientes.find(c => c.rut_paciente === casoPacienteEncontrado.rut)) { setCasoError("Este paciente ya está en la lista actual."); return; }
+    
+    setCasosPendientes(prev => [...prev, {
       rut_paciente: casoPacienteEncontrado.rut,
+      nombre_completo: casoPacienteEncontrado.nombre_completo,
+      sector: casoPacienteEncontrado.sector,
       tipo: casoTipo,
       fecha_alta: casoTipo === "POST_HOSPITALIZADO" ? casoFechaAlta : null,
       diagnostico_alta: casoDiagnostico || null,
       observaciones: casoObservaciones || null,
-    });
+    }]);
+    
+    resetCasoForm(); // Limpiar el input para el siguiente
+  };
+
+  const handleQuitarDeLista = (rut: string) => {
+    setCasosPendientes(prev => prev.filter(c => c.rut_paciente !== rut));
+  };
+
+  const handleGuardarLista = async () => {
+    if (casosPendientes.length === 0) return;
+    setCasoSaving(true);
+    setCasoError("");
+    
+    const res = await ingresarCasosMultiples(casosPendientes.map(c => ({
+      rut_paciente: c.rut_paciente,
+      tipo: c.tipo,
+      fecha_alta: c.fecha_alta,
+      diagnostico_alta: c.diagnostico_alta,
+      observaciones: c.observaciones
+    })));
+    
     setCasoSaving(false);
     if (res.error) {
       setCasoError(res.error);
     } else {
-      toast.success("Caso ingresado correctamente.");
+      let msg = `Se ingresaron ${res.insertados} casos exitosamente.`;
+      if (res.errores?.length > 0) {
+        msg += ` Hubo ${res.errores.length} errores (pacientes ya ingresados o inactivos).`;
+        toast.error(msg, { duration: 5000 });
+      } else {
+        toast.success(msg);
+      }
       setShowIngresarCasoModal(false);
       resetCasoModal();
       await cargarCasos();
@@ -2043,7 +2079,7 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
             </div>
 
             {/* Body */}
-            <form onSubmit={handleGuardarCaso} className="flex-1 overflow-y-auto p-6 space-y-5">
+            <form onSubmit={e => { e.preventDefault(); handleAgregarALista(); }} className="flex-1 overflow-y-auto p-6 space-y-5">
 
               {/* Búsqueda de paciente por RUT */}
               <div>
@@ -2135,10 +2171,49 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
                 />
               </div>
 
+              {/* Botón para agregar a la lista temporal */}
+              <button
+                type="button"
+                onClick={handleAgregarALista}
+                disabled={!casoPacienteEncontrado}
+                className="w-full py-3 border-2 border-dashed border-indigo-200 bg-indigo-50/50 hover:bg-indigo-50 text-indigo-600 rounded-xl font-bold text-sm transition-colors flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Plus size={16} /> Agregar a la Lista
+              </button>
+
               {/* Error */}
               {casoError && (
                 <div className="bg-red-50 text-red-700 p-3 rounded-xl text-xs border border-red-200 font-medium">
                   ⚠️ {casoError}
+                </div>
+              )}
+              
+              {/* Lista Temporal de Casos (Carrito) */}
+              {casosPendientes.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-slate-200">
+                  <div className="flex justify-between items-center mb-3">
+                    <h4 className="text-xs font-bold text-slate-700">Casos en Lista ({casosPendientes.length})</h4>
+                    <span className="text-[10px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">Pendientes de guardar</span>
+                  </div>
+                  <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
+                    {casosPendientes.map((c, i) => (
+                      <div key={i} className="flex justify-between items-center p-2.5 bg-slate-50 border border-slate-200 rounded-lg group">
+                        <div>
+                          <p className="text-[11px] font-black text-slate-700 uppercase">{c.nombre_completo}</p>
+                          <p className="text-[10px] text-slate-500">
+                            {c.rut_paciente} • {c.tipo === 'POST_HOSPITALIZADO' ? `🏥 Post-Hosp (${c.fecha_alta})` : '🔄 Policonsultante'}
+                          </p>
+                        </div>
+                        <button 
+                          type="button" 
+                          onClick={() => handleQuitarDeLista(c.rut_paciente)}
+                          className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-md transition-colors"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </form>
@@ -2153,11 +2228,12 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
                 Cancelar
               </button>
               <button
-                onClick={handleGuardarCaso}
-                disabled={casoSaving || !casoPacienteEncontrado}
+                type="button"
+                onClick={handleGuardarLista}
+                disabled={casoSaving || casosPendientes.length === 0}
                 className="flex-1 px-4 py-3 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-md disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                {casoSaving ? 'Guardando...' : <><Briefcase size={14} /> Ingresar Caso</>}
+                {casoSaving ? 'Guardando...' : <><Briefcase size={14} /> Guardar {casosPendientes.length} Casos</>}
               </button>
             </div>
           </div>

@@ -163,3 +163,64 @@ export async function actualizarEstadoCaso(id: number, estado: EstadoCaso) {
     return { error: "Error al actualizar el estado." };
   }
 }
+
+// ─── Ingreso Múltiple de Casos ──────────────────────────────────────────────
+
+export async function ingresarCasosMultiples(inputs: GestionCasoInput[]) {
+  const user = await getCurrentUser();
+  if (!user) return { error: "Sesión expirada." };
+
+  if (!inputs || inputs.length === 0) return { error: "La lista está vacía." };
+
+  let insertados = 0;
+  let errores: string[] = [];
+
+  for (const input of inputs) {
+    try {
+      // 1. Validar padrón
+      const paciente = await sql`SELECT rut, nombre_completo FROM gia_pacientes WHERE rut = ${input.rut_paciente} AND estado = 'ACTIVO'`;
+      if (paciente.length === 0) {
+        errores.push(`${input.rut_paciente}: Paciente no encontrado o inactivo.`);
+        continue;
+      }
+
+      // 2. Validar duplicados activos
+      const duplicado = await sql`
+        SELECT id FROM gia_gestion_casos
+        WHERE rut_paciente = ${input.rut_paciente}
+          AND tipo = ${input.tipo}
+          AND estado NOT IN ('CERRADO')
+        LIMIT 1
+      `;
+      if (duplicado.length > 0) {
+        errores.push(`${paciente[0].nombre_completo}: Ya tiene un caso activo de tipo ${input.tipo}.`);
+        continue;
+      }
+
+      // 3. Insertar
+      await sql`
+        INSERT INTO gia_gestion_casos
+          (rut_paciente, tipo, fecha_alta, diagnostico_alta, observaciones, profesional_rut)
+        VALUES
+          (
+            ${input.rut_paciente},
+            ${input.tipo},
+            ${input.fecha_alta ?? null},
+            ${input.diagnostico_alta ?? null},
+            ${input.observaciones ?? null},
+            ${user.rut}
+          )
+      `;
+      insertados++;
+    } catch (err: any) {
+      console.error(`Error insertando caso para ${input.rut_paciente}:`, err);
+      errores.push(`${input.rut_paciente}: Error de base de datos.`);
+    }
+  }
+
+  if (insertados > 0) {
+    revalidatePath("/ecicep");
+  }
+
+  return { success: true, insertados, errores };
+}
