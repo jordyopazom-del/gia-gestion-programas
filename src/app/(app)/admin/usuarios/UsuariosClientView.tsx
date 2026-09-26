@@ -19,6 +19,11 @@ export default function UsuariosClientView({
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   
+  // Filtro de profesión
+  const [filtroProfesion, setFiltroProfesion] = useState<string>("TODAS");
+  const filteredUsuarios = filtroProfesion === "TODAS" ? usuarios : usuarios.filter(u => u.profesion === filtroProfesion);
+
+  
   // Estado para procesar aprobación
   const [isAprobar, setIsAprobar] = useState<any>(null);
   const [showAprobado, setShowAprobado] = useState<any>(null);
@@ -222,14 +227,26 @@ export default function UsuariosClientView({
         <>
           <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
             <h2 className="font-bold text-slate-700 flex items-center">
-              <ShieldCheck size={18} className="mr-2 text-purple-600" /> Funcionarios Autorizados ({usuarios.length})
+              <ShieldCheck size={18} className="mr-2 text-purple-600" /> Funcionarios Autorizados ({filteredUsuarios.length})
             </h2>
-            <button 
-              onClick={handleNew}
-              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center text-sm font-bold shadow-lg shadow-purple-100 transition-all active:scale-95"
-            >
-              <UserPlus size={16} className="mr-2" /> Crear Nuevo Acceso
-            </button>
+            <div className="flex items-center gap-3">
+              <select
+                value={filtroProfesion}
+                onChange={(e) => setFiltroProfesion(e.target.value)}
+                className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 outline-none focus:ring-2 focus:ring-purple-200 cursor-pointer shadow-sm"
+              >
+                <option value="TODAS">Todos los estamentos</option>
+                {PROFESIONES_APS.map(p => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+              <button 
+                onClick={handleNew}
+                className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center text-sm font-bold shadow-lg shadow-purple-100 transition-all active:scale-95"
+              >
+                <UserPlus size={16} className="mr-2" /> Crear Nuevo
+              </button>
+            </div>
           </div>
 
           <div className="flex-1 overflow-x-auto">
@@ -245,7 +262,7 @@ export default function UsuariosClientView({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {usuarios.map((u) => (
+                {filteredUsuarios.map((u) => (
                   <tr key={u.rut} className="hover:bg-slate-50/80 transition-colors group">
                     <td className="px-6 py-4 font-mono text-xs text-slate-500">{u.rut}</td>
                     <td className="px-6 py-4">
