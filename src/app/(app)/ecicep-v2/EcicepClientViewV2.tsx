@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { Search, MapPin, AlertTriangle, CheckCircle, Clock, Download, ClipboardCheck, X, User, Phone, Map, Calendar, Plus, Save, Briefcase, Hospital, RefreshCw } from "lucide-react";
+import { Search, MapPin, AlertTriangle, CheckCircle, Clock, Download, ClipboardCheck, X, User, Phone, Map, Calendar, Plus, Save, Briefcase, Hospital, RefreshCw, ArrowUpRight } from "lucide-react";
 import * as XLSX from "xlsx";
 import toast from "react-hot-toast";
 import { UserProfile } from "@/actions/userActions";
@@ -1403,10 +1403,10 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
             <table className="w-full text-left text-xs whitespace-nowrap text-slate-600">
               <thead className="bg-slate-50/80 border-y border-slate-200 text-slate-500 font-semibold text-[11px] uppercase tracking-wider">
                 <tr>
-                  <th className="px-4 py-3.5 w-[38%]">Paciente & Territorio</th>
+                  <th className="px-4 py-3.5 w-[34%]">Paciente & Territorio</th>
                   <th className="px-4 py-3.5 w-[14%]">Riesgo ECICEP</th>
-                  <th className="px-4 py-3.5 w-[34%]">Plan de Cuidado Anual</th>
-                  <th className="px-4 py-3.5 w-[14%] text-right pr-6">Acción</th>
+                  <th className="px-4 py-3.5 w-[32%]">Plan de Cuidado Anual</th>
+                  <th className="px-4 py-3.5 w-[20%] text-right pr-6">Acción</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -1557,24 +1557,15 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
 
                       {/* 4. Acciones */}
                       <td className="px-4 py-3.5 text-right pr-6" onClick={e => e.stopPropagation()}>
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedPatient(p)}
-                            className="px-2.5 py-1.5 text-[11px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition"
-                          >
-                            Ficha
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDerivarPacienteACaso(p)}
-                            className="px-2.5 py-1.5 text-[11px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition flex items-center gap-1"
-                            title="Derivar a Gestión de Casos"
-                          >
-                            <Briefcase size={12} />
-                            <span>Derivar</span>
-                          </button>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleDerivarPacienteACaso(p)}
+                          className="px-3 py-1.5 text-[11px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition inline-flex items-center gap-1.5 shadow-2xs group/btn whitespace-nowrap"
+                          title="Derivar paciente a seguimiento en Gestión de Casos"
+                        >
+                          <ArrowUpRight size={13} className="text-indigo-500 group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform" />
+                          <span>Derivar a Gestión de Caso</span>
+                        </button>
                       </td>
                     </tr>
                   );
@@ -2007,7 +1998,7 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
                 onClick={() => setSelectedPatient(null)}
                 className="w-full bg-white text-slate-500 font-bold py-2 rounded-xl border border-slate-200 hover:bg-slate-100 transition-colors text-xs"
               >
-                Cerrar Ficha
+                Cerrar Panel
               </button>
             </div>
           </div>
