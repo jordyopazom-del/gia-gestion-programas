@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { Search, MapPin, AlertTriangle, CheckCircle, Clock, Download, ClipboardCheck, X, User, Phone, Map, Calendar, Plus, Save, Briefcase, Hospital, RefreshCw, ArrowUpRight } from "lucide-react";
+import { Search, MapPin, AlertTriangle, CheckCircle, Clock, Download, ClipboardCheck, X, User, Phone, Map, Calendar, Plus, Save, Briefcase, Hospital, RefreshCw, ArrowUpRight, BarChart3, ChevronDown, FileSpreadsheet, Target, Filter } from "lucide-react";
 import * as XLSX from "xlsx";
 import toast from "react-hot-toast";
 import { UserProfile } from "@/actions/userActions";
@@ -135,6 +135,7 @@ const getCitaDisplayStatus = (p: any, rol: string) => {
 
 export default function EcicepClientViewV2({ data, user }: { data: any[], user: UserProfile }) {
   const [view, setView] = useState<'lista' | 'analisis' | 'gestion'>('lista');
+  const [showExportDropdown, setShowExportDropdown] = useState(false);
   const [searchRut, setSearchRut] = useState("");
   const [filterSector, setFilterSector] = useState("Todos");
   const [filterStatus, setFilterStatus] = useState("Todos");
@@ -856,42 +857,59 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
     };
   }, [data]);
 
-  const exportToExcel = () => {
-    const dataset = filtered.map(p => {
-      let age = "-";
-      if (p.fecha_nacimiento) {
-         const bd = new Date(p.fecha_nacimiento);
-         const today = new Date();
-         let a = today.getFullYear() - bd.getUTCFullYear();
-         if (today.getMonth() < bd.getUTCMonth() || (today.getMonth() === bd.getUTCMonth() && today.getDate() < bd.getUTCDate())) a--;
-         age = a.toString();
-      }
-      return {
-        "Estado Vigencia": getEcicepStatus(p.ultima_atencion).status,
-        "RUT": p.rut + "-" + p.dv,
-        "Nombre": p.nombre_completo,
-        "Edad": age,
-        "Sexo": p.sexo || "SIN REGISTRO",
-        "Sector": p.sector,
-        "Teléfono": p.telefono,
-        "Fecha Última Estratificación": formatDate(p.ultima_atencion),
-        "Fecha Ingreso ECICEP": formatDate(getParsedDataClinica(p.data_clinica)?.fecha_ingreso || p.ultima_atencion),
-        "Categoría ECICEP": p.categoria || "PENDIENTE",
-        "Seguimiento Telefónico": getParsedDataClinica(p.data_clinica)?.seguimiento_telefonico ? "SI" : "NO",
-        "Profesional Seguimiento": getParsedDataClinica(p.data_clinica)?.estamento_seguimiento || "-",
-        "Gestión de Caso": getParsedDataClinica(p.data_clinica)?.gestion_caso ? "SI" : "NO",
-        "Profesional Gestión de Caso": getParsedDataClinica(p.data_clinica)?.estamento_gestion || "-",
-        "Diagnósticos Crónicos": p.diagnosticos ? p.diagnosticos.join(", ") : "-",
-        "Profesional Evaluador": p.profesional_nombre || "-",
-        "Gestor Asignado": p.gestor_nombre || "-",
-        "Observaciones": p.observaciones || "-"
-      };
-    });
+  // ─── Funciones de Exportación Excel ──────────────────────────────────────────
 
+  const mapPacienteToExcelRow = (p: any) => {
+    let age = "-";
+    if (p.fecha_nacimiento) {
+       const bd = new Date(p.fecha_nacimiento);
+       const today = new Date();
+       let a = today.getFullYear() - bd.getUTCFullYear();
+       if (today.getMonth() < bd.getUTCMonth() || (today.getMonth() === bd.getUTCMonth() && today.getDate() < bd.getUTCDate())) a--;
+       age = a.toString();
+    }
+    return {
+      "Estado Vigencia": getEcicepStatus(p.ultima_atencion).status,
+      "RUT": p.rut + "-" + p.dv,
+      "Nombre": p.nombre_completo,
+      "Edad": age,
+      "Sexo": p.sexo || "SIN REGISTRO",
+      "Sector": p.sector,
+      "Teléfono": p.telefono,
+      "Fecha Última Estratificación": formatDate(p.ultima_atencion),
+      "Fecha Ingreso ECICEP": formatDate(getParsedDataClinica(p.data_clinica)?.fecha_ingreso || p.ultima_atencion),
+      "Categoría ECICEP": p.categoria || "PENDIENTE",
+      "Seguimiento Telefónico": getParsedDataClinica(p.data_clinica)?.seguimiento_telefonico ? "SI" : "NO",
+      "Profesional Seguimiento": getParsedDataClinica(p.data_clinica)?.estamento_seguimiento || "-",
+      "Gestión de Caso": getParsedDataClinica(p.data_clinica)?.gestion_caso ? "SI" : "NO",
+      "Profesional Gestión de Caso": getParsedDataClinica(p.data_clinica)?.estamento_gestion || "-",
+      "Diagnósticos Crónicos": p.diagnosticos ? p.diagnosticos.join(", ") : "-",
+      "Profesional Evaluador": p.profesional_nombre || "-",
+      "Gestor Asignado": p.gestor_nombre || "-",
+      "Observaciones": p.observaciones || "-"
+    };
+  };
+
+  const exportPadronCompleto = () => {
+    const dataset = data.map(mapPacienteToExcelRow);
     const worksheet = XLSX.utils.json_to_sheet(dataset);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Poblacion_ECICEP");
-    XLSX.writeFile(workbook, `Padrón_ECICEP_GIA.xlsx`);
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Padron_Completo");
+    XLSX.writeFile(workbook, `Padron_Completo_ECICEP_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    toast.success(`Padrón completo exportado (${data.length} pacientes)`);
+  };
+
+  const exportVistaFiltrada = () => {
+    if (filtered.length === 0) {
+      toast.error("No hay pacientes en la vista filtrada.");
+      return;
+    }
+    const dataset = filtered.map(mapPacienteToExcelRow);
+    const worksheet = XLSX.utils.json_to_sheet(dataset);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Vista_Filtrada");
+    XLSX.writeFile(workbook, `Vista_Filtrada_ECICEP_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    toast.success(`Vista filtrada exportada (${filtered.length} pacientes)`);
   };
 
   const exportCampanaExcel = () => {
@@ -927,7 +945,8 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
     const worksheet = XLSX.utils.json_to_sheet(dataset);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Campana_Rescate_ECICEP");
-    XLSX.writeFile(workbook, `Campaña_Rescate_ECICEP.xlsx`);
+    XLSX.writeFile(workbook, `Campana_Rescate_ECICEP_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    toast.success(`Campaña de rescate exportada (${vencidosOPendientes.length} pacientes)`);
   };
 
   const totalPacientes = data.length;
@@ -968,55 +987,129 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
         </div>
       </div>
 
-      {/* Selector de Vista */}
-      <div className="px-6 flex justify-between items-center">
+      {/* Selector de Vista y Herramientas */}
+      <div className="px-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        {/* Pestañas Operativas Clínicas */}
         <div className="flex bg-slate-100 p-1 rounded-xl w-fit">
-            <button 
-                onClick={() => setView('lista')}
-                className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${view === 'lista' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-                Listado de Pacientes
-            </button>
-            <button 
-                onClick={() => setView('analisis')}
-                className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${view === 'analisis' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-                Análisis Estadístico
-            </button>
-            <button 
-                onClick={() => setView('gestion')}
-                className={`px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-1.5 ${view === 'gestion' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-                <Briefcase size={14} />
-                Gestión de Casos
-                {casos.filter(c => c.tipo === 'POST_HOSPITALIZADO').length > 0 && (
-                  <span className="ml-1 bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full leading-none">
-                    {casos.filter(c => c.tipo === 'POST_HOSPITALIZADO').length}
-                  </span>
-                )}
-            </button>
-        </div>
-        <div className="flex space-x-2">
-            {view === 'gestion' ? (
-              <button
-                onClick={() => { resetCasoModal(); setShowIngresarCasoModal(true); }}
-                className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition shadow-sm font-bold text-sm"
-              >
-                <Plus size={16} />
-                <span>Ingresar Caso</span>
-              </button>
-            ) : (
-              <>
-                <button onClick={exportToExcel} className="flex items-center space-x-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100 hover:bg-emerald-100 transition shadow-sm font-bold text-sm">
-                    <Download size={16} />
-                    <span>Exportar Padrón</span>
-                </button>
-                <button onClick={exportCampanaExcel} className="flex items-center space-x-2 px-4 py-2 bg-amber-50 text-amber-700 rounded-xl border border-amber-100 hover:bg-amber-100 transition shadow-sm font-bold text-sm">
-                    <Download size={16} />
-                    <span>Campaña Rescate</span>
-                </button>
-              </>
+          <button 
+            type="button"
+            onClick={() => setView('lista')}
+            className={`px-5 py-2 rounded-lg text-xs font-bold transition-all ${view === 'lista' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            Listado de Pacientes
+          </button>
+          <button 
+            type="button"
+            onClick={() => setView('gestion')}
+            className={`px-5 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${view === 'gestion' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            <Briefcase size={14} />
+            <span>Gestión de Casos</span>
+            {casos.filter(c => c.tipo === 'POST_HOSPITALIZADO').length > 0 && (
+              <span className="ml-1 bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full leading-none">
+                {casos.filter(c => c.tipo === 'POST_HOSPITALIZADO').length}
+              </span>
             )}
+          </button>
+        </div>
+
+        {/* Acciones y Herramientas */}
+        <div className="flex items-center space-x-2">
+          {/* Botón Separado: Análisis Estadístico */}
+          <button 
+            type="button"
+            onClick={() => setView(view === 'analisis' ? 'lista' : 'analisis')}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm border ${
+              view === 'analisis' 
+                ? 'bg-blue-600 text-white border-blue-600 shadow-md' 
+                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            <BarChart3 size={14} />
+            <span>{view === 'analisis' ? "← Volver al Listado" : "Análisis Estadístico"}</span>
+          </button>
+
+          {/* En vista Gestión de Casos: Botón Ingresar Caso */}
+          {view === 'gestion' && (
+            <button
+              type="button"
+              onClick={() => { resetCasoModal(); setShowIngresarCasoModal(true); }}
+              className="flex items-center space-x-1.5 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition shadow-sm font-bold text-xs"
+            >
+              <Plus size={15} />
+              <span>Ingresar Caso</span>
+            </button>
+          )}
+
+          {/* Menú Dropdown de Exportación (disponible en lista y análisis) */}
+          {view !== 'gestion' && (
+            <div className="relative">
+              <button 
+                type="button"
+                onClick={() => setShowExportDropdown(!showExportDropdown)}
+                className="flex items-center gap-1.5 bg-white border border-slate-200 text-slate-700 px-3.5 py-2 rounded-xl font-bold hover:bg-slate-50 transition shadow-sm text-xs"
+              >
+                <Download size={14} className="text-slate-500" />
+                <span>Exportar</span>
+                <ChevronDown size={13} className={`text-slate-400 transition-transform duration-200 ${showExportDropdown ? 'rotate-180' : ''}`} />
+              </button>
+
+              {showExportDropdown && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-30" 
+                    onClick={() => setShowExportDropdown(false)} 
+                  />
+                  <div className="absolute right-0 mt-2 w-60 bg-white border border-slate-200 rounded-2xl shadow-xl z-40 overflow-hidden animate-in fade-in zoom-in-95 duration-150 py-1 divide-y divide-slate-100">
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        exportVistaFiltrada();
+                        setShowExportDropdown(false);
+                      }}
+                      className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50/70 hover:text-indigo-900 transition flex items-center gap-2.5"
+                    >
+                      <Filter size={14} className="text-indigo-600 shrink-0" />
+                      <div>
+                        <p className="leading-tight">Vista Filtrada Actual</p>
+                        <p className="text-[10px] text-slate-400 font-normal mt-0.5">{filtered.length.toLocaleString('es-CL')} pacientes seleccionados</p>
+                      </div>
+                    </button>
+
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        exportCampanaExcel();
+                        setShowExportDropdown(false);
+                      }}
+                      className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-amber-50/70 hover:text-amber-900 transition flex items-center gap-2.5"
+                    >
+                      <Target size={14} className="text-amber-600 shrink-0" />
+                      <div>
+                        <p className="leading-tight">Campaña de Rescate</p>
+                        <p className="text-[10px] text-slate-400 font-normal mt-0.5">Vencidos y pendientes</p>
+                      </div>
+                    </button>
+
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        exportPadronCompleto();
+                        setShowExportDropdown(false);
+                      }}
+                      className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-emerald-50/70 hover:text-emerald-900 transition flex items-center gap-2.5"
+                    >
+                      <FileSpreadsheet size={14} className="text-emerald-600 shrink-0" />
+                      <div>
+                        <p className="leading-tight">Padrón Completo ECICEP</p>
+                        <p className="text-[10px] text-slate-400 font-normal mt-0.5">{data.length.toLocaleString('es-CL')} pacientes totales</p>
+                      </div>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
