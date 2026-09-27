@@ -1305,10 +1305,24 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
                         {/* 3. Gestor Asignado */}
                         <td className="px-4 py-3.5">
                           {isSinGestor ? (
-                            <span className="text-xs font-medium text-amber-700 bg-amber-50/80 px-2 py-0.5 rounded border border-amber-200/60 inline-flex items-center gap-1">
-                              <span>⏳ Requerido:</span>
-                              <strong className="uppercase font-bold">{caso.estamento_solicitado || 'Sin Asignar'}</strong>
-                            </span>
+                            (() => {
+                              const estamentoValido = caso.estamento_solicitado && 
+                                caso.estamento_solicitado.toUpperCase() !== 'SIN ASIGNAR' && 
+                                caso.estamento_solicitado.trim() !== '';
+
+                              return (
+                                <div className="space-y-1">
+                                  <span className="text-xs font-semibold text-slate-500 flex items-center gap-1">
+                                    <span className="text-slate-400">⏳</span> Sin Asignar
+                                  </span>
+                                  {estamentoValido && (
+                                    <span className="inline-flex items-center text-[10px] font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 uppercase">
+                                      Perfil: {caso.estamento_solicitado}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })()
                           ) : (
                             <div>
                               <p className="text-xs font-bold text-slate-800 flex items-center gap-1">
@@ -1316,7 +1330,7 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
                                 {caso.gestor_asignado_nombre}
                               </p>
                               <p className="text-[10px] text-slate-400 font-medium">
-                                {caso.estamento_solicitado ? `${caso.estamento_solicitado} · ` : ''}
+                                {caso.estamento_solicitado && caso.estamento_solicitado.toUpperCase() !== 'SIN ASIGNAR' ? `${caso.estamento_solicitado} · ` : ''}
                                 {caso.fecha_asignacion ? new Date(caso.fecha_asignacion).toLocaleDateString('es-CL') : ''}
                               </p>
                             </div>
