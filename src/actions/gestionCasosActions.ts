@@ -21,6 +21,7 @@ export type GestionCasoInput = {
 export type GestionCaso = {
   id: number;
   rut_paciente: string;
+  dv?: string | null;
   nombre_completo: string;
   sector: string;
   telefono: string | null;
@@ -183,6 +184,7 @@ export async function obtenerCasosGestion(): Promise<GestionCaso[]> {
       SELECT
         gc.id,
         gc.rut_paciente,
+        p.dv,
         p.nombre_completo,
         p.sector,
         p.telefono,

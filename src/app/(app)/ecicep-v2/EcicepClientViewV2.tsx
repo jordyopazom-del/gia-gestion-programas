@@ -63,6 +63,21 @@ const formatDate = (dateString: string | null) => {
   }
 };
 
+const calcularDv = (rut: string | number): string => {
+  const cleanRut = String(rut).replace(/[^0-9]/g, "");
+  if (!cleanRut) return "";
+  let sum = 0;
+  let mul = 2;
+  for (let i = cleanRut.length - 1; i >= 0; i--) {
+    sum += parseInt(cleanRut[i], 10) * mul;
+    mul = mul === 7 ? 2 : mul + 1;
+  }
+  const rem = 11 - (sum % 11);
+  if (rem === 11) return "0";
+  if (rem === 10) return "K";
+  return String(rem);
+};
+
 const getParsedDataClinica = (dataClinica: any) => {
   if (!dataClinica) return null;
   if (typeof dataClinica === "string") {
@@ -1361,7 +1376,10 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
                             )}
                           </div>
                           <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500 font-mono">
-                            <span>{caso.rut_paciente}</span>
+                            <CopyBadge 
+                              value={caso.dv ? `${caso.rut_paciente}-${caso.dv}` : `${caso.rut_paciente}-${calcularDv(caso.rut_paciente)}`} 
+                              label="RUT" 
+                            />
                             <span className="text-slate-300 font-sans">·</span>
                             <span className="font-sans font-medium text-slate-600">{caso.sector}</span>
                             {caso.telefono && (
@@ -2925,8 +2943,8 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
                       <div key={i} className="flex justify-between items-center p-2.5 bg-slate-50 border border-slate-200 rounded-lg group">
                         <div>
                           <p className="text-[11px] font-black text-slate-700 uppercase">{c.nombre_completo}</p>
-                          <p className="text-[10px] text-slate-500">
-                            {c.rut_paciente} • {c.tipo === 'POST_HOSPITALIZADO' ? `🏥 Post-Hosp (${c.fecha_alta})` : c.tipo === 'POLICONSULTANTE' ? '🔄 Policonsultante' : '📋 Derivación Clínica'}
+                          <p className="text-[10px] text-slate-500 font-mono">
+                            {c.rut_paciente}-{calcularDv(c.rut_paciente)} <span className="font-sans">• {c.tipo === 'POST_HOSPITALIZADO' ? `🏥 Post-Hosp (${c.fecha_alta})` : c.tipo === 'POLICONSULTANTE' ? '🔄 Policonsultante' : '📋 Derivación Clínica'}</span>
                           </p>
                         </div>
                         <button 
