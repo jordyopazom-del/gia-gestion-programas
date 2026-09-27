@@ -173,7 +173,7 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
 
   // Modales de asignación y cierre de caso
   const [profesionales, setProfesionales] = useState<ProfesionalAsignable[]>([]);
-  const [modalAsignar, setModalAsignar] = useState<{ show: boolean; casoId: number | null; pacienteNombre: string; estamentoSugerido?: string }>({
+  const [modalAsignar, setModalAsignar] = useState<{ show: boolean; casoId: number | null; pacienteNombre: string; estamentoSugerido?: string; categoria?: string | null }>({
     show: false, casoId: null, pacienteNombre: ""
   });
   const [asignarSelectedRut, setAsignarSelectedRut] = useState("");
@@ -1218,9 +1218,34 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
                         
                         {/* 1. Paciente */}
                         <td className="px-5 py-3.5">
-                          <p className="font-bold text-slate-800 uppercase text-xs tracking-tight">
-                            {caso.nombre_completo}
-                          </p>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <p className="font-bold text-slate-800 uppercase text-xs tracking-tight">
+                              {caso.nombre_completo}
+                            </p>
+                            {caso.categoria ? (
+                              <span
+                                className={`px-1.5 py-0.5 text-[10px] font-black rounded border font-mono leading-none ${
+                                  caso.categoria === 'G3'
+                                    ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                    : caso.categoria === 'G2'
+                                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                    : caso.categoria === 'G1'
+                                    ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                    : 'bg-slate-100 text-slate-600 border-slate-200'
+                                }`}
+                                title={`Estratificación ECICEP: ${caso.categoria}`}
+                              >
+                                {caso.categoria}
+                              </span>
+                            ) : (
+                              <span
+                                className="px-1.5 py-0.5 text-[9px] font-semibold text-slate-400 bg-slate-50 border border-slate-200 rounded leading-none"
+                                title="Sin Estratificar ECICEP"
+                              >
+                                S/E
+                              </span>
+                            )}
+                          </div>
                           <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500 font-mono">
                             <span>{caso.rut_paciente}</span>
                             <span className="text-slate-300 font-sans">·</span>
@@ -1341,7 +1366,8 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
                                       show: true,
                                       casoId: caso.id,
                                       pacienteNombre: caso.nombre_completo,
-                                      estamentoSugerido: caso.estamento_solicitado || undefined
+                                      estamentoSugerido: caso.estamento_solicitado || undefined,
+                                      categoria: caso.categoria || null
                                     });
                                     setAsignarSelectedRut("");
                                   }}
@@ -1359,7 +1385,8 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
                                       show: true,
                                       casoId: caso.id,
                                       pacienteNombre: caso.nombre_completo,
-                                      estamentoSugerido: caso.estamento_solicitado || undefined
+                                      estamentoSugerido: caso.estamento_solicitado || undefined,
+                                      categoria: caso.categoria || null
                                     });
                                     setAsignarSelectedRut(caso.gestor_asignado_rut || "");
                                   }}
@@ -2830,9 +2857,26 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-800 text-base">Asignar Gestor de Caso</h3>
-                  <p className="text-xs text-slate-500 truncate max-w-[240px] font-bold text-indigo-700 uppercase">
-                    {modalAsignar.pacienteNombre}
-                  </p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <p className="text-xs text-slate-500 truncate max-w-[220px] font-bold text-indigo-700 uppercase">
+                      {modalAsignar.pacienteNombre}
+                    </p>
+                    {modalAsignar.categoria && (
+                      <span
+                        className={`px-1.5 py-0.5 text-[10px] font-black rounded border font-mono leading-none ${
+                          modalAsignar.categoria === 'G3'
+                            ? 'bg-rose-100 text-rose-800 border-rose-300'
+                            : modalAsignar.categoria === 'G2'
+                            ? 'bg-amber-100 text-amber-800 border-amber-300'
+                            : modalAsignar.categoria === 'G1'
+                            ? 'bg-blue-100 text-blue-800 border-blue-300'
+                            : 'bg-slate-100 text-slate-700 border-slate-300'
+                        }`}
+                      >
+                        {modalAsignar.categoria}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
               <button 
