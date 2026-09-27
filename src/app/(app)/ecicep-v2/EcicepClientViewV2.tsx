@@ -1024,151 +1024,170 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
         /* ───── VISTA GESTIÓN DE CASOS (DESATURADA & MINIMALISTA) ───── */
         <div className="px-6 pb-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
 
-          {/* Barra de Resumen Clínico Desaturada (Reemplaza las 4 tarjetas gigantes) */}
+          {/* Alerta de Casos Críticos Post-Alta (>48h sin gestor) */}
           {(() => {
             const postHosp = casos.filter(c => c.tipo === 'POST_HOSPITALIZADO');
             const criticos = postHosp.filter(c => { const h = calcularHorasDesdeAlta(c.fecha_alta); return h !== null && h > 48 && c.estado === 'PENDIENTE_ASIGNACION'; });
-            const pendientesAsignacion = casos.filter(c => c.estado === 'PENDIENTE_ASIGNACION');
-            const enSeguimiento = casos.filter(c => c.estado === 'EN_SEGUIMIENTO');
-            const alertasVencidos = casos.filter(c => calcularTiempoEnGestion(c.fecha_registro).esAlerta);
+            if (criticos.length === 0) return null;
             return (
-              <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-slate-50 border border-slate-200 rounded-2xl mb-4 text-xs">
-                <div className="flex flex-wrap items-center gap-3">
-                  {criticos.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => { setFilterTipoCaso('POST_HOSPITALIZADO'); setFilterEstadoCaso('PENDIENTE_ASIGNACION'); }}
-                      className="flex items-center gap-1.5 px-3 py-1 bg-red-100 text-red-800 border border-red-200 rounded-lg font-bold hover:bg-red-200 transition"
-                      title="Ver casos post-alta con más de 48 horas sin gestor"
-                    >
-                      <span className="h-2 w-2 rounded-full bg-red-600 animate-pulse" />
-                      <span>{criticos.length} Post-Alta sin rescate (&gt;48h)</span>
-                    </button>
-                  )}
-                  
-                  <div className="flex items-center gap-1.5 text-slate-600 px-2 py-1">
-                    <span className="h-2 w-2 rounded-full bg-amber-500" />
-                    <span><strong>{pendientesAsignacion.length}</strong> Sin Gestor</span>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 text-slate-600 px-2 py-1">
-                    <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                    <span><strong>{enSeguimiento.length}</strong> En Seguimiento</span>
-                  </div>
-
-                  {alertasVencidos.length > 0 && (
-                    <div className="flex items-center gap-1.5 text-rose-700 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200 font-medium">
-                      <AlertTriangle size={12} className="text-rose-500" />
-                      <span>{alertasVencidos.length} llevan &gt;6 meses</span>
-                    </div>
-                  )}
-                </div>
-
+              <div className="mb-3 flex items-center justify-between bg-red-50/90 border border-red-200/80 px-4 py-2 rounded-xl text-xs text-red-800 animate-in fade-in">
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-slate-400 font-medium">
-                    Total: {casos.length} casos activos
+                  <span className="h-2 w-2 rounded-full bg-red-600 animate-pulse shrink-0" />
+                  <span className="font-medium">
+                    Hay <strong>{criticos.length} caso{criticos.length > 1 ? 's' : ''} post-alta</strong> con más de 48 horas sin gestor asignado.
                   </span>
-                  <button
-                    type="button"
-                    onClick={cargarCasos}
-                    disabled={loadingCasos}
-                    className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-lg transition"
-                    title="Actualizar casos"
-                  >
-                    <RefreshCw size={13} className={loadingCasos ? 'animate-spin' : ''} />
-                  </button>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => { setFilterTipoCaso('POST_HOSPITALIZADO'); setFilterEstadoCaso('PENDIENTE_ASIGNACION'); }}
+                  className="font-bold text-red-700 hover:text-red-900 underline text-xs ml-3"
+                >
+                  Filtrar casos críticos &rarr;
+                </button>
               </div>
             );
           })()}
 
-          {/* Barra de Filtros Limpia y Funcional */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 mb-4 items-center">
-            
-            {/* Buscador de Caso */}
-            <div className="md:col-span-4 relative">
-              <input
-                type="text"
-                value={searchGestion}
-                onChange={e => setSearchGestion(e.target.value)}
-                placeholder="Buscar por RUT o Nombre..."
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 pl-9 text-xs font-medium focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition"
-              />
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              {searchGestion && (
-                <button 
-                  type="button"
-                  onClick={() => setSearchGestion("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
+          {/* Barra de Filtros Espaciosa y Funcional */}
+          {(() => {
+            const pendientesCount = casos.filter(c => c.estado === 'PENDIENTE_ASIGNACION').length;
+            const enSeguimientoCount = casos.filter(c => c.estado === 'EN_SEGUIMIENTO').length;
 
-            {/* Segmented Control de Estado */}
-            <div className="md:col-span-4 flex bg-slate-100 p-1 rounded-xl">
-              {[
-                { id: "Todos", label: "Todos" },
-                { id: "PENDIENTE_ASIGNACION", label: "Sin Gestor" },
-                { id: "EN_SEGUIMIENTO", label: "En Seguimiento" }
-              ].map(tab => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setFilterEstadoCaso(tab.id as any)}
-                  className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition text-center ${
-                    filterEstadoCaso === tab.id
-                      ? "bg-white text-indigo-700 shadow-sm"
-                      : "text-slate-500 hover:text-slate-800"
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
+            return (
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-4">
+                
+                {/* Lado izquierdo: Buscador y Segmentado de Estado */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 flex-1 max-w-2xl">
+                  {/* Buscador */}
+                  <div className="relative flex-1 min-w-[200px]">
+                    <input
+                      type="text"
+                      value={searchGestion}
+                      onChange={e => setSearchGestion(e.target.value)}
+                      placeholder="Buscar por RUT o Nombre..."
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 pl-9 text-xs font-medium focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition"
+                    />
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    {searchGestion && (
+                      <button 
+                        type="button"
+                        onClick={() => setSearchGestion("")}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
 
-            {/* Selects: Origen + Sector + Mis Casos */}
-            <div className="md:col-span-4 flex items-center gap-2">
-              <select
-                value={filterTipoCaso}
-                onChange={e => setFilterTipoCaso(e.target.value as any)}
-                className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-medium text-slate-700 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none"
-              >
-                <option value="Todos">Todos los Orígenes</option>
-                <option value="POST_HOSPITALIZADO">🏥 Post-Alta</option>
-                <option value="POLICONSULTANTE">🔄 Policonsult.</option>
-                <option value="DERIVACION_CLINICA">📋 Derivación</option>
-              </select>
+                  {/* Segmented Control con conteos integrados */}
+                  <div className="flex bg-slate-100 p-1 rounded-xl shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setFilterEstadoCaso("Todos")}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                        filterEstadoCaso === "Todos"
+                          ? "bg-white text-indigo-700 shadow-sm"
+                          : "text-slate-500 hover:text-slate-800"
+                      }`}
+                    >
+                      <span>Todos</span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                        filterEstadoCaso === "Todos" ? "bg-indigo-50 text-indigo-700" : "bg-slate-200/80 text-slate-600"
+                      }`}>
+                        {casos.length}
+                      </span>
+                    </button>
 
-              <select
-                value={filterSectorGestion}
-                onChange={e => setFilterSectorGestion(e.target.value)}
-                className="w-32 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-medium text-slate-700 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none"
-              >
-                {sectors.map(sec => (
-                  <option key={sec} value={sec}>
-                    {sec === "Todos" ? "Todo Sector" : sec}
-                  </option>
-                ))}
-              </select>
+                    <button
+                      type="button"
+                      onClick={() => setFilterEstadoCaso("PENDIENTE_ASIGNACION")}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                        filterEstadoCaso === "PENDIENTE_ASIGNACION"
+                          ? "bg-white text-amber-700 shadow-sm"
+                          : "text-slate-500 hover:text-slate-800"
+                      }`}
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />
+                      <span>Sin Gestor</span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                        filterEstadoCaso === "PENDIENTE_ASIGNACION" ? "bg-amber-100 text-amber-800" : "bg-slate-200/80 text-slate-600"
+                      }`}>
+                        {pendientesCount}
+                      </span>
+                    </button>
 
-              {/* Botón Mis Casos */}
-              <button
-                type="button"
-                onClick={() => setFilterSoloMisCasos(!filterSoloMisCasos)}
-                className={`px-3 py-2 rounded-xl text-xs font-bold border transition shrink-0 ${
-                  filterSoloMisCasos 
-                    ? "bg-indigo-600 text-white border-indigo-600 shadow-sm" 
-                    : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
-                }`}
-                title="Filtrar solo los casos asignados a mí"
-              >
-                👤 Mis Casos
-              </button>
-            </div>
+                    <button
+                      type="button"
+                      onClick={() => setFilterEstadoCaso("EN_SEGUIMIENTO")}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                        filterEstadoCaso === "EN_SEGUIMIENTO"
+                          ? "bg-white text-emerald-700 shadow-sm"
+                          : "text-slate-500 hover:text-slate-800"
+                      }`}
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+                      <span>En Seguimiento</span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                        filterEstadoCaso === "EN_SEGUIMIENTO" ? "bg-emerald-100 text-emerald-800" : "bg-slate-200/80 text-slate-600"
+                      }`}>
+                        {enSeguimientoCount}
+                      </span>
+                    </button>
+                  </div>
+                </div>
 
-          </div>
+                {/* Lado derecho: Selects, Mis Casos y Refrescar */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <select
+                    value={filterTipoCaso}
+                    onChange={e => setFilterTipoCaso(e.target.value as any)}
+                    className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-medium text-slate-700 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                  >
+                    <option value="Todos">Todos los Orígenes</option>
+                    <option value="POST_HOSPITALIZADO">🏥 Post-Alta</option>
+                    <option value="POLICONSULTANTE">🔄 Policonsult.</option>
+                    <option value="DERIVACION_CLINICA">📋 Derivación</option>
+                  </select>
+
+                  <select
+                    value={filterSectorGestion}
+                    onChange={e => setFilterSectorGestion(e.target.value)}
+                    className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-medium text-slate-700 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                  >
+                    {sectors.map(sec => (
+                      <option key={sec} value={sec}>
+                        {sec === "Todos" ? "Todo Sector" : sec}
+                      </option>
+                    ))}
+                  </select>
+
+                  <button
+                    type="button"
+                    onClick={() => setFilterSoloMisCasos(!filterSoloMisCasos)}
+                    className={`px-3 py-2 rounded-xl text-xs font-bold border transition shrink-0 ${
+                      filterSoloMisCasos 
+                        ? "bg-indigo-600 text-white border-indigo-600 shadow-sm" 
+                        : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                    }`}
+                    title="Filtrar solo los casos asignados a mí"
+                  >
+                    👤 Mis Casos
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={cargarCasos}
+                    disabled={loadingCasos}
+                    className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 border border-slate-200 rounded-xl bg-white transition shrink-0"
+                    title="Actualizar casos"
+                  >
+                    <RefreshCw size={14} className={loadingCasos ? 'animate-spin text-indigo-600' : ''} />
+                  </button>
+                </div>
+
+              </div>
+            );
+          })()}
 
           {/* Tabla de Casos Desaturada y Elegante */}
           {loadingCasos ? (
