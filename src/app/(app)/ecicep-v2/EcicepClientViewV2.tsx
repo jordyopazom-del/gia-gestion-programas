@@ -2915,14 +2915,11 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
             </div>
 
             <div className="p-6 space-y-4">
-              {modalAsignar.estamentoSugerido && (
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 font-medium flex items-center justify-between">
+              {modalAsignar.estamentoSugerido && 
+               modalAsignar.estamentoSugerido.toUpperCase() !== "SIN ASIGNAR" &&
+               modalAsignar.estamentoSugerido.trim() !== "" && (
+                <div className="p-2.5 bg-amber-50/80 border border-amber-200/80 rounded-xl text-xs text-amber-800 font-medium flex items-center gap-2">
                   <span>🏷 Estamento sugerido: <strong className="uppercase">{modalAsignar.estamentoSugerido}</strong></span>
-                  {!asignarSelectedRut && !asignarSearchQuery && (
-                    <span className="text-[10px] text-amber-700 font-semibold bg-amber-100 px-2 py-0.5 rounded">
-                      Priorizados arriba
-                    </span>
-                  )}
                 </div>
               )}
 
@@ -2943,7 +2940,7 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
                     const rut = p.rut.toLowerCase();
                     return nom.includes(queryNorm) || rol.includes(queryNorm) || rut.includes(queryNorm);
                   }).sort((a, b) => {
-                    if (estamentoNorm) {
+                    if (estamentoNorm && estamentoNorm !== "sin asignar") {
                       const aMatch = (a.rol || "").toLowerCase().includes(estamentoNorm);
                       const bMatch = (b.rol || "").toLowerCase().includes(estamentoNorm);
                       if (aMatch && !bMatch) return -1;
@@ -2985,7 +2982,7 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
                   return (
                     <div className="space-y-2">
                       <div className="relative">
-                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                         <input
                           type="text"
                           autoFocus
@@ -3005,43 +3002,47 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
                         )}
                       </div>
 
-                      {/* Lista de sugerencias predictivas */}
-                      <div className="max-h-48 overflow-y-auto divide-y divide-slate-100 border border-slate-200 rounded-xl bg-white shadow-inner">
-                        {sugerencias.length === 0 ? (
-                          <div className="p-4 text-center text-xs text-slate-400">
-                            No se encontraron profesionales coincidentes.
-                          </div>
-                        ) : (
-                          sugerencias.slice(0, 15).map(p => {
-                            const esSugerido = modalAsignar.estamentoSugerido && (p.rol || "").toUpperCase().includes(modalAsignar.estamentoSugerido.toUpperCase());
-                            return (
-                              <button
-                                key={p.rut}
-                                type="button"
-                                onClick={() => {
-                                  setAsignarSelectedRut(p.rut);
-                                  setAsignarSearchQuery("");
-                                }}
-                                className="w-full text-left px-3 py-2 hover:bg-indigo-50/70 transition flex items-center justify-between group"
-                              >
-                                <div className="min-w-0 pr-2">
-                                  <p className="text-xs font-bold text-slate-800 group-hover:text-indigo-900 uppercase truncate">
-                                    {p.nombre}
-                                  </p>
-                                  <p className="text-[10px] text-slate-400 font-medium truncate">
-                                    {p.rol}
-                                  </p>
-                                </div>
-                                {esSugerido && (
-                                  <span className="text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded shrink-0">
-                                    Sugerido
-                                  </span>
-                                )}
-                              </button>
-                            );
-                          })
-                        )}
-                      </div>
+                      {/* Lista de sugerencias predictivas: SOLO se muestra al escribir */}
+                      {queryNorm.length > 0 && (
+                        <div className="max-h-48 overflow-y-auto divide-y divide-slate-100 border border-slate-200 rounded-xl bg-white shadow-lg animate-in fade-in duration-150">
+                          {sugerencias.length === 0 ? (
+                            <div className="p-4 text-center text-xs text-slate-400">
+                              No se encontraron profesionales con &ldquo;{asignarSearchQuery}&rdquo;
+                            </div>
+                          ) : (
+                            sugerencias.slice(0, 10).map(p => {
+                              const esSugerido = modalAsignar.estamentoSugerido && 
+                                modalAsignar.estamentoSugerido.toUpperCase() !== "SIN ASIGNAR" &&
+                                (p.rol || "").toUpperCase().includes(modalAsignar.estamentoSugerido.toUpperCase());
+                              return (
+                                <button
+                                  key={p.rut}
+                                  type="button"
+                                  onClick={() => {
+                                    setAsignarSelectedRut(p.rut);
+                                    setAsignarSearchQuery("");
+                                  }}
+                                  className="w-full text-left px-3.5 py-2.5 hover:bg-indigo-50/70 transition flex items-center justify-between group"
+                                >
+                                  <div className="min-w-0 pr-2">
+                                    <p className="text-xs font-bold text-slate-800 group-hover:text-indigo-900 uppercase truncate">
+                                      {p.nombre}
+                                    </p>
+                                    <p className="text-[10px] text-slate-400 font-medium truncate">
+                                      {p.rol}
+                                    </p>
+                                  </div>
+                                  {esSugerido && (
+                                    <span className="text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded shrink-0">
+                                      Sugerido
+                                    </span>
+                                  )}
+                                </button>
+                              );
+                            })
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })()}
