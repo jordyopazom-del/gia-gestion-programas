@@ -51,9 +51,11 @@ export type ProfesionalAsignable = {
 export async function obtenerProfesionalesAsignables(): Promise<ProfesionalAsignable[]> {
   try {
     const rows = await sql`
-      SELECT rut, nombre, rol 
+      SELECT rut, nombre, COALESCE(profesion, rol) as rol 
       FROM gia_usuarios 
-      WHERE activo = true 
+      WHERE rol != 'INACTIVO'
+        AND UPPER(nombre) != 'MIGRACION SISTEMA' 
+        AND UPPER(nombre) != 'MIGRACIÓN SISTEMA'
       ORDER BY nombre ASC
     `;
     return rows as unknown as ProfesionalAsignable[];
