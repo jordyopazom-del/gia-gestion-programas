@@ -177,6 +177,7 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
     show: false, casoId: null, pacienteNombre: ""
   });
   const [asignarSelectedRut, setAsignarSelectedRut] = useState("");
+  const [asignarSearchQuery, setAsignarSearchQuery] = useState("");
   const [asignarSaving, setAsignarSaving] = useState(false);
 
   const [modalCerrar, setModalCerrar] = useState<{ show: boolean; casoId: number | null; pacienteNombre: string }>({
@@ -418,6 +419,7 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
       toast.success("Gestor asignado exitosamente.");
       setModalAsignar({ show: false, casoId: null, pacienteNombre: "" });
       setAsignarSelectedRut("");
+      setAsignarSearchQuery("");
       await cargarCasos();
     }
   };
@@ -1389,6 +1391,7 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
                                       categoria: caso.categoria || null
                                     });
                                     setAsignarSelectedRut("");
+                                    setAsignarSearchQuery("");
                                   }}
                                   className="px-2.5 py-1 text-xs font-bold bg-white text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-50 transition"
                                 >
@@ -1408,6 +1411,7 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
                                       categoria: caso.categoria || null
                                     });
                                     setAsignarSelectedRut(caso.gestor_asignado_rut || "");
+                                    setAsignarSearchQuery("");
                                   }}
                                   className="px-2 py-1 text-xs font-medium text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition"
                                 >
@@ -2899,7 +2903,11 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
                 </div>
               </div>
               <button 
-                onClick={() => setModalAsignar({ show: false, casoId: null, pacienteNombre: "" })} 
+                onClick={() => {
+                  setModalAsignar({ show: false, casoId: null, pacienteNombre: "" });
+                  setAsignarSelectedRut("");
+                  setAsignarSearchQuery("");
+                }} 
                 className="text-slate-400 hover:text-slate-600 p-1 bg-white border rounded-full"
               >
                 <X size={18} />
@@ -2908,8 +2916,13 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
 
             <div className="p-6 space-y-4">
               {modalAsignar.estamentoSugerido && (
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 font-medium">
-                  🏷 Estamento sugerido: <strong className="uppercase">{modalAsignar.estamentoSugerido}</strong>
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 font-medium flex items-center justify-between">
+                  <span>🏷 Estamento sugerido: <strong className="uppercase">{modalAsignar.estamentoSugerido}</strong></span>
+                  {!asignarSelectedRut && !asignarSearchQuery && (
+                    <span className="text-[10px] text-amber-700 font-semibold bg-amber-100 px-2 py-0.5 rounded">
+                      Priorizados arriba
+                    </span>
+                  )}
                 </div>
               )}
 
@@ -2917,19 +2930,123 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
                   Selecciona el Profesional del CESFAM <span className="text-red-500">*</span>
                 </label>
-                <select
-                  value={asignarSelectedRut}
-                  onChange={e => setAsignarSelectedRut(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-slate-800"
-                >
-                  <option value="">-- Seleccionar profesional --</option>
-                  {profesionales.map(p => (
-                    <option key={p.rut} value={p.rut}>
-                      {p.nombre} ({p.rol})
-                    </option>
-                  ))}
-                </select>
-                <p className="text-[11px] text-slate-400 mt-1.5">
+
+                {(() => {
+                  const profesionalSeleccionado = profesionales.find(p => p.rut === asignarSelectedRut);
+                  const queryNorm = asignarSearchQuery.trim().toLowerCase();
+                  const estamentoNorm = (modalAsignar.estamentoSugerido || "").trim().toLowerCase();
+
+                  const sugerencias = profesionales.filter(p => {
+                    if (!queryNorm) return true;
+                    const nom = p.nombre.toLowerCase();
+                    const rol = (p.rol || "").toLowerCase();
+                    const rut = p.rut.toLowerCase();
+                    return nom.includes(queryNorm) || rol.includes(queryNorm) || rut.includes(queryNorm);
+                  }).sort((a, b) => {
+                    if (estamentoNorm) {
+                      const aMatch = (a.rol || "").toLowerCase().includes(estamentoNorm);
+                      const bMatch = (b.rol || "").toLowerCase().includes(estamentoNorm);
+                      if (aMatch && !bMatch) return -1;
+                      if (!aMatch && bMatch) return 1;
+                    }
+                    return a.nombre.localeCompare(b.nombre);
+                  });
+
+                  if (profesionalSeleccionado) {
+                    return (
+                      <div className="p-3 bg-indigo-50/70 border border-indigo-200/90 rounded-2xl flex items-center justify-between animate-in fade-in duration-150">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="h-8 w-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                            <User size={16} />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-slate-900 uppercase truncate">
+                              {profesionalSeleccionado.nombre}
+                            </p>
+                            <p className="text-[11px] text-indigo-700 font-medium truncate">
+                              {profesionalSeleccionado.rol} · <span className="font-mono text-slate-400">{profesionalSeleccionado.rut}</span>
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAsignarSelectedRut("");
+                            setAsignarSearchQuery("");
+                          }}
+                          className="px-2.5 py-1 text-xs font-bold text-indigo-700 bg-white border border-indigo-200 hover:bg-indigo-50 rounded-lg transition shrink-0 ml-2 shadow-sm"
+                        >
+                          Cambiar
+                        </button>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-2">
+                      <div className="relative">
+                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="text"
+                          autoFocus
+                          value={asignarSearchQuery}
+                          onChange={e => setAsignarSearchQuery(e.target.value)}
+                          placeholder="Escribe nombre o estamento (ej: Claudia, TENS)..."
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-8 py-2.5 text-xs font-medium focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition text-slate-800"
+                        />
+                        {asignarSearchQuery && (
+                          <button
+                            type="button"
+                            onClick={() => setAsignarSearchQuery("")}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Lista de sugerencias predictivas */}
+                      <div className="max-h-48 overflow-y-auto divide-y divide-slate-100 border border-slate-200 rounded-xl bg-white shadow-inner">
+                        {sugerencias.length === 0 ? (
+                          <div className="p-4 text-center text-xs text-slate-400">
+                            No se encontraron profesionales coincidentes.
+                          </div>
+                        ) : (
+                          sugerencias.slice(0, 15).map(p => {
+                            const esSugerido = modalAsignar.estamentoSugerido && (p.rol || "").toUpperCase().includes(modalAsignar.estamentoSugerido.toUpperCase());
+                            return (
+                              <button
+                                key={p.rut}
+                                type="button"
+                                onClick={() => {
+                                  setAsignarSelectedRut(p.rut);
+                                  setAsignarSearchQuery("");
+                                }}
+                                className="w-full text-left px-3 py-2 hover:bg-indigo-50/70 transition flex items-center justify-between group"
+                              >
+                                <div className="min-w-0 pr-2">
+                                  <p className="text-xs font-bold text-slate-800 group-hover:text-indigo-900 uppercase truncate">
+                                    {p.nombre}
+                                  </p>
+                                  <p className="text-[10px] text-slate-400 font-medium truncate">
+                                    {p.rol}
+                                  </p>
+                                </div>
+                                {esSugerido && (
+                                  <span className="text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded shrink-0">
+                                    Sugerido
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                <p className="text-[11px] text-slate-400 mt-2">
                   El caso pasará inmediatamente a estado <strong>En Seguimiento</strong> a nombre del profesional seleccionado.
                 </p>
               </div>
@@ -2938,7 +3055,11 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
             <div className="p-5 bg-slate-50 border-t border-slate-100 flex gap-3">
               <button
                 type="button"
-                onClick={() => setModalAsignar({ show: false, casoId: null, pacienteNombre: "" })}
+                onClick={() => {
+                  setModalAsignar({ show: false, casoId: null, pacienteNombre: "" });
+                  setAsignarSelectedRut("");
+                  setAsignarSearchQuery("");
+                }}
                 className="flex-1 px-4 py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-200 transition-colors border border-slate-200 bg-white"
               >
                 Cancelar
