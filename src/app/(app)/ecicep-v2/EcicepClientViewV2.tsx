@@ -167,6 +167,9 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
   const [casoError, setCasoError] = useState("");
   const [filterTipoCaso, setFilterTipoCaso] = useState<"Todos" | TipoCaso>("Todos");
   const [filterEstadoCaso, setFilterEstadoCaso] = useState<"Todos" | "PENDIENTE_ASIGNACION" | "EN_SEGUIMIENTO">("Todos");
+  const [searchGestion, setSearchGestion] = useState("");
+  const [filterSectorGestion, setFilterSectorGestion] = useState("Todos");
+  const [filterSoloMisCasos, setFilterSoloMisCasos] = useState(false);
 
   // Modales de asignación y cierre de caso
   const [profesionales, setProfesionales] = useState<ProfesionalAsignable[]>([]);
@@ -771,6 +774,26 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
     setCurrentPage(1);
   }, [searchRut, filterSector, filterStatus, filterCategory, filterSeguimientoEstamento, onlyBrecha, onlyOrdenes, onlySinPlan, filterPendienteEstamento]);
 
+  const casosFiltrados = useMemo(() => {
+    return casos.filter(c => {
+      if (filterTipoCaso !== 'Todos' && c.tipo !== filterTipoCaso) return false;
+      if (filterEstadoCaso !== 'Todos' && c.estado !== filterEstadoCaso) return false;
+      if (filterSectorGestion !== 'Todos' && c.sector !== filterSectorGestion) return false;
+      if (filterSoloMisCasos) {
+        const userCleanRut = user?.rut ? user.rut.replace(/[^0-9kK]/g, "").toLowerCase() : "";
+        const casoCleanRut = c.gestor_asignado_rut ? c.gestor_asignado_rut.replace(/[^0-9kK]/g, "").toLowerCase() : "";
+        if (!userCleanRut || userCleanRut !== casoCleanRut) return false;
+      }
+      if (searchGestion.trim()) {
+        const q = searchGestion.toLowerCase().trim();
+        const rutClean = c.rut_paciente ? c.rut_paciente.toLowerCase() : "";
+        const nomClean = c.nombre_completo ? c.nombre_completo.toLowerCase() : "";
+        if (!rutClean.includes(q) && !nomClean.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [casos, filterTipoCaso, filterEstadoCaso, filterSectorGestion, filterSoloMisCasos, searchGestion, user]);
+
   const stats = useMemo(() => {
     const total = data.length;
     const catCounts: Record<string, number> = { "G0": 0, "G1": 0, "G2": 0, "G3": 0, "PENDIENTE": 0 };
@@ -998,10 +1021,10 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
 
 
       {view === 'gestion' ? (
-        /* ───── VISTA GESTIÓN DE CASOS ───── */
+        /* ───── VISTA GESTIÓN DE CASOS (DESATURADA & MINIMALISTA) ───── */
         <div className="px-6 pb-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
 
-          {/* KPIs */}
+          {/* Barra de Resumen Clínico Desaturada (Reemplaza las 4 tarjetas gigantes) */}
           {(() => {
             const postHosp = casos.filter(c => c.tipo === 'POST_HOSPITALIZADO');
             const criticos = postHosp.filter(c => { const h = calcularHorasDesdeAlta(c.fecha_alta); return h !== null && h > 48 && c.estado === 'PENDIENTE_ASIGNACION'; });
@@ -1009,292 +1032,363 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
             const enSeguimiento = casos.filter(c => c.estado === 'EN_SEGUIMIENTO');
             const alertasVencidos = casos.filter(c => calcularTiempoEnGestion(c.fecha_registro).esAlerta);
             return (
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6 mt-4">
-                <div className={`p-4 rounded-2xl border flex items-center gap-4 ${criticos.length > 0 ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
-                  <div className={`h-11 w-11 rounded-xl flex items-center justify-center shrink-0 ${criticos.length > 0 ? 'bg-red-500 text-white' : 'bg-slate-200 text-slate-500'}`}>
-                    <Hospital size={22} />
+              <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-slate-50 border border-slate-200 rounded-2xl mb-4 text-xs">
+                <div className="flex flex-wrap items-center gap-3">
+                  {criticos.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => { setFilterTipoCaso('POST_HOSPITALIZADO'); setFilterEstadoCaso('PENDIENTE_ASIGNACION'); }}
+                      className="flex items-center gap-1.5 px-3 py-1 bg-red-100 text-red-800 border border-red-200 rounded-lg font-bold hover:bg-red-200 transition"
+                      title="Ver casos post-alta con más de 48 horas sin gestor"
+                    >
+                      <span className="h-2 w-2 rounded-full bg-red-600 animate-pulse" />
+                      <span>{criticos.length} Post-Alta sin rescate (&gt;48h)</span>
+                    </button>
+                  )}
+                  
+                  <div className="flex items-center gap-1.5 text-slate-600 px-2 py-1">
+                    <span className="h-2 w-2 rounded-full bg-amber-500" />
+                    <span><strong>{pendientesAsignacion.length}</strong> Sin Gestor</span>
                   </div>
-                  <div>
-                    <p className={`text-3xl font-light ${criticos.length > 0 ? 'text-red-700' : 'text-slate-700'}`}>{criticos.length}</p>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Post-Hosp. Críticos (&gt;48h)</p>
+
+                  <div className="flex items-center gap-1.5 text-slate-600 px-2 py-1">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                    <span><strong>{enSeguimiento.length}</strong> En Seguimiento</span>
                   </div>
+
+                  {alertasVencidos.length > 0 && (
+                    <div className="flex items-center gap-1.5 text-rose-700 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200 font-medium">
+                      <AlertTriangle size={12} className="text-rose-500" />
+                      <span>{alertasVencidos.length} llevan &gt;6 meses</span>
+                    </div>
+                  )}
                 </div>
-                <div className="p-4 rounded-2xl border bg-amber-50/70 border-amber-200 flex items-center gap-4">
-                  <div className="h-11 w-11 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0">
-                    <Clock size={22} />
-                  </div>
-                  <div>
-                    <p className="text-3xl font-light text-amber-900">{pendientesAsignacion.length}</p>
-                    <p className="text-[10px] font-black text-amber-700 uppercase tracking-wider">Sin Gestor Asignado</p>
-                  </div>
-                </div>
-                <div className="p-4 rounded-2xl border bg-blue-50/70 border-blue-200 flex items-center gap-4">
-                  <div className="h-11 w-11 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0">
-                    <User size={22} />
-                  </div>
-                  <div>
-                    <p className="text-3xl font-light text-blue-900">{enSeguimiento.length}</p>
-                    <p className="text-[10px] font-black text-blue-700 uppercase tracking-wider">En Seguimiento Activo</p>
-                  </div>
-                </div>
-                <div className={`p-4 rounded-2xl border flex items-center gap-4 ${alertasVencidos.length > 0 ? 'bg-rose-50 border-rose-200' : 'bg-slate-50 border-slate-200'}`}>
-                  <div className={`h-11 w-11 rounded-xl flex items-center justify-center shrink-0 ${alertasVencidos.length > 0 ? 'bg-rose-500 text-white' : 'bg-slate-200 text-slate-500'}`}>
-                    <AlertTriangle size={22} />
-                  </div>
-                  <div>
-                    <p className={`text-3xl font-light ${alertasVencidos.length > 0 ? 'text-rose-700' : 'text-slate-700'}`}>{alertasVencidos.length}</p>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Alerta Límite &gt;6 Meses</p>
-                  </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-slate-400 font-medium">
+                    Total: {casos.length} casos activos
+                  </span>
+                  <button
+                    type="button"
+                    onClick={cargarCasos}
+                    disabled={loadingCasos}
+                    className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-lg transition"
+                    title="Actualizar casos"
+                  >
+                    <RefreshCw size={13} className={loadingCasos ? 'animate-spin' : ''} />
+                  </button>
                 </div>
               </div>
             );
           })()}
 
-          {/* Filtros rápidos + recargar */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-bold text-slate-400 mr-1">Origen:</span>
-              {(["Todos", "POST_HOSPITALIZADO", "POLICONSULTANTE", "DERIVACION_CLINICA"] as const).map(t => (
-                <button
-                  key={t}
-                  onClick={() => setFilterTipoCaso(t)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
-                    filterTipoCaso === t
-                      ? t === 'POST_HOSPITALIZADO' ? 'bg-blue-600 text-white border-blue-600'
-                        : t === 'POLICONSULTANTE' ? 'bg-amber-500 text-white border-amber-500'
-                        : t === 'DERIVACION_CLINICA' ? 'bg-purple-600 text-white border-purple-600'
-                        : 'bg-slate-800 text-white border-slate-800'
-                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                  }`}
+          {/* Barra de Filtros Limpia y Funcional */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 mb-4 items-center">
+            
+            {/* Buscador de Caso */}
+            <div className="md:col-span-4 relative">
+              <input
+                type="text"
+                value={searchGestion}
+                onChange={e => setSearchGestion(e.target.value)}
+                placeholder="Buscar por RUT o Nombre..."
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 pl-9 text-xs font-medium focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition"
+              />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              {searchGestion && (
+                <button 
+                  type="button"
+                  onClick={() => setSearchGestion("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
                 >
-                  {t === 'Todos' ? 'Todos'
-                    : t === 'POST_HOSPITALIZADO' ? '🏥 Post-Alta'
-                    : t === 'POLICONSULTANTE' ? '🔄 Policonsult.'
-                    : '📋 Derivación'}
+                  ✕
                 </button>
-              ))}
+              )}
+            </div>
 
-              <div className="h-4 w-px bg-slate-200 mx-1 hidden md:block" />
-
-              <span className="text-xs font-bold text-slate-400 mr-1">Estado:</span>
-              {(["Todos", "PENDIENTE_ASIGNACION", "EN_SEGUIMIENTO"] as const).map(e => (
+            {/* Segmented Control de Estado */}
+            <div className="md:col-span-4 flex bg-slate-100 p-1 rounded-xl">
+              {[
+                { id: "Todos", label: "Todos" },
+                { id: "PENDIENTE_ASIGNACION", label: "Sin Gestor" },
+                { id: "EN_SEGUIMIENTO", label: "En Seguimiento" }
+              ].map(tab => (
                 <button
-                  key={e}
-                  onClick={() => setFilterEstadoCaso(e)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
-                    filterEstadoCaso === e
-                      ? e === 'PENDIENTE_ASIGNACION' ? 'bg-amber-500 text-white border-amber-500'
-                        : e === 'EN_SEGUIMIENTO' ? 'bg-emerald-600 text-white border-emerald-600'
-                        : 'bg-slate-800 text-white border-slate-800'
-                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setFilterEstadoCaso(tab.id as any)}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition text-center ${
+                    filterEstadoCaso === tab.id
+                      ? "bg-white text-indigo-700 shadow-sm"
+                      : "text-slate-500 hover:text-slate-800"
                   }`}
                 >
-                  {e === 'Todos' ? 'Todos'
-                    : e === 'PENDIENTE_ASIGNACION' ? '⏳ Sin Gestor'
-                    : '👤 En Seguimiento'}
+                  {tab.label}
                 </button>
               ))}
             </div>
 
-            <button
-              onClick={cargarCasos}
-              disabled={loadingCasos}
-              className="flex items-center self-start md:self-auto gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-700 border border-slate-200 px-3 py-1.5 rounded-lg bg-white transition"
-            >
-              <RefreshCw size={13} className={loadingCasos ? 'animate-spin' : ''} />
-              Actualizar
-            </button>
+            {/* Selects: Origen + Sector + Mis Casos */}
+            <div className="md:col-span-4 flex items-center gap-2">
+              <select
+                value={filterTipoCaso}
+                onChange={e => setFilterTipoCaso(e.target.value as any)}
+                className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-medium text-slate-700 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none"
+              >
+                <option value="Todos">Todos los Orígenes</option>
+                <option value="POST_HOSPITALIZADO">🏥 Post-Alta</option>
+                <option value="POLICONSULTANTE">🔄 Policonsult.</option>
+                <option value="DERIVACION_CLINICA">📋 Derivación</option>
+              </select>
+
+              <select
+                value={filterSectorGestion}
+                onChange={e => setFilterSectorGestion(e.target.value)}
+                className="w-32 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-medium text-slate-700 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none"
+              >
+                {sectors.map(sec => (
+                  <option key={sec} value={sec}>
+                    {sec === "Todos" ? "Todo Sector" : sec}
+                  </option>
+                ))}
+              </select>
+
+              {/* Botón Mis Casos */}
+              <button
+                type="button"
+                onClick={() => setFilterSoloMisCasos(!filterSoloMisCasos)}
+                className={`px-3 py-2 rounded-xl text-xs font-bold border transition shrink-0 ${
+                  filterSoloMisCasos 
+                    ? "bg-indigo-600 text-white border-indigo-600 shadow-sm" 
+                    : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                }`}
+                title="Filtrar solo los casos asignados a mí"
+              >
+                👤 Mis Casos
+              </button>
+            </div>
+
           </div>
 
-          {/* Tabla de casos */}
+          {/* Tabla de Casos Desaturada y Elegante */}
           {loadingCasos ? (
             <div className="flex justify-center items-center py-16 text-slate-400 text-sm">Cargando casos...</div>
-          ) : casos.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-slate-400 border-2 border-dashed border-slate-200 rounded-2xl">
-              <Briefcase size={32} className="mb-3 opacity-40" />
-              <p className="text-sm font-semibold">No hay casos activos en gestión.</p>
-              <p className="text-xs mt-1">Usa el botón "Ingresar Caso" para añadir el primero.</p>
+          ) : casosFiltrados.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-slate-400 border border-dashed border-slate-200 rounded-2xl bg-white">
+              <Briefcase size={28} className="mb-2 opacity-30" />
+              <p className="text-xs font-bold text-slate-600">No se encontraron casos con los filtros seleccionados.</p>
+              {(searchGestion || filterTipoCaso !== 'Todos' || filterEstadoCaso !== 'Todos' || filterSectorGestion !== 'Todos' || filterSoloMisCasos) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchGestion("");
+                    setFilterTipoCaso("Todos");
+                    setFilterEstadoCaso("Todos");
+                    setFilterSectorGestion("Todos");
+                    setFilterSoloMisCasos(false);
+                  }}
+                  className="mt-2 text-xs font-bold text-indigo-600 hover:underline"
+                >
+                  Restablecer filtros
+                </button>
+              )}
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-2xl border border-slate-200">
+            <div className="overflow-x-auto rounded-2xl border border-slate-200 shadow-sm bg-white">
               <table className="w-full text-left text-xs whitespace-nowrap">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold">
+                <thead className="bg-slate-50/80 border-b border-slate-200 text-slate-500 font-bold text-[11px] uppercase tracking-wider">
                   <tr>
-                    <th className="px-4 py-3 w-[26%]">Paciente</th>
-                    <th className="px-4 py-3">Tipo / Origen</th>
-                    <th className="px-4 py-3">Estamento / Gestor</th>
-                    <th className="px-4 py-3 text-center">Tiempo en Gestión</th>
-                    <th className="px-4 py-3">Estado</th>
-                    <th className="px-4 py-3 text-right">Acción Rápida</th>
+                    <th className="px-5 py-3.5 w-[28%]">Paciente</th>
+                    <th className="px-4 py-3.5">Origen</th>
+                    <th className="px-4 py-3.5">Gestor Asignado</th>
+                    <th className="px-4 py-3.5 text-center">Tiempo / Urgencia</th>
+                    <th className="px-4 py-3.5">Estado</th>
+                    <th className="px-5 py-3.5 text-right">Acciones</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 bg-white">
-                  {casos
-                    .filter(c => filterTipoCaso === 'Todos' || c.tipo === filterTipoCaso)
-                    .filter(c => filterEstadoCaso === 'Todos' || c.estado === filterEstadoCaso)
-                    .map(caso => {
-                      const horas = caso.tipo === 'POST_HOSPITALIZADO' ? calcularHorasDesdeAlta(caso.fecha_alta) : null;
-                      const semaforo = getSemaforoConfig(horas);
-                      const tiempo = calcularTiempoEnGestion(caso.fecha_registro);
+                <tbody className="divide-y divide-slate-100">
+                  {casosFiltrados.map(caso => {
+                    const horas = caso.tipo === 'POST_HOSPITALIZADO' ? calcularHorasDesdeAlta(caso.fecha_alta) : null;
+                    const semaforo = getSemaforoConfig(horas);
+                    const tiempo = calcularTiempoEnGestion(caso.fecha_registro);
+                    const isSinGestor = caso.estado === 'PENDIENTE_ASIGNACION';
 
-                      return (
-                        <tr key={caso.id} className="hover:bg-slate-50 transition-colors">
-                          {/* 1. Paciente */}
-                          <td className="px-4 py-3.5">
-                            <p className="font-black text-slate-800 uppercase text-xs">{caso.nombre_completo}</p>
-                            <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-500">
-                              <CopyBadge value={`${caso.rut_paciente}`} label="RUT" />
-                              <span>•</span>
-                              <span className="flex items-center gap-0.5"><MapPin size={8} />{caso.sector}</span>
-                              {caso.telefono && <><span>•</span><CopyBadge value={caso.telefono} label="Teléfono" prefixIcon="📞" className="font-mono font-bold bg-slate-100 hover:bg-slate-200 px-1 py-0.5 rounded text-slate-600 transition-colors cursor-copy inline-flex items-center" /></>}
-                            </div>
-                            {caso.diagnostico_alta && (
-                              <p className="text-[10px] text-slate-500 mt-1 italic truncate max-w-[280px]">
-                                {caso.diagnostico_alta}
+                    return (
+                      <tr key={caso.id} className="hover:bg-slate-50/70 transition-colors">
+                        
+                        {/* 1. Paciente */}
+                        <td className="px-5 py-3.5">
+                          <p className="font-bold text-slate-800 uppercase text-xs tracking-tight">
+                            {caso.nombre_completo}
+                          </p>
+                          <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500 font-mono">
+                            <span>{caso.rut_paciente}</span>
+                            <span className="text-slate-300 font-sans">·</span>
+                            <span className="font-sans font-medium text-slate-600">{caso.sector}</span>
+                            {caso.telefono && (
+                              <>
+                                <span className="text-slate-300 font-sans">·</span>
+                                <span className="text-slate-600">📞 {caso.telefono}</span>
+                              </>
+                            )}
+                          </div>
+                          {caso.diagnostico_alta && (
+                            <p className="text-[10px] text-slate-400 mt-0.5 truncate max-w-[260px]" title={caso.diagnostico_alta}>
+                              {caso.diagnostico_alta}
+                            </p>
+                          )}
+                        </td>
+
+                        {/* 2. Origen */}
+                        <td className="px-4 py-3.5">
+                          {caso.tipo === 'POST_HOSPITALIZADO' ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-md border border-blue-100">
+                              <Hospital size={11} /> Post-Alta
+                            </span>
+                          ) : caso.tipo === 'POLICONSULTANTE' ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-md border border-amber-100">
+                              <RefreshCw size={11} /> Policonsult.
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-700 bg-purple-50 px-2.5 py-1 rounded-md border border-purple-100">
+                              <ClipboardCheck size={11} /> Derivación
+                            </span>
+                          )}
+                        </td>
+
+                        {/* 3. Gestor Asignado */}
+                        <td className="px-4 py-3.5">
+                          {isSinGestor ? (
+                            <span className="text-xs font-medium text-amber-700 bg-amber-50/80 px-2 py-0.5 rounded border border-amber-200/60 inline-flex items-center gap-1">
+                              <span>⏳ Requerido:</span>
+                              <strong className="uppercase font-bold">{caso.estamento_solicitado || 'Sin Asignar'}</strong>
+                            </span>
+                          ) : (
+                            <div>
+                              <p className="text-xs font-bold text-slate-800 flex items-center gap-1">
+                                <User size={12} className="text-indigo-600" />
+                                {caso.gestor_asignado_nombre}
                               </p>
-                            )}
-                          </td>
+                              <p className="text-[10px] text-slate-400 font-medium">
+                                {caso.estamento_solicitado ? `${caso.estamento_solicitado} · ` : ''}
+                                {caso.fecha_asignacion ? new Date(caso.fecha_asignacion).toLocaleDateString('es-CL') : ''}
+                              </p>
+                            </div>
+                          )}
+                        </td>
 
-                          {/* 2. Tipo / Origen */}
-                          <td className="px-4 py-3.5">
-                            {caso.tipo === 'POST_HOSPITALIZADO' ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-100 text-[10px] font-black">
-                                <Hospital size={10} /> POST-ALTA
-                              </span>
-                            ) : caso.tipo === 'POLICONSULTANTE' ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-100 text-[10px] font-black">
-                                <RefreshCw size={10} /> POLICONSULTANTE
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-100 text-[10px] font-black">
-                                <ClipboardCheck size={10} /> DERIVACIÓN CLÍNICA
-                              </span>
-                            )}
-                          </td>
-
-                          {/* 3. Estamento / Gestor Asignado */}
-                          <td className="px-4 py-3.5">
-                            {caso.estado === 'PENDIENTE_ASIGNACION' ? (
-                              <div>
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-black uppercase">
-                                  Requerido: {caso.estamento_solicitado || 'Sin Asignar'}
-                                </span>
-                                <p className="text-[9px] text-slate-400 mt-0.5">Esperando gestor</p>
+                        {/* 4. Tiempo / Urgencia */}
+                        <td className="px-4 py-3.5 text-center">
+                          <div className="flex flex-col items-center gap-0.5">
+                            {caso.tipo === 'POST_HOSPITALIZADO' && isSinGestor ? (
+                              <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${semaforo.color}`}>
+                                <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${semaforo.dot}`} />
+                                Post-Alta: {semaforo.label}
                               </div>
                             ) : (
-                              <div>
-                                <p className="text-xs font-bold text-slate-800 flex items-center gap-1">
-                                  <User size={12} className="text-indigo-600" />
-                                  {caso.gestor_asignado_nombre || 'Gestor Asignado'}
-                                </p>
-                                <p className="text-[10px] text-slate-400">
-                                  {caso.estamento_solicitado ? `${caso.estamento_solicitado} • ` : ''}
-                                  {caso.fecha_asignacion ? new Date(caso.fecha_asignacion).toLocaleDateString('es-CL') : ''}
-                                </p>
-                              </div>
+                              <span className="text-xs font-medium text-slate-700">
+                                {tiempo.subtext || tiempo.label}
+                              </span>
                             )}
-                          </td>
-
-                          {/* 4. Tiempo en Gestión (Reloj 6 meses + Alerta Post-Alta 48h) */}
-                          <td className="px-4 py-3.5 text-center">
-                            <div className="flex flex-col items-center gap-1">
-                              <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] border ${tiempo.className}`}>
-                                {tiempo.label}
+                            {tiempo.esAlerta && (
+                              <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.2 rounded border border-rose-200">
+                                &gt;6 meses
                               </span>
-                              <span className="text-[9px] text-slate-400">{tiempo.subtext}</span>
-                              {caso.tipo === 'POST_HOSPITALIZADO' && (
-                                <div className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[9px] font-black ${semaforo.color}`}>
-                                  <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${semaforo.dot}`} />
-                                  Post-Alta: {semaforo.label}
-                                </div>
-                              )}
-                            </div>
-                          </td>
+                            )}
+                          </div>
+                        </td>
 
-                          {/* 5. Estado */}
-                          <td className="px-4 py-3.5">
-                            {caso.estado === 'PENDIENTE_ASIGNACION' ? (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black bg-amber-50 text-amber-700 border border-amber-200">
-                                <Clock size={10} /> Sin Gestor
-                              </span>
+                        {/* 5. Estado */}
+                        <td className="px-4 py-3.5">
+                          {isSinGestor ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700">
+                              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                              Sin Gestor
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700">
+                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                              En Seguimiento
+                            </span>
+                          )}
+                        </td>
+
+                        {/* 6. Acciones */}
+                        <td className="px-5 py-3.5 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            {isSinGestor ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleAnularCaso(caso.id)}
+                                  className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                                  title="Anular derivación"
+                                >
+                                  <X size={14} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleTomarCaso(caso.id)}
+                                  className="px-2.5 py-1 text-xs font-bold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition shadow-sm"
+                                  title="Tomar caso a mi nombre"
+                                >
+                                  ✋ Tomar
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setModalAsignar({
+                                      show: true,
+                                      casoId: caso.id,
+                                      pacienteNombre: caso.nombre_completo,
+                                      estamentoSugerido: caso.estamento_solicitado || undefined
+                                    });
+                                    setAsignarSelectedRut("");
+                                  }}
+                                  className="px-2.5 py-1 text-xs font-bold bg-white text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-50 transition"
+                                >
+                                  Asignar
+                                </button>
+                              </>
                             ) : (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                <CheckCircle size={10} /> En Seguimiento
-                              </span>
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setModalAsignar({
+                                      show: true,
+                                      casoId: caso.id,
+                                      pacienteNombre: caso.nombre_completo,
+                                      estamentoSugerido: caso.estamento_solicitado || undefined
+                                    });
+                                    setAsignarSelectedRut(caso.gestor_asignado_rut || "");
+                                  }}
+                                  className="px-2 py-1 text-xs font-medium text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition"
+                                >
+                                  Reasignar
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setModalCerrar({
+                                      show: true,
+                                      casoId: caso.id,
+                                      pacienteNombre: caso.nombre_completo
+                                    });
+                                    setCerrarMotivo("OBJETIVO_CUMPLIDO");
+                                  }}
+                                  className="px-2.5 py-1 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-red-50 hover:text-red-700 hover:border-red-200 rounded-lg border border-slate-200 transition"
+                                >
+                                  Cerrar
+                                </button>
+                              </>
                             )}
-                          </td>
+                          </div>
+                        </td>
 
-                          {/* 6. Acciones Rápidas */}
-                          <td className="px-4 py-3.5 text-right">
-                            <div className="flex items-center justify-end gap-1.5">
-                              {caso.estado === 'PENDIENTE_ASIGNACION' ? (
-                                <>
-                                  <button
-                                    onClick={() => handleAnularCaso(caso.id)}
-                                    className="px-2.5 py-1.5 text-[10px] font-black bg-rose-50 text-rose-600 border border-rose-200 rounded-lg hover:bg-rose-100 transition flex items-center gap-1"
-                                    title="Anular derivación"
-                                  >
-                                    <X size={12} />
-                                  </button>
-                                  <button
-                                    onClick={() => handleTomarCaso(caso.id)}
-                                    className="px-2.5 py-1.5 text-[10px] font-black bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition shadow-sm flex items-center gap-1"
-                                    title="Asignarme este caso a mi nombre"
-                                  >
-                                    <span>✋ Tomar Caso</span>
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      setModalAsignar({
-                                        show: true,
-                                        casoId: caso.id,
-                                        pacienteNombre: caso.nombre_completo,
-                                        estamentoSugerido: caso.estamento_solicitado || undefined
-                                      });
-                                      setAsignarSelectedRut("");
-                                    }}
-                                    className="px-2.5 py-1.5 text-[10px] font-bold bg-white text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-50 transition"
-                                  >
-                                    Asignar a...
-                                  </button>
-                                </>
-                              ) : (
-                                <>
-                                  <button
-                                    onClick={() => {
-                                      setModalAsignar({
-                                        show: true,
-                                        casoId: caso.id,
-                                        pacienteNombre: caso.nombre_completo,
-                                        estamentoSugerido: caso.estamento_solicitado || undefined
-                                      });
-                                      setAsignarSelectedRut(caso.gestor_asignado_rut || "");
-                                    }}
-                                    className="px-2 py-1 text-[10px] font-semibold text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 border border-transparent hover:border-indigo-100 rounded-lg transition"
-                                    title="Reasignar a otro profesional"
-                                  >
-                                    Reasignar
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      setModalCerrar({
-                                        show: true,
-                                        casoId: caso.id,
-                                        pacienteNombre: caso.nombre_completo
-                                      });
-                                      setCerrarMotivo("OBJETIVO_CUMPLIDO");
-                                    }}
-                                    className="px-2.5 py-1.5 text-[10px] font-black bg-slate-100 text-slate-600 border border-slate-200 rounded-lg hover:bg-red-50 hover:text-red-700 hover:border-red-200 transition"
-                                  >
-                                    Cerrar Caso
-                                  </button>
-                                </>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
