@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { Search, MapPin, AlertTriangle, CheckCircle, Clock, Download, ClipboardCheck, X, User, Phone, Map, Calendar, Plus, Save, Briefcase, Hospital, RefreshCw } from "lucide-react";
+import { Search, MapPin, AlertTriangle, CheckCircle, Clock, Download, ClipboardCheck, X, User, Phone, Map, Calendar, Plus, Save, Briefcase, Hospital, RefreshCw, ArrowUpRight, BarChart3, ChevronDown, FileSpreadsheet, Target, Filter, UserCheck, Trash2 } from "lucide-react";
 import * as XLSX from "xlsx";
 import toast from "react-hot-toast";
 import { UserProfile } from "@/actions/userActions";
@@ -14,6 +14,7 @@ import {
   cerrarCaso, 
   obtenerProfesionalesAsignables, 
   ingresarCasosMultiples, 
+  anularCaso,
   GestionCaso, 
   TipoCaso, 
   EstadoCaso,
@@ -60,6 +61,21 @@ const formatDate = (dateString: string | null) => {
   } catch(e) {
     return dateString;
   }
+};
+
+const calcularDv = (rut: string | number): string => {
+  const cleanRut = String(rut).replace(/[^0-9]/g, "");
+  if (!cleanRut) return "";
+  let sum = 0;
+  let mul = 2;
+  for (let i = cleanRut.length - 1; i >= 0; i--) {
+    sum += parseInt(cleanRut[i], 10) * mul;
+    mul = mul === 7 ? 2 : mul + 1;
+  }
+  const rem = 11 - (sum % 11);
+  if (rem === 11) return "0";
+  if (rem === 10) return "K";
+  return String(rem);
 };
 
 const getParsedDataClinica = (dataClinica: any) => {
@@ -134,6 +150,7 @@ const getCitaDisplayStatus = (p: any, rol: string) => {
 
 export default function EcicepClientView({ data, user }: { data: any[], user: UserProfile }) {
   const [view, setView] = useState<'lista' | 'analisis' | 'gestion'>('lista');
+  const [showExportDropdown, setShowExportDropdown] = useState(false);
   const [searchRut, setSearchRut] = useState("");
   const [filterSector, setFilterSector] = useState("Todos");
   const [filterStatus, setFilterStatus] = useState("Todos");
@@ -141,7 +158,11 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
   const [filterPendienteEstamento, setFilterPendienteEstamento] = useState("Todos");
   const [filterSeguimientoEstamento, setFilterSeguimientoEstamento] = useState("Todos");
   const [onlyBrecha, setOnlyBrecha] = useState(false);
+  const [onlyOrdenes, setOnlyOrdenes] = useState(false);
+  const [onlySinPlan, setOnlySinPlan] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 100;
 
   // ── Gestión de Casos ──────────────────────────────────────────────────────
   const [casos, setCasos] = useState<GestionCaso[]>([]);
@@ -149,6 +170,7 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
 
   // Modal: Ingresar Caso
   const [showIngresarCasoModal, setShowIngresarCasoModal] = useState(false);
+  const [isDerivacionDirecta, setIsDerivacionDirecta] = useState(false);
   const [casoRutInput, setCasoRutInput] = useState("");
   const [casoRutSearch, setCasoRutSearch] = useState("");
   const [casoPacienteEncontrado, setCasoPacienteEncontrado] = useState<any>(null);
@@ -160,14 +182,18 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
   const [casoSaving, setCasoSaving] = useState(false);
   const [casoError, setCasoError] = useState("");
   const [filterTipoCaso, setFilterTipoCaso] = useState<"Todos" | TipoCaso>("Todos");
-  const [filterEstadoCaso, setFilterEstadoCaso] = useState<"Todos" | "PENDIENTE_ASIGNACION" | "EN_SEGUIMIENTO">("Todos");
+  const [filterEstadoCaso, setFilterEstadoCaso] = useState<"ACTIVOS" | "PENDIENTE_ASIGNACION" | "EN_SEGUIMIENTO" | "CERRADO">("ACTIVOS");
+  const [searchGestion, setSearchGestion] = useState("");
+  const [filterSectorGestion, setFilterSectorGestion] = useState("Todos");
+  const [filterSoloMisCasos, setFilterSoloMisCasos] = useState(false);
 
-  // Modales de asignación y cierre de caso
+  // Modales de gestión de casos
   const [profesionales, setProfesionales] = useState<ProfesionalAsignable[]>([]);
-  const [modalAsignar, setModalAsignar] = useState<{ show: boolean; casoId: number | null; pacienteNombre: string; estamentoSugerido?: string }>({
+  const [modalAsignar, setModalAsignar] = useState<{ show: boolean; casoId: number | null; pacienteNombre: string; estamentoSugerido?: string; categoria?: string | null }>({
     show: false, casoId: null, pacienteNombre: ""
   });
   const [asignarSelectedRut, setAsignarSelectedRut] = useState("");
+  const [asignarSearchQuery, setAsignarSearchQuery] = useState("");
   const [asignarSaving, setAsignarSaving] = useState(false);
 
   const [modalCerrar, setModalCerrar] = useState<{ show: boolean; casoId: number | null; pacienteNombre: string }>({
@@ -175,6 +201,35 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
   });
   const [cerrarMotivo, setCerrarMotivo] = useState("OBJETIVO_CUMPLIDO");
   const [cerrarSaving, setCerrarSaving] = useState(false);
+
+  // Modales de confirmación para Tomar y Anular
+  const [modalTomar, setModalTomar] = useState<{
+    show: boolean;
+    casoId: number | null;
+    pacienteNombre: string;
+    sector: string;
+    estamento?: string;
+  }>({
+    show: false,
+    casoId: null,
+    pacienteNombre: "",
+    sector: "",
+    estamento: ""
+  });
+  const [tomarSaving, setTomarSaving] = useState(false);
+
+  const [modalAnular, setModalAnular] = useState<{
+    show: boolean;
+    casoId: number | null;
+    pacienteNombre: string;
+    tipo: string;
+  }>({
+    show: false,
+    casoId: null,
+    pacienteNombre: "",
+    tipo: ""
+  });
+  const [anularSaving, setAnularSaving] = useState(false);
 
   // Modal State
   const [showFormModal, setShowFormModal] = useState(false);
@@ -265,6 +320,16 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
     setCasoTipo("POST_HOSPITALIZADO");
     setCasoSaving(false);
     setCasosPendientes([]);
+    setIsDerivacionDirecta(false);
+  };
+
+  const handleDerivarPacienteACaso = (paciente: any) => {
+    resetCasoModal();
+    setCasoRutInput(paciente.rut);
+    setCasoPacienteEncontrado(paciente);
+    setCasoTipo("DERIVACION_CLINICA");
+    setIsDerivacionDirecta(true);
+    setShowIngresarCasoModal(true);
   };
 
   const handleAgregarALista = () => {
@@ -322,6 +387,37 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
     }
   };
 
+  const handleGuardarDerivacionDirecta = async () => {
+    if (!casoPacienteEncontrado) return;
+    setCasoSaving(true);
+    setCasoError("");
+
+    const newCaso = {
+      rut_paciente: casoPacienteEncontrado.rut,
+      tipo: casoTipo,
+      fecha_alta: casoFechaAlta || undefined,
+      diagnostico_alta: casoDiagnostico || undefined,
+      estamento_solicitado: casoEstamentoSolicitado || undefined,
+      observaciones: casoObservaciones || undefined
+    };
+
+    const res = await ingresarCasosMultiples([newCaso]);
+    setCasoSaving(false);
+
+    if (res.error) {
+      setCasoError(res.error);
+    } else {
+      if ((res.insertados ?? 0) > 0) {
+        toast.success("Paciente derivado exitosamente.");
+        setShowIngresarCasoModal(false);
+        resetCasoModal();
+        await cargarCasos();
+      } else {
+        setCasoError("El paciente ya se encuentra en seguimiento o hubo un error.");
+      }
+    }
+  };
+
   // Cargar lista de profesionales para asignar
   useEffect(() => {
     async function loadProfesionales() {
@@ -333,14 +429,64 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
     }
   }, [view]);
 
-  // Tomar caso (Autogestión del usuario logueado)
-  const handleTomarCaso = async (id: number) => {
-    const res = await tomarCaso(id);
+  // Confirmar y anular derivación
+  const handleConfirmarAnularCaso = async () => {
+    if (!modalAnular.casoId) return;
+    setAnularSaving(true);
+    const res = await anularCaso(modalAnular.casoId);
+    setAnularSaving(false);
+    if (res.error) toast.error(res.error);
+    else {
+      toast.success("Derivación anulada correctamente.");
+      setModalAnular({ show: false, casoId: null, pacienteNombre: "", tipo: "" });
+      await cargarCasos();
+    }
+  };
+
+  // Confirmar y tomar caso (Autogestión del usuario actual)
+  const handleConfirmarTomarCaso = async () => {
+    if (!modalTomar.casoId) return;
+    setTomarSaving(true);
+    const res = await tomarCaso(modalTomar.casoId);
+    setTomarSaving(false);
     if (res.error) toast.error(res.error);
     else {
       toast.success("Has tomado este caso para seguimiento.");
+      setModalTomar({ show: false, casoId: null, pacienteNombre: "", sector: "", estamento: "" });
       await cargarCasos();
     }
+  };
+
+  // Exportar casos a Excel
+  const handleExportarCasosExcel = () => {
+    if (casosFiltrados.length === 0) {
+      toast.error("No hay casos para exportar con los filtros seleccionados.");
+      return;
+    }
+    const rows = casosFiltrados.map(c => ({
+      "RUT": c.dv ? `${c.rut_paciente}-${c.dv}` : `${c.rut_paciente}-${calcularDv(c.rut_paciente)}`,
+      "Nombre Paciente": c.nombre_completo,
+      "Sector": c.sector,
+      "Teléfono": c.telefono || "—",
+      "Categoría ECICEP": c.categoria || "S/E",
+      "Origen del Caso": c.tipo === "POST_HOSPITALIZADO" ? "Post-Alta Hospitalaria" : c.tipo === "POLICONSULTANTE" ? "Policonsultante" : "Derivación Clínica",
+      "Fecha Alta Hosp.": c.fecha_alta ? formatDate(c.fecha_alta) : "—",
+      "Diagnóstico Alta": c.diagnostico_alta || "—",
+      "Estamento Requerido": c.estamento_solicitado || "—",
+      "Estado": c.estado === "PENDIENTE_ASIGNACION" ? "Sin Gestor" : c.estado === "EN_SEGUIMIENTO" ? "En Seguimiento" : "Cerrado",
+      "Gestor Asignado": c.gestor_asignado_nombre || "Sin Asignar",
+      "Fecha Asignación": c.fecha_asignacion ? formatDate(c.fecha_asignacion) : "—",
+      "Fecha Cierre": c.fecha_cierre ? formatDate(c.fecha_cierre) : "—",
+      "Motivo Cierre": c.motivo_cierre || "—",
+      "Fecha Registro": c.fecha_registro ? formatDate(c.fecha_registro) : "—",
+      "Observaciones": c.observaciones || "—"
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Gestión de Casos");
+    XLSX.writeFile(wb, `GIA_Gestion_Casos_${filterEstadoCaso}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    toast.success(`Exportados ${rows.length} casos exitosamente.`);
   };
 
   // Asignar a un profesional específico
@@ -357,6 +503,7 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
       toast.success("Gestor asignado exitosamente.");
       setModalAsignar({ show: false, casoId: null, pacienteNombre: "" });
       setAsignarSelectedRut("");
+      setAsignarSearchQuery("");
       await cargarCasos();
     }
   };
@@ -451,7 +598,7 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
     setHospitalizacionReciente(false);
     setConsultasUrgencia(0);
     setGestorRut(selectedPatient.gestor_rut || "");
-    setProfesionalRut(selectedPatient.profesional_rut || user.rut || "");
+    setProfesionalRut(user.rut || "");
     setObservaciones(selectedPatient.observaciones || "");
     const dataClinica = getParsedDataClinica(selectedPatient.data_clinica);
     setSeguimientoTelefonico(dataClinica?.seguimiento_telefonico || false);
@@ -638,12 +785,48 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
     return ["Todos", ...Array.from(s)].sort();
   }, [data]);
 
+  const hasPlanRegistrado = (p: any) => {
+    const dc = getParsedDataClinica(p.data_clinica);
+    const plan = dc?.plan || [];
+    if (plan.length > 0) return true;
+    if (p.cita_medico || p.cita_enfermero || p.cita_nutri || p.cita_kine) return true;
+    return false;
+  };
+
+  const isCronicoSinPlan = (p: any) => {
+    const cat = p.categoria;
+    if (!cat || cat === "G0" || cat === "PENDIENTE") return false;
+    return !hasPlanRegistrado(p);
+  };
+
   const hasBrecha = (p: any) => {
+    if (p.categoria === "G0") return false; // G0 es población sana/promocional, no tiene brechas crónicas
     return ROLES_DISPONIBLES.some(rol => {
       const status = getCitaDisplayStatus(p, rol);
       return status.isExpired;
     });
   };
+
+  const hasOrdenes = (p: any) => {
+    const dc = getParsedDataClinica(p.data_clinica);
+    const plan = dc?.plan || [];
+    return plan.some((c: any) => c.laboratorio || c.ecg || c.espirometria || c.fondoOjo || c.perfilGlicemia || c.perfilPA || c.otros);
+  };
+
+  const counts = useMemo(() => {
+    let brechas = 0;
+    let ordenes = 0;
+    let seguimiento = 0;
+    let sinPlan = 0;
+    data.forEach(p => {
+      if (hasBrecha(p)) brechas++;
+      if (hasOrdenes(p)) ordenes++;
+      if (isCronicoSinPlan(p)) sinPlan++;
+      const dc = getParsedDataClinica(p.data_clinica);
+      if (dc?.seguimiento_telefonico) seguimiento++;
+    });
+    return { brechas, ordenes, seguimiento, sinPlan };
+  }, [data]);
 
   const filtered = useMemo(() => {
     return data.filter(p => {
@@ -661,15 +844,45 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
         (filterSeguimientoEstamento === "Solo con Seguimiento" ? !!dataClinica?.seguimiento_telefonico :
         (!!dataClinica?.seguimiento_telefonico && dataClinica?.estamento_seguimiento === filterSeguimientoEstamento));
       const matchBrecha = !onlyBrecha || hasBrecha(p);
+      const matchOrdenes = !onlyOrdenes || hasOrdenes(p);
+      const matchSinPlan = !onlySinPlan || isCronicoSinPlan(p);
       
       const matchPendienteEstamento = filterPendienteEstamento === "Todos" || (() => {
         const status = getCitaDisplayStatus(p, filterPendienteEstamento);
         return status.isExpired;
       })();
       
-      return matchRut && matchSector && matchStatus && matchCategory && matchSeguimiento && matchBrecha && matchPendienteEstamento;
+      return matchRut && matchSector && matchStatus && matchCategory && matchSeguimiento && matchBrecha && matchOrdenes && matchSinPlan && matchPendienteEstamento;
     });
-  }, [data, searchRut, filterSector, filterStatus, filterCategory, filterSeguimientoEstamento, onlyBrecha, filterPendienteEstamento]);
+  }, [data, searchRut, filterSector, filterStatus, filterCategory, filterSeguimientoEstamento, onlyBrecha, onlyOrdenes, onlySinPlan, filterPendienteEstamento]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchRut, filterSector, filterStatus, filterCategory, filterSeguimientoEstamento, onlyBrecha, onlyOrdenes, onlySinPlan, filterPendienteEstamento]);
+
+  const casosFiltrados = useMemo(() => {
+    return casos.filter(c => {
+      if (filterTipoCaso !== 'Todos' && c.tipo !== filterTipoCaso) return false;
+      if (filterEstadoCaso === "ACTIVOS") {
+        if (c.estado === 'CERRADO') return false;
+      } else if (c.estado !== filterEstadoCaso) {
+        return false;
+      }
+      if (filterSectorGestion !== 'Todos' && c.sector !== filterSectorGestion) return false;
+      if (filterSoloMisCasos) {
+        const userCleanRut = user?.rut ? user.rut.replace(/[^0-9kK]/g, "").toLowerCase() : "";
+        const casoCleanRut = c.gestor_asignado_rut ? c.gestor_asignado_rut.replace(/[^0-9kK]/g, "").toLowerCase() : "";
+        if (!userCleanRut || userCleanRut !== casoCleanRut) return false;
+      }
+      if (searchGestion.trim()) {
+        const q = searchGestion.toLowerCase().trim();
+        const rutClean = c.rut_paciente ? c.rut_paciente.toLowerCase() : "";
+        const nomClean = c.nombre_completo ? c.nombre_completo.toLowerCase() : "";
+        if (!rutClean.includes(q) && !nomClean.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [casos, filterTipoCaso, filterEstadoCaso, filterSectorGestion, filterSoloMisCasos, searchGestion, user]);
 
   const stats = useMemo(() => {
     const total = data.length;
@@ -731,42 +944,59 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
     };
   }, [data]);
 
-  const exportToExcel = () => {
-    const dataset = filtered.map(p => {
-      let age = "-";
-      if (p.fecha_nacimiento) {
-         const bd = new Date(p.fecha_nacimiento);
-         const today = new Date();
-         let a = today.getFullYear() - bd.getUTCFullYear();
-         if (today.getMonth() < bd.getUTCMonth() || (today.getMonth() === bd.getUTCMonth() && today.getDate() < bd.getUTCDate())) a--;
-         age = a.toString();
-      }
-      return {
-        "Estado Vigencia": getEcicepStatus(p.ultima_atencion).status,
-        "RUT": p.rut + "-" + p.dv,
-        "Nombre": p.nombre_completo,
-        "Edad": age,
-        "Sexo": p.sexo || "SIN REGISTRO",
-        "Sector": p.sector,
-        "Teléfono": p.telefono,
-        "Fecha Última Estratificación": formatDate(p.ultima_atencion),
-        "Fecha Ingreso ECICEP": formatDate(getParsedDataClinica(p.data_clinica)?.fecha_ingreso || p.ultima_atencion),
-        "Categoría ECICEP": p.categoria || "PENDIENTE",
-        "Seguimiento Telefónico": getParsedDataClinica(p.data_clinica)?.seguimiento_telefonico ? "SI" : "NO",
-        "Profesional Seguimiento": getParsedDataClinica(p.data_clinica)?.estamento_seguimiento || "-",
-        "Gestión de Caso": getParsedDataClinica(p.data_clinica)?.gestion_caso ? "SI" : "NO",
-        "Profesional Gestión de Caso": getParsedDataClinica(p.data_clinica)?.estamento_gestion || "-",
-        "Diagnósticos Crónicos": p.diagnosticos ? p.diagnosticos.join(", ") : "-",
-        "Profesional Evaluador": p.profesional_nombre || "-",
-        "Gestor Asignado": p.gestor_nombre || "-",
-        "Observaciones": p.observaciones || "-"
-      };
-    });
+  // ─── Funciones de Exportación Excel ──────────────────────────────────────────
 
+  const mapPacienteToExcelRow = (p: any) => {
+    let age = "-";
+    if (p.fecha_nacimiento) {
+       const bd = new Date(p.fecha_nacimiento);
+       const today = new Date();
+       let a = today.getFullYear() - bd.getUTCFullYear();
+       if (today.getMonth() < bd.getUTCMonth() || (today.getMonth() === bd.getUTCMonth() && today.getDate() < bd.getUTCDate())) a--;
+       age = a.toString();
+    }
+    return {
+      "Estado Vigencia": getEcicepStatus(p.ultima_atencion).status,
+      "RUT": p.rut + "-" + p.dv,
+      "Nombre": p.nombre_completo,
+      "Edad": age,
+      "Sexo": p.sexo || "SIN REGISTRO",
+      "Sector": p.sector,
+      "Teléfono": p.telefono,
+      "Fecha Última Estratificación": formatDate(p.ultima_atencion),
+      "Fecha Ingreso ECICEP": formatDate(getParsedDataClinica(p.data_clinica)?.fecha_ingreso || p.ultima_atencion),
+      "Categoría ECICEP": p.categoria || "PENDIENTE",
+      "Seguimiento Telefónico": getParsedDataClinica(p.data_clinica)?.seguimiento_telefonico ? "SI" : "NO",
+      "Profesional Seguimiento": getParsedDataClinica(p.data_clinica)?.estamento_seguimiento || "-",
+      "Gestión de Caso": getParsedDataClinica(p.data_clinica)?.gestion_caso ? "SI" : "NO",
+      "Profesional Gestión de Caso": getParsedDataClinica(p.data_clinica)?.estamento_gestion || "-",
+      "Diagnósticos Crónicos": p.diagnosticos ? p.diagnosticos.join(", ") : "-",
+      "Profesional Evaluador": p.profesional_nombre || "-",
+      "Gestor Asignado": p.gestor_nombre || "-",
+      "Observaciones": p.observaciones || "-"
+    };
+  };
+
+  const exportPadronCompleto = () => {
+    const dataset = data.map(mapPacienteToExcelRow);
     const worksheet = XLSX.utils.json_to_sheet(dataset);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Poblacion_ECICEP");
-    XLSX.writeFile(workbook, `Padrón_ECICEP_GIA.xlsx`);
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Padron_Completo");
+    XLSX.writeFile(workbook, `Padron_Completo_ECICEP_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    toast.success(`Padrón completo exportado (${data.length} pacientes)`);
+  };
+
+  const exportVistaFiltrada = () => {
+    if (filtered.length === 0) {
+      toast.error("No hay pacientes en la vista filtrada.");
+      return;
+    }
+    const dataset = filtered.map(mapPacienteToExcelRow);
+    const worksheet = XLSX.utils.json_to_sheet(dataset);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Vista_Filtrada");
+    XLSX.writeFile(workbook, `Vista_Filtrada_ECICEP_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    toast.success(`Vista filtrada exportada (${filtered.length} pacientes)`);
   };
 
   const exportCampanaExcel = () => {
@@ -802,7 +1032,8 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
     const worksheet = XLSX.utils.json_to_sheet(dataset);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Campana_Rescate_ECICEP");
-    XLSX.writeFile(workbook, `Campaña_Rescate_ECICEP.xlsx`);
+    XLSX.writeFile(workbook, `Campana_Rescate_ECICEP_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    toast.success(`Campaña de rescate exportada (${vencidosOPendientes.length} pacientes)`);
   };
 
   const totalPacientes = data.length;
@@ -813,6 +1044,9 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
     proximos: data.filter(p => getEcicepStatus(p.ultima_atencion).status === "Próximo a Vencer").length,
   };
   const cobPorcentaje = totalPacientes > 0 ? ((statusCounts.vigentes / totalPacientes) * 100).toFixed(1) : "0.0";
+
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const paginatedData = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
     <div className="flex flex-col space-y-6">
@@ -840,351 +1074,638 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
         </div>
       </div>
 
-      {/* Selector de Vista */}
-      <div className="px-6 flex justify-between items-center">
+      {/* Selector de Vista y Herramientas */}
+      <div className="px-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        {/* Pestañas Operativas Clínicas */}
         <div className="flex bg-slate-100 p-1 rounded-xl w-fit">
-            <button 
-                onClick={() => setView('lista')}
-                className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${view === 'lista' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-                Listado de Pacientes
-            </button>
-            <button 
-                onClick={() => setView('analisis')}
-                className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${view === 'analisis' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-                Análisis Estadístico
-            </button>
-            <button 
-                onClick={() => setView('gestion')}
-                className={`px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-1.5 ${view === 'gestion' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-                <Briefcase size={14} />
-                Gestión de Casos
-                {casos.filter(c => c.tipo === 'POST_HOSPITALIZADO').length > 0 && (
-                  <span className="ml-1 bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full leading-none">
-                    {casos.filter(c => c.tipo === 'POST_HOSPITALIZADO').length}
-                  </span>
-                )}
-            </button>
-        </div>
-        <div className="flex space-x-2">
-            {view === 'gestion' ? (
-              <button
-                onClick={() => { resetCasoModal(); setShowIngresarCasoModal(true); }}
-                className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition shadow-sm font-bold text-sm"
-              >
-                <Plus size={16} />
-                <span>Ingresar Caso</span>
-              </button>
-            ) : (
-              <>
-                <button onClick={exportToExcel} className="flex items-center space-x-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100 hover:bg-emerald-100 transition shadow-sm font-bold text-sm">
-                    <Download size={16} />
-                    <span>Exportar Padrón</span>
-                </button>
-                <button onClick={exportCampanaExcel} className="flex items-center space-x-2 px-4 py-2 bg-amber-50 text-amber-700 rounded-xl border border-amber-100 hover:bg-amber-100 transition shadow-sm font-bold text-sm">
-                    <Download size={16} />
-                    <span>Campaña Rescate</span>
-                </button>
-              </>
+          <button 
+            type="button"
+            onClick={() => setView('lista')}
+            className={`px-5 py-2 rounded-lg text-xs font-bold transition-all ${view === 'lista' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            Listado de Pacientes
+          </button>
+          <button 
+            type="button"
+            onClick={() => setView('gestion')}
+            className={`px-5 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${view === 'gestion' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            <Briefcase size={14} />
+            <span>Gestión de Casos</span>
+            {casos.filter(c => c.tipo === 'POST_HOSPITALIZADO').length > 0 && (
+              <span className="ml-1 bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full leading-none">
+                {casos.filter(c => c.tipo === 'POST_HOSPITALIZADO').length}
+              </span>
             )}
+          </button>
+        </div>
+
+        {/* Acciones y Herramientas */}
+        <div className="flex items-center space-x-2">
+          {/* Botón Separado: Análisis Estadístico */}
+          <button 
+            type="button"
+            onClick={() => setView(view === 'analisis' ? 'lista' : 'analisis')}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm border ${
+              view === 'analisis' 
+                ? 'bg-blue-600 text-white border-blue-600 shadow-md' 
+                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            <BarChart3 size={14} />
+            <span>{view === 'analisis' ? "← Volver al Listado" : "Análisis Estadístico"}</span>
+          </button>
+
+          {/* En vista Gestión de Casos: Botón Ingresar Caso */}
+          {view === 'gestion' && (
+            <button
+              type="button"
+              onClick={() => { resetCasoModal(); setShowIngresarCasoModal(true); }}
+              className="flex items-center space-x-1.5 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition shadow-sm font-bold text-xs"
+            >
+              <Plus size={15} />
+              <span>Ingresar Caso</span>
+            </button>
+          )}
+
+          {/* Menú Dropdown de Exportación (disponible en lista y análisis) */}
+          {view !== 'gestion' && (
+            <div className="relative">
+              <button 
+                type="button"
+                onClick={() => setShowExportDropdown(!showExportDropdown)}
+                className="flex items-center gap-1.5 bg-white border border-slate-200 text-slate-700 px-3.5 py-2 rounded-xl font-bold hover:bg-slate-50 transition shadow-sm text-xs"
+              >
+                <Download size={14} className="text-slate-500" />
+                <span>Exportar</span>
+                <ChevronDown size={13} className={`text-slate-400 transition-transform duration-200 ${showExportDropdown ? 'rotate-180' : ''}`} />
+              </button>
+
+              {showExportDropdown && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-30" 
+                    onClick={() => setShowExportDropdown(false)} 
+                  />
+                  <div className="absolute right-0 mt-2 w-60 bg-white border border-slate-200 rounded-2xl shadow-xl z-40 overflow-hidden animate-in fade-in zoom-in-95 duration-150 py-1 divide-y divide-slate-100">
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        exportVistaFiltrada();
+                        setShowExportDropdown(false);
+                      }}
+                      className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50/70 hover:text-indigo-900 transition flex items-center gap-2.5"
+                    >
+                      <Filter size={14} className="text-indigo-600 shrink-0" />
+                      <div>
+                        <p className="leading-tight">Vista Filtrada Actual</p>
+                        <p className="text-[10px] text-slate-400 font-normal mt-0.5">{filtered.length.toLocaleString('es-CL')} pacientes seleccionados</p>
+                      </div>
+                    </button>
+
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        exportCampanaExcel();
+                        setShowExportDropdown(false);
+                      }}
+                      className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-amber-50/70 hover:text-amber-900 transition flex items-center gap-2.5"
+                    >
+                      <Target size={14} className="text-amber-600 shrink-0" />
+                      <div>
+                        <p className="leading-tight">Campaña de Rescate</p>
+                        <p className="text-[10px] text-slate-400 font-normal mt-0.5">Vencidos y pendientes</p>
+                      </div>
+                    </button>
+
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        exportPadronCompleto();
+                        setShowExportDropdown(false);
+                      }}
+                      className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-emerald-50/70 hover:text-emerald-900 transition flex items-center gap-2.5"
+                    >
+                      <FileSpreadsheet size={14} className="text-emerald-600 shrink-0" />
+                      <div>
+                        <p className="leading-tight">Padrón Completo ECICEP</p>
+                        <p className="text-[10px] text-slate-400 font-normal mt-0.5">{data.length.toLocaleString('es-CL')} pacientes totales</p>
+                      </div>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
 
 
       {view === 'gestion' ? (
-        /* ───── VISTA GESTIÓN DE CASOS ───── */
+        /* ───── VISTA GESTIÓN DE CASOS (DESATURADA & MINIMALISTA) ───── */
         <div className="px-6 pb-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
 
-          {/* KPIs */}
+          {/* Alerta de Casos Críticos Post-Alta (>48h sin gestor) */}
           {(() => {
             const postHosp = casos.filter(c => c.tipo === 'POST_HOSPITALIZADO');
             const criticos = postHosp.filter(c => { const h = calcularHorasDesdeAlta(c.fecha_alta); return h !== null && h > 48 && c.estado === 'PENDIENTE_ASIGNACION'; });
-            const pendientesAsignacion = casos.filter(c => c.estado === 'PENDIENTE_ASIGNACION');
-            const enSeguimiento = casos.filter(c => c.estado === 'EN_SEGUIMIENTO');
-            const alertasVencidos = casos.filter(c => calcularTiempoEnGestion(c.fecha_registro).esAlerta);
+            if (criticos.length === 0) return null;
             return (
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6 mt-4">
-                <div className={`p-4 rounded-2xl border flex items-center gap-4 ${criticos.length > 0 ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
-                  <div className={`h-11 w-11 rounded-xl flex items-center justify-center shrink-0 ${criticos.length > 0 ? 'bg-red-500 text-white' : 'bg-slate-200 text-slate-500'}`}>
-                    <Hospital size={22} />
-                  </div>
-                  <div>
-                    <p className={`text-3xl font-light ${criticos.length > 0 ? 'text-red-700' : 'text-slate-700'}`}>{criticos.length}</p>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Post-Hosp. Críticos (&gt;48h)</p>
-                  </div>
+              <div className="mb-3 flex items-center justify-between bg-red-50/90 border border-red-200/80 px-4 py-2 rounded-xl text-xs text-red-800 animate-in fade-in">
+                <div className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-red-600 animate-pulse shrink-0" />
+                  <span className="font-medium">
+                    Hay <strong>{criticos.length} caso{criticos.length > 1 ? 's' : ''} post-alta</strong> con más de 48 horas sin gestor asignado.
+                  </span>
                 </div>
-                <div className="p-4 rounded-2xl border bg-amber-50/70 border-amber-200 flex items-center gap-4">
-                  <div className="h-11 w-11 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0">
-                    <Clock size={22} />
-                  </div>
-                  <div>
-                    <p className="text-3xl font-light text-amber-900">{pendientesAsignacion.length}</p>
-                    <p className="text-[10px] font-black text-amber-700 uppercase tracking-wider">Sin Gestor Asignado</p>
-                  </div>
-                </div>
-                <div className="p-4 rounded-2xl border bg-blue-50/70 border-blue-200 flex items-center gap-4">
-                  <div className="h-11 w-11 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0">
-                    <User size={22} />
-                  </div>
-                  <div>
-                    <p className="text-3xl font-light text-blue-900">{enSeguimiento.length}</p>
-                    <p className="text-[10px] font-black text-blue-700 uppercase tracking-wider">En Seguimiento Activo</p>
-                  </div>
-                </div>
-                <div className={`p-4 rounded-2xl border flex items-center gap-4 ${alertasVencidos.length > 0 ? 'bg-rose-50 border-rose-200' : 'bg-slate-50 border-slate-200'}`}>
-                  <div className={`h-11 w-11 rounded-xl flex items-center justify-center shrink-0 ${alertasVencidos.length > 0 ? 'bg-rose-500 text-white' : 'bg-slate-200 text-slate-500'}`}>
-                    <AlertTriangle size={22} />
-                  </div>
-                  <div>
-                    <p className={`text-3xl font-light ${alertasVencidos.length > 0 ? 'text-rose-700' : 'text-slate-700'}`}>{alertasVencidos.length}</p>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Alerta Límite &gt;6 Meses</p>
-                  </div>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => { setFilterTipoCaso('POST_HOSPITALIZADO'); setFilterEstadoCaso('PENDIENTE_ASIGNACION'); }}
+                  className="font-bold text-red-700 hover:text-red-900 underline text-xs ml-3"
+                >
+                  Filtrar casos críticos &rarr;
+                </button>
               </div>
             );
           })()}
 
-          {/* Filtros rápidos + recargar */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-bold text-slate-400 mr-1">Origen:</span>
-              {(["Todos", "POST_HOSPITALIZADO", "POLICONSULTANTE", "DERIVACION_CLINICA"] as const).map(t => (
-                <button
-                  key={t}
-                  onClick={() => setFilterTipoCaso(t)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
-                    filterTipoCaso === t
-                      ? t === 'POST_HOSPITALIZADO' ? 'bg-blue-600 text-white border-blue-600'
-                        : t === 'POLICONSULTANTE' ? 'bg-amber-500 text-white border-amber-500'
-                        : t === 'DERIVACION_CLINICA' ? 'bg-purple-600 text-white border-purple-600'
-                        : 'bg-slate-800 text-white border-slate-800'
-                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                  }`}
-                >
-                  {t === 'Todos' ? 'Todos'
-                    : t === 'POST_HOSPITALIZADO' ? '🏥 Post-Alta'
-                    : t === 'POLICONSULTANTE' ? '🔄 Policonsult.'
-                    : '📋 Derivación'}
-                </button>
-              ))}
+          {/* Barra de Filtros Espaciosa y Funcional */}
+          {(() => {
+            const pendientesCount = casos.filter(c => c.estado === 'PENDIENTE_ASIGNACION').length;
+            const enSeguimientoCount = casos.filter(c => c.estado === 'EN_SEGUIMIENTO').length;
+            const cerradosCount = casos.filter(c => c.estado === 'CERRADO').length;
+            const activosCount = pendientesCount + enSeguimientoCount;
 
-              <div className="h-4 w-px bg-slate-200 mx-1 hidden md:block" />
+            return (
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-4">
+                
+                {/* Lado izquierdo: Buscador y Segmentado de Estado */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 flex-1 max-w-2xl">
+                  {/* Buscador */}
+                  <div className="relative flex-1 min-w-[200px]">
+                    <input
+                      type="text"
+                      value={searchGestion}
+                      onChange={e => setSearchGestion(e.target.value)}
+                      placeholder="Buscar por RUT o Nombre..."
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 pl-9 text-xs font-medium focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition"
+                    />
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    {searchGestion && (
+                      <button 
+                        type="button"
+                        onClick={() => setSearchGestion("")}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
 
-              <span className="text-xs font-bold text-slate-400 mr-1">Estado:</span>
-              {(["Todos", "PENDIENTE_ASIGNACION", "EN_SEGUIMIENTO"] as const).map(e => (
-                <button
-                  key={e}
-                  onClick={() => setFilterEstadoCaso(e)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
-                    filterEstadoCaso === e
-                      ? e === 'PENDIENTE_ASIGNACION' ? 'bg-amber-500 text-white border-amber-500'
-                        : e === 'EN_SEGUIMIENTO' ? 'bg-emerald-600 text-white border-emerald-600'
-                        : 'bg-slate-800 text-white border-slate-800'
-                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                  }`}
-                >
-                  {e === 'Todos' ? 'Todos'
-                    : e === 'PENDIENTE_ASIGNACION' ? '⏳ Sin Gestor'
-                    : '👤 En Seguimiento'}
-                </button>
-              ))}
-            </div>
+                  {/* Segmented Control con conteos integrados */}
+                  <div className="flex bg-slate-100 p-1 rounded-xl shrink-0 overflow-x-auto">
+                    <button
+                      type="button"
+                      onClick={() => setFilterEstadoCaso("ACTIVOS")}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                        filterEstadoCaso === "ACTIVOS"
+                          ? "bg-white text-indigo-700 shadow-sm"
+                          : "text-slate-500 hover:text-slate-800"
+                      }`}
+                    >
+                      <span>Activos</span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                        filterEstadoCaso === "ACTIVOS" ? "bg-indigo-50 text-indigo-700" : "bg-slate-200/80 text-slate-600"
+                      }`}>
+                        {activosCount}
+                      </span>
+                    </button>
 
-            <button
-              onClick={cargarCasos}
-              disabled={loadingCasos}
-              className="flex items-center self-start md:self-auto gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-700 border border-slate-200 px-3 py-1.5 rounded-lg bg-white transition"
-            >
-              <RefreshCw size={13} className={loadingCasos ? 'animate-spin' : ''} />
-              Actualizar
-            </button>
-          </div>
+                    <button
+                      type="button"
+                      onClick={() => setFilterEstadoCaso("PENDIENTE_ASIGNACION")}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                        filterEstadoCaso === "PENDIENTE_ASIGNACION"
+                          ? "bg-white text-amber-700 shadow-sm"
+                          : "text-slate-500 hover:text-slate-800"
+                      }`}
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />
+                      <span>Sin Gestor</span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                        filterEstadoCaso === "PENDIENTE_ASIGNACION" ? "bg-amber-100 text-amber-800" : "bg-slate-200/80 text-slate-600"
+                      }`}>
+                        {pendientesCount}
+                      </span>
+                    </button>
 
-          {/* Tabla de casos */}
+                    <button
+                      type="button"
+                      onClick={() => setFilterEstadoCaso("EN_SEGUIMIENTO")}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                        filterEstadoCaso === "EN_SEGUIMIENTO"
+                          ? "bg-white text-emerald-700 shadow-sm"
+                          : "text-slate-500 hover:text-slate-800"
+                      }`}
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+                      <span>En Seguimiento</span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                        filterEstadoCaso === "EN_SEGUIMIENTO" ? "bg-emerald-100 text-emerald-800" : "bg-slate-200/80 text-slate-600"
+                      }`}>
+                        {enSeguimientoCount}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setFilterEstadoCaso("CERRADO")}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                        filterEstadoCaso === "CERRADO"
+                          ? "bg-white text-slate-700 shadow-sm"
+                          : "text-slate-500 hover:text-slate-800"
+                      }`}
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full bg-slate-400 shrink-0" />
+                      <span>Cerrados</span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                        filterEstadoCaso === "CERRADO" ? "bg-slate-200 text-slate-800" : "bg-slate-200/80 text-slate-600"
+                      }`}>
+                        {cerradosCount}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Lado derecho: Selects, Mis Casos, Exportar y Refrescar */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <select
+                    value={filterTipoCaso}
+                    onChange={e => setFilterTipoCaso(e.target.value as any)}
+                    className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-medium text-slate-700 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                  >
+                    <option value="Todos">Todos los Orígenes</option>
+                    <option value="POST_HOSPITALIZADO">🏥 Post-Alta</option>
+                    <option value="POLICONSULTANTE">🔄 Policonsult.</option>
+                    <option value="DERIVACION_CLINICA">📋 Derivación</option>
+                  </select>
+
+                  <select
+                    value={filterSectorGestion}
+                    onChange={e => setFilterSectorGestion(e.target.value)}
+                    className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-medium text-slate-700 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                  >
+                    {sectors.map(sec => (
+                      <option key={sec} value={sec}>
+                        {sec === "Todos" ? "Todo Sector" : sec}
+                      </option>
+                    ))}
+                  </select>
+
+                  <button
+                    type="button"
+                    onClick={() => setFilterSoloMisCasos(!filterSoloMisCasos)}
+                    className={`px-3 py-2 rounded-xl text-xs font-bold border transition shrink-0 ${
+                      filterSoloMisCasos 
+                        ? "bg-indigo-600 text-white border-indigo-600 shadow-sm" 
+                        : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                    }`}
+                    title="Filtrar solo los casos asignados a mí"
+                  >
+                    👤 Mis Casos
+                  </button>
+
+
+                  <button
+                    type="button"
+                    onClick={cargarCasos}
+                    disabled={loadingCasos}
+                    className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 border border-slate-200 rounded-xl bg-white transition shrink-0"
+                    title="Actualizar casos"
+                  >
+                    <RefreshCw size={14} className={loadingCasos ? 'animate-spin text-indigo-600' : ''} />
+                  </button>
+                </div>
+
+              </div>
+            );
+          })()}
+
+          {/* Tabla de Casos Desaturada y Elegante */}
           {loadingCasos ? (
             <div className="flex justify-center items-center py-16 text-slate-400 text-sm">Cargando casos...</div>
-          ) : casos.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-slate-400 border-2 border-dashed border-slate-200 rounded-2xl">
-              <Briefcase size={32} className="mb-3 opacity-40" />
-              <p className="text-sm font-semibold">No hay casos activos en gestión.</p>
-              <p className="text-xs mt-1">Usa el botón "Ingresar Caso" para añadir el primero.</p>
+          ) : casosFiltrados.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-slate-400 border border-dashed border-slate-200 rounded-2xl bg-white">
+              <Briefcase size={28} className="mb-2 opacity-30" />
+              <p className="text-xs font-bold text-slate-600">No se encontraron casos con los filtros seleccionados.</p>
+              {(searchGestion || filterTipoCaso !== 'Todos' || filterEstadoCaso !== 'ACTIVOS' || filterSectorGestion !== 'Todos' || filterSoloMisCasos) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchGestion("");
+                    setFilterTipoCaso("Todos");
+                    setFilterEstadoCaso("ACTIVOS");
+                    setFilterSectorGestion("Todos");
+                    setFilterSoloMisCasos(false);
+                  }}
+                  className="mt-2 text-xs font-bold text-indigo-600 hover:underline"
+                >
+                  Restablecer filtros
+                </button>
+              )}
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-2xl border border-slate-200">
+            <div className="overflow-x-auto rounded-2xl border border-slate-200 shadow-sm bg-white">
               <table className="w-full text-left text-xs whitespace-nowrap">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold">
+                <thead className="bg-slate-50/80 border-b border-slate-200 text-slate-500 font-bold text-[11px] uppercase tracking-wider">
                   <tr>
-                    <th className="px-4 py-3 w-[26%]">Paciente</th>
-                    <th className="px-4 py-3">Tipo / Origen</th>
-                    <th className="px-4 py-3">Estamento / Gestor</th>
-                    <th className="px-4 py-3 text-center">Tiempo en Gestión</th>
-                    <th className="px-4 py-3">Estado</th>
-                    <th className="px-4 py-3 text-right">Acción Rápida</th>
+                    <th className="px-5 py-3.5 w-[28%]">Paciente</th>
+                    <th className="px-4 py-3.5">Origen</th>
+                    <th className="px-4 py-3.5">Gestor Asignado</th>
+                    <th className="px-4 py-3.5 text-center">Tiempo / Urgencia</th>
+                    <th className="px-4 py-3.5">Estado</th>
+                    <th className="px-5 py-3.5 text-right">Acciones</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 bg-white">
-                  {casos
-                    .filter(c => filterTipoCaso === 'Todos' || c.tipo === filterTipoCaso)
-                    .filter(c => filterEstadoCaso === 'Todos' || c.estado === filterEstadoCaso)
-                    .map(caso => {
-                      const horas = caso.tipo === 'POST_HOSPITALIZADO' ? calcularHorasDesdeAlta(caso.fecha_alta) : null;
-                      const semaforo = getSemaforoConfig(horas);
-                      const tiempo = calcularTiempoEnGestion(caso.fecha_registro);
+                <tbody className="divide-y divide-slate-100">
+                  {casosFiltrados.map(caso => {
+                    const horas = caso.tipo === 'POST_HOSPITALIZADO' ? calcularHorasDesdeAlta(caso.fecha_alta) : null;
+                    const semaforo = getSemaforoConfig(horas);
+                    const tiempo = calcularTiempoEnGestion(caso.fecha_registro);
+                    const isSinGestor = caso.estado === 'PENDIENTE_ASIGNACION';
 
-                      return (
-                        <tr key={caso.id} className="hover:bg-slate-50 transition-colors">
-                          {/* 1. Paciente */}
-                          <td className="px-4 py-3.5">
-                            <p className="font-black text-slate-800 uppercase text-xs">{caso.nombre_completo}</p>
-                            <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-500">
-                              <CopyBadge value={`${caso.rut_paciente}`} label="RUT" />
-                              <span>•</span>
-                              <span className="flex items-center gap-0.5"><MapPin size={8} />{caso.sector}</span>
-                              {caso.telefono && <><span>•</span><CopyBadge value={caso.telefono} label="Teléfono" prefixIcon="📞" className="font-mono font-bold bg-slate-100 hover:bg-slate-200 px-1 py-0.5 rounded text-slate-600 transition-colors cursor-copy inline-flex items-center" /></>}
-                            </div>
-                            {caso.diagnostico_alta && (
-                              <p className="text-[10px] text-slate-500 mt-1 italic truncate max-w-[280px]">
-                                {caso.diagnostico_alta}
+                    return (
+                      <tr key={caso.id} className="hover:bg-slate-50/70 transition-colors">
+                        
+                        {/* 1. Paciente */}
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <p className="font-bold text-slate-800 uppercase text-xs tracking-tight">
+                              {caso.nombre_completo}
+                            </p>
+                            {caso.categoria ? (
+                              <span
+                                className={`px-1.5 py-0.5 text-[10px] font-black rounded border font-mono leading-none ${
+                                  caso.categoria === 'G3'
+                                    ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                    : caso.categoria === 'G2'
+                                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                    : caso.categoria === 'G1'
+                                    ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                    : 'bg-slate-100 text-slate-600 border-slate-200'
+                                }`}
+                                title={`Estratificación ECICEP: ${caso.categoria}`}
+                              >
+                                {caso.categoria}
+                              </span>
+                            ) : (
+                              <span
+                                className="px-1.5 py-0.5 text-[9px] font-semibold text-slate-400 bg-slate-50 border border-slate-200 rounded leading-none"
+                                title="Sin Estratificar ECICEP"
+                              >
+                                S/E
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500 font-mono">
+                            <CopyBadge 
+                              value={caso.dv ? `${caso.rut_paciente}-${caso.dv}` : `${caso.rut_paciente}-${calcularDv(caso.rut_paciente)}`} 
+                              label="RUT" 
+                            />
+                            <span className="text-slate-300 font-sans">·</span>
+                            <span className="font-sans font-medium text-slate-600">{caso.sector}</span>
+                            {caso.telefono && (
+                              <>
+                                <span className="text-slate-300 font-sans">·</span>
+                                <span className="text-slate-600">📞 {caso.telefono}</span>
+                              </>
+                            )}
+                          </div>
+                          {caso.diagnostico_alta && (
+                            <p className="text-[10px] text-slate-400 mt-0.5 truncate max-w-[260px]" title={caso.diagnostico_alta}>
+                              {caso.diagnostico_alta}
+                            </p>
+                          )}
+                        </td>
+
+                        {/* 2. Origen */}
+                        <td className="px-4 py-3.5">
+                          {caso.tipo === 'POST_HOSPITALIZADO' ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-md border border-blue-100">
+                              <Hospital size={11} /> Post-Alta
+                            </span>
+                          ) : caso.tipo === 'POLICONSULTANTE' ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-md border border-amber-100">
+                              <RefreshCw size={11} /> Policonsult.
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-700 bg-purple-50 px-2.5 py-1 rounded-md border border-purple-100">
+                              <ClipboardCheck size={11} /> Derivación
+                            </span>
+                          )}
+                        </td>
+
+                        {/* 3. Gestor Asignado */}
+                        <td className="px-4 py-3.5">
+                          {caso.estado === 'CERRADO' ? (
+                            <div>
+                              <p className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                                <User size={12} className="text-slate-400" />
+                                {caso.gestor_asignado_nombre || "Sin gestor asignado"}
                               </p>
-                            )}
-                          </td>
+                              <p className="text-[10px] text-slate-400 font-medium">
+                                Cerrado: {caso.fecha_cierre ? formatDate(caso.fecha_cierre) : "—"}
+                              </p>
+                            </div>
+                          ) : isSinGestor ? (
+                            (() => {
+                              const estamentoValido = caso.estamento_solicitado && 
+                                caso.estamento_solicitado.toUpperCase() !== 'SIN ASIGNAR' && 
+                                caso.estamento_solicitado.trim() !== '';
 
-                          {/* 2. Tipo / Origen */}
-                          <td className="px-4 py-3.5">
-                            {caso.tipo === 'POST_HOSPITALIZADO' ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-100 text-[10px] font-black">
-                                <Hospital size={10} /> POST-ALTA
-                              </span>
-                            ) : caso.tipo === 'POLICONSULTANTE' ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-100 text-[10px] font-black">
-                                <RefreshCw size={10} /> POLICONSULTANTE
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-100 text-[10px] font-black">
-                                <ClipboardCheck size={10} /> DERIVACIÓN CLÍNICA
-                              </span>
-                            )}
-                          </td>
+                              return (
+                                <div className="space-y-1">
+                                  <span className="text-xs font-semibold text-slate-500 flex items-center gap-1">
+                                    <span className="text-slate-400">⏳</span> Sin Asignar
+                                  </span>
+                                  {estamentoValido && (
+                                    <span className="inline-flex items-center text-[10px] font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 uppercase">
+                                      Perfil: {caso.estamento_solicitado}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })()
+                          ) : (
+                            <div>
+                              <p className="text-xs font-bold text-slate-800 flex items-center gap-1">
+                                <User size={12} className="text-indigo-600" />
+                                {caso.gestor_asignado_nombre}
+                              </p>
+                              <p className="text-[10px] text-slate-400 font-medium">
+                                {caso.estamento_solicitado && caso.estamento_solicitado.toUpperCase() !== 'SIN ASIGNAR' ? `${caso.estamento_solicitado} · ` : ''}
+                                {caso.fecha_asignacion ? new Date(caso.fecha_asignacion).toLocaleDateString('es-CL') : ''}
+                              </p>
+                            </div>
+                          )}
+                        </td>
 
-                          {/* 3. Estamento / Gestor Asignado */}
-                          <td className="px-4 py-3.5">
-                            {caso.estado === 'PENDIENTE_ASIGNACION' ? (
-                              <div>
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-black uppercase">
-                                  Requerido: {caso.estamento_solicitado || 'Sin Asignar'}
-                                </span>
-                                <p className="text-[9px] text-slate-400 mt-0.5">Esperando gestor</p>
-                              </div>
-                            ) : (
-                              <div>
-                                <p className="text-xs font-bold text-slate-800 flex items-center gap-1">
-                                  <User size={12} className="text-indigo-600" />
-                                  {caso.gestor_asignado_nombre || 'Gestor Asignado'}
-                                </p>
-                                <p className="text-[10px] text-slate-400">
-                                  {caso.estamento_solicitado ? `${caso.estamento_solicitado} • ` : ''}
-                                  {caso.fecha_asignacion ? new Date(caso.fecha_asignacion).toLocaleDateString('es-CL') : ''}
-                                </p>
-                              </div>
-                            )}
-                          </td>
-
-                          {/* 4. Tiempo en Gestión (Reloj 6 meses + Alerta Post-Alta 48h) */}
-                          <td className="px-4 py-3.5 text-center">
-                            <div className="flex flex-col items-center gap-1">
-                              <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] border ${tiempo.className}`}>
-                                {tiempo.label}
-                              </span>
-                              <span className="text-[9px] text-slate-400">{tiempo.subtext}</span>
-                              {caso.tipo === 'POST_HOSPITALIZADO' && (
-                                <div className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[9px] font-black ${semaforo.color}`}>
+                        {/* 4. Tiempo / Urgencia */}
+                        <td className="px-4 py-3.5 text-center">
+                          {caso.estado === 'CERRADO' ? (
+                            <span className="text-xs font-medium text-slate-500">
+                              Finalizado
+                            </span>
+                          ) : (
+                            <div className="flex flex-col items-center gap-0.5">
+                              {caso.tipo === 'POST_HOSPITALIZADO' && isSinGestor ? (
+                                <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${semaforo.color}`}>
                                   <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${semaforo.dot}`} />
                                   Post-Alta: {semaforo.label}
                                 </div>
-                              )}
-                            </div>
-                          </td>
-
-                          {/* 5. Estado */}
-                          <td className="px-4 py-3.5">
-                            {caso.estado === 'PENDIENTE_ASIGNACION' ? (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black bg-amber-50 text-amber-700 border border-amber-200">
-                                <Clock size={10} /> Sin Gestor
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                <CheckCircle size={10} /> En Seguimiento
-                              </span>
-                            )}
-                          </td>
-
-                          {/* 6. Acciones Rápidas */}
-                          <td className="px-4 py-3.5 text-right">
-                            <div className="flex items-center justify-end gap-1.5">
-                              {caso.estado === 'PENDIENTE_ASIGNACION' ? (
-                                <>
-                                  <button
-                                    onClick={() => handleTomarCaso(caso.id)}
-                                    className="px-2.5 py-1.5 text-[10px] font-black bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition shadow-sm flex items-center gap-1"
-                                    title="Asignarme este caso a mi nombre"
-                                  >
-                                    <span>✋ Tomar Caso</span>
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      setModalAsignar({
-                                        show: true,
-                                        casoId: caso.id,
-                                        pacienteNombre: caso.nombre_completo,
-                                        estamentoSugerido: caso.estamento_solicitado || undefined
-                                      });
-                                      setAsignarSelectedRut("");
-                                    }}
-                                    className="px-2.5 py-1.5 text-[10px] font-bold bg-white text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-50 transition"
-                                  >
-                                    Asignar a...
-                                  </button>
-                                </>
                               ) : (
-                                <>
-                                  <button
-                                    onClick={() => {
-                                      setModalAsignar({
-                                        show: true,
-                                        casoId: caso.id,
-                                        pacienteNombre: caso.nombre_completo,
-                                        estamentoSugerido: caso.estamento_solicitado || undefined
-                                      });
-                                      setAsignarSelectedRut(caso.gestor_asignado_rut || "");
-                                    }}
-                                    className="px-2 py-1 text-[10px] font-semibold text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 border border-transparent hover:border-indigo-100 rounded-lg transition"
-                                    title="Reasignar a otro profesional"
-                                  >
-                                    Reasignar
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      setModalCerrar({
-                                        show: true,
-                                        casoId: caso.id,
-                                        pacienteNombre: caso.nombre_completo
-                                      });
-                                      setCerrarMotivo("OBJETIVO_CUMPLIDO");
-                                    }}
-                                    className="px-2.5 py-1.5 text-[10px] font-black bg-slate-100 text-slate-600 border border-slate-200 rounded-lg hover:bg-red-50 hover:text-red-700 hover:border-red-200 transition"
-                                  >
-                                    Cerrar Caso
-                                  </button>
-                                </>
+                                <span className="text-xs font-medium text-slate-700">
+                                  {tiempo.subtext || tiempo.label}
+                                </span>
+                              )}
+                              {tiempo.esAlerta && (
+                                <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.2 rounded border border-rose-200">
+                                  &gt;6 meses
+                                </span>
                               )}
                             </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                          )}
+                        </td>
+
+                        {/* 5. Estado */}
+                        <td className="px-4 py-3.5">
+                          {caso.estado === 'CERRADO' ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
+                              <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+                              Cerrado
+                            </span>
+                          ) : isSinGestor ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700">
+                              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                              Sin Gestor
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700">
+                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                              En Seguimiento
+                            </span>
+                          )}
+                        </td>
+
+                        {/* 6. Acciones */}
+                        <td className="px-5 py-3.5 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            {caso.estado === 'CERRADO' ? (
+                              <span 
+                                className="inline-block text-[11px] font-semibold text-slate-600 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg"
+                                title={caso.motivo_cierre || "Caso finalizado"}
+                              >
+                                {(() => {
+                                  switch (caso.motivo_cierre) {
+                                    case "OBJETIVO_CUMPLIDO": return "✅ Objetivo Cumplido";
+                                    case "ALTA_MEDICA": return "🏥 Alta Médica";
+                                    case "INUBICABLE": return "📞 Inubicable";
+                                    case "RECHAZA": return "🚫 Rechazo";
+                                    case "TRASLADO_FALLECIDO": return "🕊️ Traslado / Defunción";
+                                    default: return caso.motivo_cierre ? caso.motivo_cierre.replace(/_/g, " ") : "Finalizado";
+                                  }
+                                })()}
+                              </span>
+                            ) : isSinGestor ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => setModalAnular({
+                                    show: true,
+                                    casoId: caso.id,
+                                    pacienteNombre: caso.nombre_completo,
+                                    tipo: caso.tipo
+                                  })}
+                                  className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                                  title="Anular derivación"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setModalTomar({
+                                    show: true,
+                                    casoId: caso.id,
+                                    pacienteNombre: caso.nombre_completo,
+                                    sector: caso.sector,
+                                    estamento: caso.estamento_solicitado || ""
+                                  })}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition shadow-sm"
+                                  title="Tomar caso a mi nombre"
+                                >
+                                  <UserCheck size={13} className="shrink-0" />
+                                  <span>Tomar</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setModalAsignar({
+                                      show: true,
+                                      casoId: caso.id,
+                                      pacienteNombre: caso.nombre_completo,
+                                      estamentoSugerido: caso.estamento_solicitado || undefined,
+                                      categoria: caso.categoria || null
+                                    });
+                                    setAsignarSelectedRut("");
+                                    setAsignarSearchQuery("");
+                                  }}
+                                  className="px-2.5 py-1 text-xs font-bold bg-white text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-50 transition"
+                                >
+                                  Asignar
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setModalAsignar({
+                                      show: true,
+                                      casoId: caso.id,
+                                      pacienteNombre: caso.nombre_completo,
+                                      estamentoSugerido: caso.estamento_solicitado || undefined,
+                                      categoria: caso.categoria || null
+                                    });
+                                    setAsignarSelectedRut(caso.gestor_asignado_rut || "");
+                                    setAsignarSearchQuery("");
+                                  }}
+                                  className="px-2 py-1 text-xs font-medium text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition"
+                                >
+                                  Reasignar
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setModalCerrar({
+                                      show: true,
+                                      casoId: caso.id,
+                                      pacienteNombre: caso.nombre_completo
+                                    });
+                                    setCerrarMotivo("OBJETIVO_CUMPLIDO");
+                                  }}
+                                  className="px-2.5 py-1 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-red-50 hover:text-red-700 hover:border-red-200 rounded-lg border border-slate-200 transition"
+                                >
+                                  Cerrar
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -1193,37 +1714,57 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
       ) : view === 'lista' ? (
         <>
 
-          <div className="px-6 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            <div>
-              <label className="flex items-center text-xs font-semibold text-slate-500 mb-1">
-                <Search size={12} className="mr-1" /> Buscar por RUT o Nombre
+          {/* ─── FILTROS PRINCIPALES (1 Fila Limpia) ───────────────────────── */}
+          <div className="px-6 grid grid-cols-1 md:grid-cols-12 gap-3 mb-3">
+            {/* Buscador Universal (RUT o Nombre) */}
+            <div className="md:col-span-6 lg:col-span-5">
+              <label className="flex items-center text-xs font-bold text-slate-600 mb-1">
+                <Search size={13} className="mr-1.5 text-slate-400" /> Buscar Paciente por RUT o Nombre
               </label>
-              <input 
-                type="text" value={searchRut} onChange={e => setSearchRut(e.target.value)}
-                className="w-full bg-slate-100 border-none rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-100 font-medium" 
-                placeholder="Ej: 12345678 o Juan"
-              />
+              <div className="relative">
+                <input 
+                  type="text" 
+                  value={searchRut} 
+                  onChange={e => setSearchRut(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium transition" 
+                  placeholder="Ej: 12345678 o Juan Pérez..."
+                />
+                {searchRut && (
+                  <button 
+                    onClick={() => setSearchRut("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
             </div>
-            <div>
-              <label className="flex items-center text-xs font-semibold text-slate-500 mb-1">
-                <MapPin size={12} className="mr-1" /> Filtrar por Sector
+
+            {/* Filtro Sector */}
+            <div className="md:col-span-3 lg:col-span-3">
+              <label className="flex items-center text-xs font-bold text-slate-600 mb-1">
+                <MapPin size={13} className="mr-1.5 text-slate-400" /> Sector Territorial
               </label>
               <select 
-                value={filterSector} onChange={e => setFilterSector(e.target.value)}
-                className="w-full bg-slate-100 border-none rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-100"
+                value={filterSector} 
+                onChange={e => setFilterSector(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 font-medium transition"
               >
                 {sectors.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
-            <div>
-              <label className="flex items-center text-xs font-semibold text-slate-500 mb-1">
-                <ClipboardCheck size={12} className="mr-1" /> Categoría ECICEP
+
+            {/* Filtro Categoría */}
+            <div className="md:col-span-3 lg:col-span-4">
+              <label className="flex items-center text-xs font-bold text-slate-600 mb-1">
+                <ClipboardCheck size={13} className="mr-1.5 text-slate-400" /> Categoría ECICEP
               </label>
               <select 
-                value={filterCategory} onChange={e => setFilterCategory(e.target.value)}
-                className="w-full bg-slate-100 border-none rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-100"
+                value={filterCategory} 
+                onChange={e => setFilterCategory(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 font-medium transition"
               >
-                <option value="Todos">Todos</option>
+                <option value="Todos">Todas las categorías</option>
                 <option value="G0">G0 - Sin Riesgo / Bajo</option>
                 <option value="G1">G1 - Riesgo Bajo</option>
                 <option value="G2">G2 - Riesgo Moderado</option>
@@ -1231,86 +1772,118 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
                 <option value="PENDIENTE">Sin Estratificar</option>
               </select>
             </div>
-            <div>
-              <label className="flex items-center text-xs font-semibold text-slate-500 mb-1">
-                <Clock size={12} className="mr-1" /> Estado de Alerta
-              </label>
-              <select 
-                value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
-                className="w-full bg-slate-100 border-none rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-100"
+          </div>
+
+          {/* ─── BARRA TÁCTICA DE ACCESO RÁPIDO (Píldoras y Conteo) ────────── */}
+          <div className="px-6 py-2.5 bg-slate-50/60 border-y border-slate-200/70 flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">Filtros Tácticos:</span>
+              
+              {/* Píldora: Citas Vencidas */}
+              <button
+                type="button"
+                onClick={() => setOnlyBrecha(!onlyBrecha)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                  onlyBrecha 
+                    ? 'bg-rose-600 text-white shadow-sm ring-2 ring-rose-200' 
+                    : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                }`}
               >
-                <option value="Todos">Todos</option>
-                <option value="Vigente">Vigente</option>
-                <option value="Próximo a Vencer">Próximo a Vencer</option>
-                <option value="Vencido">Vencido</option>
-                <option value="Pendiente">Sin Registro</option>
-              </select>
+                <span>🚨</span>
+                <span>Citas Vencidas</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${onlyBrecha ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                  {counts.brechas}
+                </span>
+              </button>
+
+              {/* Píldora: Órdenes Pendientes */}
+              <button
+                type="button"
+                onClick={() => setOnlyOrdenes(!onlyOrdenes)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                  onlyOrdenes 
+                    ? 'bg-amber-600 text-white shadow-sm ring-2 ring-amber-200' 
+                    : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                }`}
+              >
+                <span>⚠️</span>
+                <span>Órdenes Pendientes</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${onlyOrdenes ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                  {counts.ordenes}
+                </span>
+              </button>
+
+              {/* Píldora: Sin Plan Anual (G1, G2, G3 sin controles) */}
+              <button
+                type="button"
+                onClick={() => setOnlySinPlan(!onlySinPlan)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                  onlySinPlan 
+                    ? 'bg-amber-500 text-white shadow-sm ring-2 ring-amber-200' 
+                    : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                }`}
+              >
+                <span>📋</span>
+                <span>Sin Plan Anual</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${onlySinPlan ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                  {counts.sinPlan}
+                </span>
+              </button>
+
+              {/* Píldora: Seguimiento Activo */}
+              <button
+                type="button"
+                onClick={() => setFilterSeguimientoEstamento(filterSeguimientoEstamento === "Solo con Seguimiento" ? "Todos" : "Solo con Seguimiento")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                  filterSeguimientoEstamento === "Solo con Seguimiento" 
+                    ? 'bg-blue-600 text-white shadow-sm ring-2 ring-blue-200' 
+                    : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                }`}
+              >
+                <span>📞</span>
+                <span>En Seguimiento</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${filterSeguimientoEstamento === "Solo con Seguimiento" ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                  {counts.seguimiento}
+                </span>
+              </button>
             </div>
-            <div>
-              <label className="flex items-center text-xs font-semibold text-slate-500 mb-1">
-                <AlertTriangle size={12} className="mr-1" /> Brecha por Estamento
-              </label>
-              <select 
-                value={filterPendienteEstamento} onChange={e => setFilterPendienteEstamento(e.target.value)}
-                className="w-full bg-slate-100 border-none rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-100 font-bold text-slate-700"
-              >
-                <option value="Todos">Todos los estamentos</option>
-                {ROLES_DISPONIBLES.map(rol => (
-                  <option key={rol} value={rol}>{rol}</option>
-                ))}
-              </select>
+
+            <div className="flex items-center gap-3">
+              {/* Filtro compacto por estamento */}
+              <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                <span className="font-semibold text-[11px]">Vencidos por:</span>
+                <select 
+                  value={filterPendienteEstamento} 
+                  onChange={e => setFilterPendienteEstamento(e.target.value)}
+                  className="bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-700 outline-none focus:ring-1 focus:ring-blue-500"
+                >
+                  <option value="Todos">Todos los estamentos</option>
+                  {ROLES_DISPONIBLES.map(rol => (
+                    <option key={rol} value={rol}>{rol}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Contador de resultados */}
+              <span className="text-xs font-bold text-slate-500 border-l border-slate-200 pl-3">
+                {filtered.length} pac.
+              </span>
             </div>
           </div>
 
-          <div className="px-6 pb-6 w-full overflow-x-auto mt-4">
-            <div className="flex justify-between items-center mb-3">
-               <span className="text-sm text-slate-600 font-medium block">
-                 Mostrando {filtered.length} pacientes según filtros.
-               </span>
-               
-               <div className="flex space-x-2">
-                 <select
-                   value={filterSeguimientoEstamento}
-                   onChange={e => setFilterSeguimientoEstamento(e.target.value)}
-                   className={`px-3 py-1.5 rounded-lg border transition-all text-xs font-bold outline-none cursor-pointer ${filterSeguimientoEstamento !== "Todos" ? 'bg-blue-50 border-blue-200 text-blue-700 shadow-sm' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}
-                 >
-                   <option value="Todos">📞 SEGUIMIENTO: TODOS</option>
-                   <option value="Solo con Seguimiento">SOLO PACIENTES CON SEGUIMIENTO</option>
-                   <optgroup label="Filtrar por Asignado A:">
-                     {ROLES_DISPONIBLES.map(r => (
-                       <option key={r} value={r}>ASIGNADOS A: {r.toUpperCase()}</option>
-                     ))}
-                   </optgroup>
-                 </select>
-
-                 <label className={`flex items-center space-x-2 cursor-pointer px-3 py-1.5 rounded-lg border transition-all ${onlyBrecha ? 'bg-red-50 border-red-200 text-red-700 shadow-sm' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
-                    <input 
-                      type="checkbox" 
-                      className="rounded text-red-600 focus:ring-red-500 border-slate-300"
-                      checked={onlyBrecha}
-                      onChange={(e) => setOnlyBrecha(e.target.checked)}
-                    />
-                    <span className="text-xs font-bold uppercase tracking-wide flex items-center">
-                      🚨 Citas Vencidas
-                    </span>
-                  </label>
-               </div>
-            </div>
-
+          {/* ─── TABLA DE OPERACIONES (4 Columnas) ─────────────────────────── */}
+          <div className="px-6 pb-6 w-full overflow-x-auto">
             <table className="w-full text-left text-xs whitespace-nowrap text-slate-600">
-              <thead className="bg-slate-50 border-y border-slate-200 font-medium text-slate-500">
+              <thead className="bg-slate-50/80 border-y border-slate-200 text-slate-500 font-semibold text-[11px] uppercase tracking-wider">
                 <tr>
-                  <th className="px-3 py-3 w-[35%] min-w-[240px]">Identificación</th>
-                  <th className="px-3 py-3">Categoría</th>
-                  <th className="px-3 py-3 text-center">Médico</th>
-                  <th className="px-3 py-3 text-center">Enfermero</th>
-                  <th className="px-3 py-3 text-center">Nutricionista</th>
-                  <th className="px-3 py-3 text-center">Kinesiólogo</th>
-                  <th className="px-3 py-3 text-center">Plan Anual</th>
+                  <th className="px-4 py-3.5 w-[34%]">Paciente & Territorio</th>
+                  <th className="px-4 py-3.5 w-[14%]">Riesgo ECICEP</th>
+                  <th className="px-4 py-3.5 w-[32%]">Plan de Cuidado Anual</th>
+                  <th className="px-4 py-3.5 w-[20%] text-right pr-6">Acción</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filtered.slice(0, 500).map((p, i) => {
+                {paginatedData.map((p, i) => {
                   let age = "-";
                   if (p.fecha_nacimiento) {
                      const bd = new Date(p.fecha_nacimiento);
@@ -1321,156 +1894,179 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
                   }
 
                   const stObj = getEcicepStatus(p.ultima_atencion);
+                  const dc = getParsedDataClinica(p.data_clinica);
+                  const plan = dc?.plan || [];
+
+                  // Brechas de citas por estamentos
+                  const brechasRoles = ROLES_DISPONIBLES.filter(rol => getCitaDisplayStatus(p, rol).isExpired);
+                  
+                  // Conteo de órdenes de exámenes
+                  let ordersCount = 0;
+                  plan.forEach((c: any) => {
+                    if (c.laboratorio) ordersCount++;
+                    if (c.ecg) ordersCount++;
+                    if (c.espirometria) ordersCount++;
+                    if (c.fondoOjo) ordersCount++;
+                    if (c.perfilGlicemia) ordersCount++;
+                    if (c.perfilPA) ordersCount++;
+                    if (c.otros) ordersCount++;
+                  });
+
                   const isG3 = p.categoria === "G3";
 
                   return (
                     <tr 
                       key={i} 
                       onClick={() => setSelectedPatient(p)}
-                      className="hover:bg-blue-50 cursor-pointer transition-colors group font-medium"
+                      className="hover:bg-slate-50/80 cursor-pointer transition-colors group font-medium"
                     >
-                      <td className="px-3 py-3.5">
-                        <div className="flex items-center space-x-1.5">
-                          <div className="font-bold text-slate-800 uppercase text-xs block text-left group-hover:text-blue-600 group-hover:underline transition-colors">
+                      {/* 1. Paciente & Territorio */}
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center space-x-2">
+                          <span className="font-bold text-slate-900 uppercase text-xs block text-left group-hover:text-blue-600 transition-colors">
                             {p.nombre_completo}
-                          </div>
-                          {getParsedDataClinica(p.data_clinica)?.seguimiento_telefonico && (
-                            <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-100 text-[9px] font-black tracking-widest shrink-0 animate-pulse" title="Seguimiento Telefónico Activo">
-                              📞 SEGUIMIENTO
+                          </span>
+                          {dc?.seguimiento_telefonico && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 text-[9px] font-bold shrink-0" title="En seguimiento telefónico activo">
+                              📞 {dc.estamento_seguimiento || "SEGUIMIENTO"}
                             </span>
                           )}
                         </div>
-                        <div className="flex flex-wrap items-center text-[9px] text-slate-500 gap-x-1.5 gap-y-0.5 mt-1 font-medium">
+                        <div className="flex flex-wrap items-center text-[10px] text-slate-500 gap-x-2 gap-y-0.5 mt-1 font-mono">
                           <CopyBadge value={`${p.rut}-${p.dv}`} label="RUT" />
-                          <span>•</span>
-                          <span className="font-bold">{age} Años</span>
-                          <span>•</span>
-                          <span className="flex items-center"><MapPin size={8} className="mr-0.5 text-slate-400 shrink-0"/> {p.sector}</span>
+                          <span className="text-slate-300">•</span>
+                          <span className="font-semibold text-slate-600 font-sans">{age} años</span>
+                          <span className="text-slate-300">•</span>
+                          <span className="flex items-center font-sans font-medium text-slate-600"><MapPin size={10} className="mr-0.5 text-slate-400 shrink-0"/> {p.sector}</span>
                           {p.telefono && (
                             <>
-                              <span>•</span>
+                              <span className="text-slate-300">•</span>
                               <CopyBadge 
                                 value={p.telefono} 
                                 label="Teléfono" 
                                 prefixIcon="📞"
-                                className="font-mono font-bold bg-slate-100 hover:bg-slate-200 px-1 py-0.5 rounded text-slate-600 transition-colors cursor-copy inline-flex items-center" 
+                                className="bg-slate-100 hover:bg-slate-200 px-1 py-0.5 rounded text-slate-600 transition-colors cursor-copy inline-flex items-center text-[9px]" 
                               />
                             </>
                           )}
                         </div>
-                        {(() => {
-                           const dc = getParsedDataClinica(p.data_clinica);
-                           const plan = dc?.plan || [];
-                           const hasLab = plan.some((c: any) => c.laboratorio);
-                           const hasEcg = plan.some((c: any) => c.ecg);
-                           const hasEsp = plan.some((c: any) => c.espirometria);
-                           const hasFondo = plan.some((c: any) => c.fondoOjo);
-                           const hasGlicemia = plan.some((c: any) => c.perfilGlicemia);
-                           const hasPerfil = plan.some((c: any) => c.perfilPA);
-                           const hasOtros = plan.some((c: any) => c.otros);
-                           const otrosText = plan.find((c: any) => c.otrosTexto)?.otrosTexto || "";
-
-                           if (!hasLab && !hasEcg && !hasEsp && !hasFondo && !hasGlicemia && !hasPerfil && !hasOtros) return null;
-                           return (
-                             <div className="flex flex-col gap-1 mt-2">
-                               <div 
-                                 className="inline-flex items-center px-2 py-1 rounded text-[10px] font-black bg-slate-900 text-white shadow-sm border border-slate-950 animate-pulse hover:bg-slate-800 transition-colors self-start cursor-pointer group/alert"
-                                 onClick={(e) => {
-                                   e.stopPropagation();
-                                   setExamsModalPlan(plan);
-                                   setExamsModalPatient(p);
-                                   setShowExamsModal(true);
-                                 }}
-                                 title="Click para revisar y resolver órdenes pendientes"
-                               >
-                                 <span className="mr-1 group-hover/alert:scale-110 transition-transform">⚠️</span> ÓRDENES PENDIENTES
-                               </div>
-                               <div className="flex flex-wrap gap-1 mt-0.5">
-                                 {hasLab && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-50 text-red-700 border border-red-100">🩸 LAB</span>}
-                                 {hasEcg && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-50 text-rose-700 border border-rose-100">🫀 ECG</span>}
-                                 {hasEsp && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-teal-50 text-teal-700 border border-teal-100">🫁 ESP</span>}
-                                 {hasFondo && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-100">👁️ FOJO</span>}\n                                 {hasGlicemia && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-50 text-purple-700 border border-purple-100">🩸 GLICEMIA</span>}
-                                 {hasPerfil && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">⚕️ PERFIL PA</span>}
-                                 {hasOtros && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-100 text-slate-700 border border-slate-200">➕ {otrosText ? otrosText.substring(0, 15) + (otrosText.length > 15 ? '...' : '') : 'OTROS'}</span>}
-                               </div>
-                             </div>
-                           );
-                        })()}
                       </td>
-                      <td className="px-3 py-3.5">
+
+                      {/* 2. Categoría / Riesgo */}
+                      <td className="px-4 py-3.5">
                         {p.categoria ? (
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black tracking-wider ${
-                            isG3 ? 'bg-red-100 text-red-700 border border-red-200' : 
-                            p.categoria === 'G2' ? 'bg-amber-100 text-amber-700 border border-amber-200' : 
-                            p.categoria === 'G1' ? 'bg-blue-100 text-blue-700 border border-blue-200' : 
-                            'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-black tracking-wider ${
+                            isG3 ? 'bg-red-50 text-red-700 border border-red-200' : 
+                            p.categoria === 'G2' ? 'bg-amber-50 text-amber-700 border border-amber-200' : 
+                            p.categoria === 'G1' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 
+                            'bg-emerald-50 text-emerald-700 border border-emerald-200'
                           }`}>
-                            {p.categoria}
+                            {p.categoria} • {isG3 ? 'ALTO' : p.categoria === 'G2' ? 'MODERADO' : p.categoria === 'G1' ? 'BAJO' : 'SIN RIESGO'}
                           </span>
                         ) : (
-                          <span className="text-slate-400">PENDIENTE</span>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
+                            PENDIENTE
+                          </span>
                         )}
                       </td>
-                       <td className="px-3 py-3.5 text-center">
-                         {(() => {
-                           const s = getCitaDisplayStatus(p, "Médico");
-                           if (s.label === "—") return <span className="text-slate-400 font-normal text-xs">—</span>;
-                           return (
-                             <div className="flex flex-col items-center">
-                               <span className={s.className}>{s.label}</span>
-                               {s.isExpired && <span className="text-[9px] text-red-600 font-bold mt-0.5 uppercase tracking-wide">Vencido</span>}
-                             </div>
-                           );
-                         })()}
-                       </td>
-                       <td className="px-3 py-3.5 text-center">
-                         {(() => {
-                           const s = getCitaDisplayStatus(p, "Enfermero");
-                           if (s.label === "—") return <span className="text-slate-400 font-normal text-xs">—</span>;
-                           return (
-                             <div className="flex flex-col items-center">
-                               <span className={s.className}>{s.label}</span>
-                               {s.isExpired && <span className="text-[9px] text-red-600 font-bold mt-0.5 uppercase tracking-wide">Vencido</span>}
-                             </div>
-                           );
-                         })()}
-                       </td>
-                       <td className="px-3 py-3.5 text-center">
-                         {(() => {
-                           const s = getCitaDisplayStatus(p, "Nutricionista");
-                           if (s.label === "—") return <span className="text-slate-400 font-normal text-xs">—</span>;
-                           return (
-                             <div className="flex flex-col items-center">
-                               <span className={s.className}>{s.label}</span>
-                               {s.isExpired && <span className="text-[9px] text-red-600 font-bold mt-0.5 uppercase tracking-wide">Vencido</span>}
-                             </div>
-                           );
-                         })()}
-                       </td>
-                       <td className="px-3 py-3.5 text-center">
-                         {(() => {
-                           const s = getCitaDisplayStatus(p, "Kinesiólogo");
-                           if (s.label === "—") return <span className="text-slate-400 font-normal text-xs">—</span>;
-                           return (
-                             <div className="flex flex-col items-center">
-                               <span className={s.className}>{s.label}</span>
-                               {s.isExpired && <span className="text-[9px] text-red-600 font-bold mt-0.5 uppercase tracking-wide">Vencido</span>}
-                             </div>
-                           );
-                         })()}
-                       </td>
-                      <td className="px-3 py-3.5 text-center">
-                        <div className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-tight ${stObj.color}`}>
-                          {stObj.icon} {stObj.status}
+
+                      {/* 3. Plan de Cuidado Anual (Unificada) */}
+                      <td className="px-4 py-3.5">
+                        <div className="flex flex-col gap-1.5">
+                          {/* Estado de Controles (5 Estados Clínicos APS) */}
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {p.categoria === "G0" ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md" title="Población sin multimorbilidad crónica. Enfoque promocional/preventivo.">
+                                🛡️ No Requiere Plan Crónico
+                              </span>
+                            ) : !p.categoria || p.categoria === "PENDIENTE" ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-400 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md italic">
+                                ⚪ Sin Estratificar
+                              </span>
+                            ) : !hasPlanRegistrado(p) ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-black text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md" title="Paciente estratificado pero aún sin atenciones ni controles programados">
+                                ⚠️ Sin Plan Programado
+                              </span>
+                            ) : brechasRoles.length > 0 ? (
+                              <div className="flex items-center gap-1">
+                                <span className="text-[10px] font-black text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md flex items-center gap-1">
+                                  <AlertTriangle size={10} />
+                                  FALTAN {brechasRoles.length}:
+                                </span>
+                                <div className="flex flex-wrap gap-1">
+                                  {brechasRoles.map(rol => (
+                                    <span key={rol} className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-200">
+                                      {rol.substring(0, 4)}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                                <CheckCircle size={10} /> Plan de Controles al Día
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Órdenes Médicas Pendientes */}
+                          {ordersCount > 0 && (
+                            <div 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setExamsModalPlan(plan);
+                                setExamsModalPatient(p);
+                                setShowExamsModal(true);
+                              }}
+                              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-[10px] font-black cursor-pointer transition w-fit"
+                              title="Haga clic para ver o resolver las órdenes pendientes"
+                            >
+                              <span>⚠️</span>
+                              <span>{ordersCount} {ordersCount === 1 ? 'Órden Pendiente' : 'Órdenes Pendientes'}</span>
+                              <span className="text-[9px] text-amber-600 underline ml-0.5">Ver</span>
+                            </div>
+                          )}
                         </div>
                       </td>
+
+                      {/* 4. Acciones */}
+                      <td className="px-4 py-3.5 text-right pr-6" onClick={e => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={() => handleDerivarPacienteACaso(p)}
+                          className="px-3 py-1.5 text-[11px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition inline-flex items-center gap-1.5 shadow-2xs group/btn whitespace-nowrap"
+                          title="Derivar paciente a seguimiento en Gestión de Casos"
+                        >
+                          <ArrowUpRight size={13} className="text-indigo-500 group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform" />
+                          <span>Derivar a Gestión de Caso</span>
+                        </button>
+                      </td>
                     </tr>
-                  )
+                  );
                 })}
               </tbody>
             </table>
-            {filtered.length > 500 && (
-              <div className="p-3 text-center text-xs text-slate-400 border-t border-slate-100">Visualizando 500 filas máximo.</div>
+            {totalPages > 1 && (
+              <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-500">
+                  Mostrando {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, filtered.length)} de {filtered.length} pac.
+                </span>
+                <div className="flex space-x-2">
+                  <button
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(prev => prev - 1)}
+                    className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 bg-white hover:bg-slate-50 disabled:opacity-50 transition-colors"
+                  >
+                    Anterior
+                  </button>
+                  <button
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(prev => prev + 1)}
+                    className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 bg-white hover:bg-slate-50 disabled:opacity-50 transition-colors"
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         </>
@@ -1789,7 +2385,56 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
                 })()}
               </div>
 
+              {/* Órdenes Médicas / Exámenes Pendientes */}
+              {(() => {
+                const dataClinica = getParsedDataClinica(selectedPatient.data_clinica);
+                const plan = dataClinica?.plan || [];
+                const pendingOrders: { tipo: string; badge: string; color: string; mesAno: string }[] = [];
 
+                plan.forEach((c: any) => {
+                  const mesAno = `${c.mes}/${c.ano}`;
+                  if (c.laboratorio) pendingOrders.push({ tipo: "Laboratorio Clínico", badge: "🩸 LAB", color: "bg-red-50 text-red-700 border-red-200", mesAno });
+                  if (c.ecg) pendingOrders.push({ tipo: "Electrocardiograma (ECG)", badge: "🫀 ECG", color: "bg-rose-50 text-rose-700 border-rose-200", mesAno });
+                  if (c.espirometria) pendingOrders.push({ tipo: "Espirometría", badge: "🫁 ESP", color: "bg-teal-50 text-teal-700 border-teal-200", mesAno });
+                  if (c.fondoOjo) pendingOrders.push({ tipo: "Fondo de Ojo", badge: "👁️ FOJO", color: "bg-amber-50 text-amber-700 border-amber-200", mesAno });
+                  if (c.perfilGlicemia) pendingOrders.push({ tipo: "Perfil de Glicemia", badge: "🩸 GLICEMIA", color: "bg-purple-50 text-purple-700 border-purple-200", mesAno });
+                  if (c.perfilPA) pendingOrders.push({ tipo: "Perfil Presión Arterial", badge: "⚕️ PERFIL PA", color: "bg-indigo-50 text-indigo-700 border-indigo-200", mesAno });
+                  if (c.otros) pendingOrders.push({ tipo: c.otrosTexto || "Otros Exámenes", badge: "➕ OTROS", color: "bg-slate-100 text-slate-700 border-slate-200", mesAno });
+                });
+
+                if (pendingOrders.length === 0) return null;
+
+                return (
+                  <div className="space-y-3 p-4 bg-amber-50/70 border border-amber-200 rounded-2xl">
+                    <div className="flex justify-between items-center">
+                      <h4 className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                        <span>⚠️</span> Órdenes y Exámenes Pendientes ({pendingOrders.length})
+                      </h4>
+                      <button
+                        onClick={() => {
+                          setExamsModalPlan(plan);
+                          setExamsModalPatient(selectedPatient);
+                          setShowExamsModal(true);
+                        }}
+                        className="text-[11px] font-bold text-amber-800 bg-amber-200/60 hover:bg-amber-200 px-2.5 py-1 rounded-lg transition"
+                      >
+                        Gestionar
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 gap-2">
+                      {pendingOrders.map((ord, idx) => (
+                        <div key={idx} className="flex justify-between items-center text-xs bg-white p-2.5 rounded-xl border border-amber-100 shadow-2xs">
+                          <span className="font-semibold text-slate-700 flex items-center gap-1.5">
+                            <span>{ord.badge}</span>
+                            <span>{ord.tipo}</span>
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-mono font-medium">Prog: {ord.mesAno}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Diagnósticos Crónicos */}
               {selectedPatient.diagnosticos && selectedPatient.diagnosticos.length > 0 && (
@@ -1822,18 +2467,31 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
             </div>
 
             {/* Footer del Panel */}
-            <div className="p-6 bg-slate-50 border-t border-slate-100 flex space-x-3">
-              <button
-                onClick={openFormModal}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-md transition-all text-sm flex items-center justify-center"
-              >
-                📋 {selectedPatient.categoria ? "Actualizar Datos" : "Registrar Estratificación"}
-              </button>
+            <div className="p-5 bg-slate-50 border-t border-slate-100 flex flex-col gap-2">
+              <div className="flex space-x-2">
+                <button
+                  type="button"
+                  onClick={openFormModal}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl shadow-md transition-all text-xs flex items-center justify-center gap-1.5"
+                >
+                  <ClipboardCheck size={15} />
+                  <span>{selectedPatient.categoria ? "Actualizar Estratificación" : "Registrar Estratificación"}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDerivarPacienteACaso(selectedPatient)}
+                  className="flex-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold py-2.5 rounded-xl border border-indigo-200 transition-all text-xs flex items-center justify-center gap-1.5"
+                >
+                  <Briefcase size={15} />
+                  <span>Derivar a Caso</span>
+                </button>
+              </div>
               <button 
+                type="button"
                 onClick={() => setSelectedPatient(null)}
-                className="flex-1 bg-white text-slate-600 font-bold py-3 rounded-xl border border-slate-200 hover:bg-slate-100 transition-colors text-sm"
+                className="w-full bg-white text-slate-500 font-bold py-2 rounded-xl border border-slate-200 hover:bg-slate-100 transition-colors text-xs"
               >
-                Cerrar Ficha
+                Cerrar Panel
               </button>
             </div>
           </div>
@@ -2270,8 +2928,12 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
               <div className="flex items-center space-x-3">
                 <Briefcase className="text-indigo-600" size={22} />
                 <div>
-                  <h3 className="font-bold text-slate-800 text-base">Ingresar a Gestión de Casos</h3>
-                  <p className="text-xs text-slate-500">Busca al paciente por RUT en el padrón</p>
+                  <h3 className="font-bold text-slate-800 text-base">
+                    {isDerivacionDirecta ? "Confirmar Derivación a Caso" : "Ingresar a Gestión de Casos"}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    {isDerivacionDirecta ? "Derivación clínica desde el Padrón" : "Busca al paciente por RUT en el padrón"}
+                  </p>
                 </div>
               </div>
               <button onClick={() => { setShowIngresarCasoModal(false); resetCasoModal(); }} className="text-slate-400 hover:text-slate-600 p-1 bg-white border rounded-full">
@@ -2291,15 +2953,15 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
                   onChange={e => setCasoRutInput(e.target.value)}
                   placeholder="Ej: 12345678"
                   maxLength={10}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-mono focus:ring-2 focus:ring-indigo-500 outline-none"
-                  autoFocus
+                  readOnly={isDerivacionDirecta}
+                  className={`w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-mono focus:ring-2 focus:ring-indigo-500 outline-none ${isDerivacionDirecta ? 'opacity-70 cursor-not-allowed' : ''}`}
+                  autoFocus={!isDerivacionDirecta}
                 />
-                {/* Paciente encontrado — clickeable para agregar directo */}
+                {/* Paciente encontrado */}
                 {casoPacienteEncontrado && (
-                  <button
-                    type="button"
-                    onClick={handleAgregarALista}
-                    className="mt-2 w-full p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-3 animate-in fade-in duration-150 hover:bg-emerald-100 hover:border-emerald-300 transition-colors group text-left"
+                  <div
+                    onClick={!isDerivacionDirecta ? handleAgregarALista : undefined}
+                    className={`mt-2 w-full p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-3 animate-in fade-in duration-150 text-left ${!isDerivacionDirecta ? 'hover:bg-emerald-100 hover:border-emerald-300 transition-colors group cursor-pointer' : ''}`}
                   >
                     <div className="h-9 w-9 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-sm shrink-0">
                       {casoPacienteEncontrado.nombre_completo?.charAt(0)}
@@ -2308,10 +2970,12 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
                       <p className="text-xs font-black text-emerald-800 uppercase">{casoPacienteEncontrado.nombre_completo}</p>
                       <p className="text-[10px] text-emerald-600">{casoPacienteEncontrado.sector} · {casoPacienteEncontrado.categoria || 'Sin categoría ECICEP'}</p>
                     </div>
-                    <span className="text-[10px] font-black text-emerald-600 bg-emerald-100 group-hover:bg-emerald-200 px-2 py-1 rounded-lg transition-colors shrink-0">
-                      + Agregar
-                    </span>
-                  </button>
+                    {!isDerivacionDirecta && (
+                      <span className="text-[10px] font-black text-emerald-600 bg-emerald-100 group-hover:bg-emerald-200 px-2 py-1 rounded-lg transition-colors shrink-0">
+                        + Agregar
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
 
@@ -2391,14 +3055,16 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
               )}
 
               {/* Botón "Agregar a la Lista" — alternativa al click en la tarjeta */}
-              <button
-                type="button"
-                onClick={handleAgregarALista}
-                disabled={!casoPacienteEncontrado}
-                className="w-full py-3 border-2 border-dashed border-indigo-200 bg-indigo-50/50 hover:bg-indigo-50 text-indigo-600 rounded-xl font-bold text-sm transition-colors flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Plus size={16} /> Agregar a la Lista
-              </button>
+              {!isDerivacionDirecta && (
+                <button
+                  type="button"
+                  onClick={handleAgregarALista}
+                  disabled={!casoPacienteEncontrado}
+                  className="w-full py-3 border-2 border-dashed border-indigo-200 bg-indigo-50/50 hover:bg-indigo-50 text-indigo-600 rounded-xl font-bold text-sm transition-colors flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Plus size={16} /> Agregar a la Lista
+                </button>
+              )}
 
               {/* Error */}
               {casoError && (
@@ -2408,7 +3074,7 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
               )}
               
               {/* Lista Temporal de Casos (Carrito) */}
-              {casosPendientes.length > 0 && (
+              {!isDerivacionDirecta && casosPendientes.length > 0 && (
                 <div className="mt-4 pt-4 border-t border-slate-200">
                   <div className="flex justify-between items-center mb-3">
                     <h4 className="text-xs font-bold text-slate-700">Casos en Lista ({casosPendientes.length})</h4>
@@ -2419,8 +3085,8 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
                       <div key={i} className="flex justify-between items-center p-2.5 bg-slate-50 border border-slate-200 rounded-lg group">
                         <div>
                           <p className="text-[11px] font-black text-slate-700 uppercase">{c.nombre_completo}</p>
-                          <p className="text-[10px] text-slate-500">
-                            {c.rut_paciente} • {c.tipo === 'POST_HOSPITALIZADO' ? `🏥 Post-Hosp (${c.fecha_alta})` : c.tipo === 'POLICONSULTANTE' ? '🔄 Policonsultante' : '📋 Derivación Clínica'}
+                          <p className="text-[10px] text-slate-500 font-mono">
+                            {c.rut_paciente}-{calcularDv(c.rut_paciente)} <span className="font-sans">• {c.tipo === 'POST_HOSPITALIZADO' ? `🏥 Post-Hosp (${c.fecha_alta})` : c.tipo === 'POLICONSULTANTE' ? '🔄 Policonsultante' : '📋 Derivación Clínica'}</span>
                           </p>
                         </div>
                         <button 
@@ -2448,11 +3114,22 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
               </button>
               <button
                 type="button"
-                onClick={handleGuardarLista}
-                disabled={casoSaving || casosPendientes.length === 0}
+                onClick={() => {
+                  if (isDerivacionDirecta) {
+                    handleGuardarDerivacionDirecta();
+                  } else {
+                    handleGuardarLista();
+                  }
+                }}
+                disabled={casoSaving || (!isDerivacionDirecta && casosPendientes.length === 0)}
                 className="flex-1 px-4 py-3 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-md disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                {casoSaving ? 'Guardando...' : <><Briefcase size={14} /> Guardar {casosPendientes.length} Casos</>}
+                {casoSaving 
+                  ? 'Guardando...' 
+                  : isDerivacionDirecta 
+                    ? <><ArrowUpRight size={14} /> Confirmar Derivación</> 
+                    : <><Briefcase size={14} /> Guardar {casosPendientes.length} Casos</>
+                }
               </button>
             </div>
           </div>
@@ -2470,13 +3147,34 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-800 text-base">Asignar Gestor de Caso</h3>
-                  <p className="text-xs text-slate-500 truncate max-w-[240px] font-bold text-indigo-700 uppercase">
-                    {modalAsignar.pacienteNombre}
-                  </p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <p className="text-xs text-slate-500 truncate max-w-[220px] font-bold text-indigo-700 uppercase">
+                      {modalAsignar.pacienteNombre}
+                    </p>
+                    {modalAsignar.categoria && (
+                      <span
+                        className={`px-1.5 py-0.5 text-[10px] font-black rounded border font-mono leading-none ${
+                          modalAsignar.categoria === 'G3'
+                            ? 'bg-rose-100 text-rose-800 border-rose-300'
+                            : modalAsignar.categoria === 'G2'
+                            ? 'bg-amber-100 text-amber-800 border-amber-300'
+                            : modalAsignar.categoria === 'G1'
+                            ? 'bg-blue-100 text-blue-800 border-blue-300'
+                            : 'bg-slate-100 text-slate-700 border-slate-300'
+                        }`}
+                      >
+                        {modalAsignar.categoria}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
               <button 
-                onClick={() => setModalAsignar({ show: false, casoId: null, pacienteNombre: "" })} 
+                onClick={() => {
+                  setModalAsignar({ show: false, casoId: null, pacienteNombre: "" });
+                  setAsignarSelectedRut("");
+                  setAsignarSearchQuery("");
+                }} 
                 className="text-slate-400 hover:text-slate-600 p-1 bg-white border rounded-full"
               >
                 <X size={18} />
@@ -2484,9 +3182,11 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
             </div>
 
             <div className="p-6 space-y-4">
-              {modalAsignar.estamentoSugerido && (
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 font-medium">
-                  🏷 Estamento sugerido: <strong className="uppercase">{modalAsignar.estamentoSugerido}</strong>
+              {modalAsignar.estamentoSugerido && 
+               modalAsignar.estamentoSugerido.toUpperCase() !== "SIN ASIGNAR" &&
+               modalAsignar.estamentoSugerido.trim() !== "" && (
+                <div className="p-2.5 bg-amber-50/80 border border-amber-200/80 rounded-xl text-xs text-amber-800 font-medium flex items-center gap-2">
+                  <span>🏷 Estamento sugerido: <strong className="uppercase">{modalAsignar.estamentoSugerido}</strong></span>
                 </div>
               )}
 
@@ -2494,19 +3194,127 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
                   Selecciona el Profesional del CESFAM <span className="text-red-500">*</span>
                 </label>
-                <select
-                  value={asignarSelectedRut}
-                  onChange={e => setAsignarSelectedRut(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-slate-800"
-                >
-                  <option value="">-- Seleccionar profesional --</option>
-                  {profesionales.map(p => (
-                    <option key={p.rut} value={p.rut}>
-                      {p.nombre} ({p.rol})
-                    </option>
-                  ))}
-                </select>
-                <p className="text-[11px] text-slate-400 mt-1.5">
+
+                {(() => {
+                  const profesionalSeleccionado = profesionales.find(p => p.rut === asignarSelectedRut);
+                  const queryNorm = asignarSearchQuery.trim().toLowerCase();
+                  const estamentoNorm = (modalAsignar.estamentoSugerido || "").trim().toLowerCase();
+
+                  const sugerencias = profesionales.filter(p => {
+                    if (!queryNorm) return true;
+                    const nom = p.nombre.toLowerCase();
+                    const rol = (p.rol || "").toLowerCase();
+                    const rut = p.rut.toLowerCase();
+                    return nom.includes(queryNorm) || rol.includes(queryNorm) || rut.includes(queryNorm);
+                  }).sort((a, b) => {
+                    if (estamentoNorm && estamentoNorm !== "sin asignar") {
+                      const aMatch = (a.rol || "").toLowerCase().includes(estamentoNorm);
+                      const bMatch = (b.rol || "").toLowerCase().includes(estamentoNorm);
+                      if (aMatch && !bMatch) return -1;
+                      if (!aMatch && bMatch) return 1;
+                    }
+                    return a.nombre.localeCompare(b.nombre);
+                  });
+
+                  if (profesionalSeleccionado) {
+                    return (
+                      <div className="p-3 bg-indigo-50/70 border border-indigo-200/90 rounded-2xl flex items-center justify-between animate-in fade-in duration-150">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="h-8 w-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                            <User size={16} />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-slate-900 uppercase truncate">
+                              {profesionalSeleccionado.nombre}
+                            </p>
+                            <p className="text-[11px] text-indigo-700 font-medium truncate">
+                              {profesionalSeleccionado.rol} · <span className="font-mono text-slate-400">{profesionalSeleccionado.rut}</span>
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAsignarSelectedRut("");
+                            setAsignarSearchQuery("");
+                          }}
+                          className="px-2.5 py-1 text-xs font-bold text-indigo-700 bg-white border border-indigo-200 hover:bg-indigo-50 rounded-lg transition shrink-0 ml-2 shadow-sm"
+                        >
+                          Cambiar
+                        </button>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-2">
+                      <div className="relative">
+                        <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="text"
+                          autoFocus
+                          value={asignarSearchQuery}
+                          onChange={e => setAsignarSearchQuery(e.target.value)}
+                          placeholder="Escribe nombre o estamento (ej: Claudia, TENS)..."
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-8 py-2.5 text-xs font-medium focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition text-slate-800"
+                        />
+                        {asignarSearchQuery && (
+                          <button
+                            type="button"
+                            onClick={() => setAsignarSearchQuery("")}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Lista de sugerencias predictivas: SOLO se muestra al escribir */}
+                      {queryNorm.length > 0 && (
+                        <div className="max-h-48 overflow-y-auto divide-y divide-slate-100 border border-slate-200 rounded-xl bg-white shadow-lg animate-in fade-in duration-150">
+                          {sugerencias.length === 0 ? (
+                            <div className="p-4 text-center text-xs text-slate-400">
+                              No se encontraron profesionales con &ldquo;{asignarSearchQuery}&rdquo;
+                            </div>
+                          ) : (
+                            sugerencias.slice(0, 10).map(p => {
+                              const esSugerido = modalAsignar.estamentoSugerido && 
+                                modalAsignar.estamentoSugerido.toUpperCase() !== "SIN ASIGNAR" &&
+                                (p.rol || "").toUpperCase().includes(modalAsignar.estamentoSugerido.toUpperCase());
+                              return (
+                                <button
+                                  key={p.rut}
+                                  type="button"
+                                  onClick={() => {
+                                    setAsignarSelectedRut(p.rut);
+                                    setAsignarSearchQuery("");
+                                  }}
+                                  className="w-full text-left px-3.5 py-2.5 hover:bg-indigo-50/70 transition flex items-center justify-between group"
+                                >
+                                  <div className="min-w-0 pr-2">
+                                    <p className="text-xs font-bold text-slate-800 group-hover:text-indigo-900 uppercase truncate">
+                                      {p.nombre}
+                                    </p>
+                                    <p className="text-[10px] text-slate-400 font-medium truncate">
+                                      {p.rol}
+                                    </p>
+                                  </div>
+                                  {esSugerido && (
+                                    <span className="text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded shrink-0">
+                                      Sugerido
+                                    </span>
+                                  )}
+                                </button>
+                              );
+                            })
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                <p className="text-[11px] text-slate-400 mt-2">
                   El caso pasará inmediatamente a estado <strong>En Seguimiento</strong> a nombre del profesional seleccionado.
                 </p>
               </div>
@@ -2515,7 +3323,11 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
             <div className="p-5 bg-slate-50 border-t border-slate-100 flex gap-3">
               <button
                 type="button"
-                onClick={() => setModalAsignar({ show: false, casoId: null, pacienteNombre: "" })}
+                onClick={() => {
+                  setModalAsignar({ show: false, casoId: null, pacienteNombre: "" });
+                  setAsignarSelectedRut("");
+                  setAsignarSearchQuery("");
+                }}
                 className="flex-1 px-4 py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-200 transition-colors border border-slate-200 bg-white"
               >
                 Cancelar
@@ -2608,6 +3420,128 @@ export default function EcicepClientView({ data, user }: { data: any[], user: Us
                 className="flex-1 px-4 py-2.5 rounded-xl text-xs font-bold bg-rose-600 text-white hover:bg-rose-700 transition-colors shadow-md disabled:opacity-50 flex items-center justify-center gap-1.5"
               >
                 {cerrarSaving ? "Cerrando..." : "Confirmar Cierre de Caso"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Modal: Confirmar Tomar Caso ───────────────────────────────────── */}
+      {modalTomar.show && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[70] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-indigo-50/50">
+              <div className="flex items-center space-x-3">
+                <div className="h-10 w-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center">
+                  <UserCheck size={20} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-800 text-base">Tomar Caso Clínico</h3>
+                  <p className="text-xs text-indigo-700 font-bold uppercase truncate max-w-[240px]">
+                    {modalTomar.pacienteNombre}
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setModalTomar({ show: false, casoId: null, pacienteNombre: "", sector: "", estamento: "" })} 
+                className="text-slate-400 hover:text-slate-600 p-1 bg-white border rounded-full"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-500 font-medium">Sector:</span>
+                  <span className="font-bold text-slate-800">{modalTomar.sector}</span>
+                </div>
+                {modalTomar.estamento && (
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-500 font-medium">Perfil Requerido:</span>
+                    <span className="font-bold text-slate-800">{modalTomar.estamento}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-500 font-medium">Gestor que asumirá:</span>
+                  <span className="font-bold text-indigo-600">{user?.nombre || "Tu usuario"}</span>
+                </div>
+              </div>
+
+              <p className="text-xs text-slate-600 leading-relaxed">
+                ¿Confirmas que deseas asumir el seguimiento de este caso? El paciente pasará a estado <strong>En Seguimiento</strong> bajo tu responsabilidad.
+              </p>
+            </div>
+
+            <div className="p-5 bg-slate-50 border-t border-slate-100 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setModalTomar({ show: false, casoId: null, pacienteNombre: "", sector: "", estamento: "" })}
+                className="flex-1 px-4 py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-200 transition-colors border border-slate-200 bg-white"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmarTomarCaso}
+                disabled={tomarSaving}
+                className="flex-1 px-4 py-2.5 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-md disabled:opacity-50 flex items-center justify-center gap-1.5"
+              >
+                {tomarSaving ? "Asignando..." : "Confirmar y Tomar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Modal: Confirmar Anular Caso ─────────────────────────────────── */}
+      {modalAnular.show && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[70] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-rose-50/50">
+              <div className="flex items-center space-x-3">
+                <div className="h-10 w-10 rounded-xl bg-rose-600 text-white flex items-center justify-center">
+                  <Trash2 size={20} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-800 text-base">Anular Derivación</h3>
+                  <p className="text-xs text-rose-700 font-bold uppercase truncate max-w-[240px]">
+                    {modalAnular.pacienteNombre}
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setModalAnular({ show: false, casoId: null, pacienteNombre: "", tipo: "" })} 
+                className="text-slate-400 hover:text-slate-600 p-1 bg-white border rounded-full"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="p-3.5 bg-rose-50/70 border border-rose-200 rounded-2xl flex items-start gap-2.5">
+                <AlertTriangle size={18} className="text-rose-600 shrink-0 mt-0.5" />
+                <p className="text-xs text-rose-800 leading-relaxed font-medium">
+                  Esta acción eliminará la derivación pendiente de la lista de gestión de casos. Solo debes anularla si se ingresó por error o ya no procede el seguimiento.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-5 bg-slate-50 border-t border-slate-100 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setModalAnular({ show: false, casoId: null, pacienteNombre: "", tipo: "" })}
+                className="flex-1 px-4 py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-200 transition-colors border border-slate-200 bg-white"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmarAnularCaso}
+                disabled={anularSaving}
+                className="flex-1 px-4 py-2.5 rounded-xl text-xs font-bold bg-rose-600 text-white hover:bg-rose-700 transition-colors shadow-md disabled:opacity-50 flex items-center justify-center gap-1.5"
+              >
+                {anularSaving ? "Anulando..." : "Sí, Anular Derivación"}
               </button>
             </div>
           </div>
