@@ -1376,15 +1376,6 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
                     👤 Mis Casos
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={handleExportarCasosExcel}
-                    className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl transition shadow-sm shrink-0"
-                    title="Exportar casos filtrados a Excel"
-                  >
-                    <FileSpreadsheet size={14} className="text-emerald-600" />
-                    <span className="hidden sm:inline">Exportar</span>
-                  </button>
 
                   <button
                     type="button"
