@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { Search, MapPin, AlertTriangle, CheckCircle, Clock, Download, ClipboardCheck, X, User, Phone, Map, Calendar, Plus, Save, Briefcase, Hospital, RefreshCw, ArrowUpRight, BarChart3, ChevronDown, FileSpreadsheet, Target, Filter } from "lucide-react";
+import { Search, MapPin, AlertTriangle, CheckCircle, Clock, Download, ClipboardCheck, X, User, Phone, Map, Calendar, Plus, Save, Briefcase, Hospital, RefreshCw, ArrowUpRight, BarChart3, ChevronDown, FileSpreadsheet, Target, Filter, UserCheck, Trash2 } from "lucide-react";
 import * as XLSX from "xlsx";
 import toast from "react-hot-toast";
 import { UserProfile } from "@/actions/userActions";
@@ -182,12 +182,12 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
   const [casoSaving, setCasoSaving] = useState(false);
   const [casoError, setCasoError] = useState("");
   const [filterTipoCaso, setFilterTipoCaso] = useState<"Todos" | TipoCaso>("Todos");
-  const [filterEstadoCaso, setFilterEstadoCaso] = useState<"Todos" | "PENDIENTE_ASIGNACION" | "EN_SEGUIMIENTO">("Todos");
+  const [filterEstadoCaso, setFilterEstadoCaso] = useState<"ACTIVOS" | "PENDIENTE_ASIGNACION" | "EN_SEGUIMIENTO" | "CERRADO">("ACTIVOS");
   const [searchGestion, setSearchGestion] = useState("");
   const [filterSectorGestion, setFilterSectorGestion] = useState("Todos");
   const [filterSoloMisCasos, setFilterSoloMisCasos] = useState(false);
 
-  // Modales de asignación y cierre de caso
+  // Modales de gestión de casos
   const [profesionales, setProfesionales] = useState<ProfesionalAsignable[]>([]);
   const [modalAsignar, setModalAsignar] = useState<{ show: boolean; casoId: number | null; pacienteNombre: string; estamentoSugerido?: string; categoria?: string | null }>({
     show: false, casoId: null, pacienteNombre: ""
@@ -201,6 +201,35 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
   });
   const [cerrarMotivo, setCerrarMotivo] = useState("OBJETIVO_CUMPLIDO");
   const [cerrarSaving, setCerrarSaving] = useState(false);
+
+  // Modales de confirmación para Tomar y Anular
+  const [modalTomar, setModalTomar] = useState<{
+    show: boolean;
+    casoId: number | null;
+    pacienteNombre: string;
+    sector: string;
+    estamento?: string;
+  }>({
+    show: false,
+    casoId: null,
+    pacienteNombre: "",
+    sector: "",
+    estamento: ""
+  });
+  const [tomarSaving, setTomarSaving] = useState(false);
+
+  const [modalAnular, setModalAnular] = useState<{
+    show: boolean;
+    casoId: number | null;
+    pacienteNombre: string;
+    tipo: string;
+  }>({
+    show: false,
+    casoId: null,
+    pacienteNombre: "",
+    tipo: ""
+  });
+  const [anularSaving, setAnularSaving] = useState(false);
 
   // Modal State
   const [showFormModal, setShowFormModal] = useState(false);
@@ -400,25 +429,64 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
     }
   }, [view]);
 
-  // Anular caso
-  const handleAnularCaso = async (id: number) => {
-    if (!confirm("¿Seguro que deseas anular esta derivación?")) return;
-    const res = await anularCaso(id);
+  // Confirmar y anular derivación
+  const handleConfirmarAnularCaso = async () => {
+    if (!modalAnular.casoId) return;
+    setAnularSaving(true);
+    const res = await anularCaso(modalAnular.casoId);
+    setAnularSaving(false);
     if (res.error) toast.error(res.error);
     else {
       toast.success("Derivación anulada correctamente.");
+      setModalAnular({ show: false, casoId: null, pacienteNombre: "", tipo: "" });
       await cargarCasos();
     }
   };
 
-  // Tomar caso (Autogestión del usuario logueado)
-  const handleTomarCaso = async (id: number) => {
-    const res = await tomarCaso(id);
+  // Confirmar y tomar caso (Autogestión del usuario actual)
+  const handleConfirmarTomarCaso = async () => {
+    if (!modalTomar.casoId) return;
+    setTomarSaving(true);
+    const res = await tomarCaso(modalTomar.casoId);
+    setTomarSaving(false);
     if (res.error) toast.error(res.error);
     else {
       toast.success("Has tomado este caso para seguimiento.");
+      setModalTomar({ show: false, casoId: null, pacienteNombre: "", sector: "", estamento: "" });
       await cargarCasos();
     }
+  };
+
+  // Exportar casos a Excel
+  const handleExportarCasosExcel = () => {
+    if (casosFiltrados.length === 0) {
+      toast.error("No hay casos para exportar con los filtros seleccionados.");
+      return;
+    }
+    const rows = casosFiltrados.map(c => ({
+      "RUT": c.dv ? `${c.rut_paciente}-${c.dv}` : `${c.rut_paciente}-${calcularDv(c.rut_paciente)}`,
+      "Nombre Paciente": c.nombre_completo,
+      "Sector": c.sector,
+      "Teléfono": c.telefono || "—",
+      "Categoría ECICEP": c.categoria || "S/E",
+      "Origen del Caso": c.tipo === "POST_HOSPITALIZADO" ? "Post-Alta Hospitalaria" : c.tipo === "POLICONSULTANTE" ? "Policonsultante" : "Derivación Clínica",
+      "Fecha Alta Hosp.": c.fecha_alta ? formatDate(c.fecha_alta) : "—",
+      "Diagnóstico Alta": c.diagnostico_alta || "—",
+      "Estamento Requerido": c.estamento_solicitado || "—",
+      "Estado": c.estado === "PENDIENTE_ASIGNACION" ? "Sin Gestor" : c.estado === "EN_SEGUIMIENTO" ? "En Seguimiento" : "Cerrado",
+      "Gestor Asignado": c.gestor_asignado_nombre || "Sin Asignar",
+      "Fecha Asignación": c.fecha_asignacion ? formatDate(c.fecha_asignacion) : "—",
+      "Fecha Cierre": c.fecha_cierre ? formatDate(c.fecha_cierre) : "—",
+      "Motivo Cierre": c.motivo_cierre || "—",
+      "Fecha Registro": c.fecha_registro ? formatDate(c.fecha_registro) : "—",
+      "Observaciones": c.observaciones || "—"
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Gestión de Casos");
+    XLSX.writeFile(wb, `GIA_Gestion_Casos_${filterEstadoCaso}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    toast.success(`Exportados ${rows.length} casos exitosamente.`);
   };
 
   // Asignar a un profesional específico
@@ -795,7 +863,11 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
   const casosFiltrados = useMemo(() => {
     return casos.filter(c => {
       if (filterTipoCaso !== 'Todos' && c.tipo !== filterTipoCaso) return false;
-      if (filterEstadoCaso !== 'Todos' && c.estado !== filterEstadoCaso) return false;
+      if (filterEstadoCaso === "ACTIVOS") {
+        if (c.estado === 'CERRADO') return false;
+      } else if (c.estado !== filterEstadoCaso) {
+        return false;
+      }
       if (filterSectorGestion !== 'Todos' && c.sector !== filterSectorGestion) return false;
       if (filterSoloMisCasos) {
         const userCleanRut = user?.rut ? user.rut.replace(/[^0-9kK]/g, "").toLowerCase() : "";
@@ -1162,6 +1234,8 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
           {(() => {
             const pendientesCount = casos.filter(c => c.estado === 'PENDIENTE_ASIGNACION').length;
             const enSeguimientoCount = casos.filter(c => c.estado === 'EN_SEGUIMIENTO').length;
+            const cerradosCount = casos.filter(c => c.estado === 'CERRADO').length;
+            const activosCount = pendientesCount + enSeguimientoCount;
 
             return (
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-4">
@@ -1190,21 +1264,21 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
                   </div>
 
                   {/* Segmented Control con conteos integrados */}
-                  <div className="flex bg-slate-100 p-1 rounded-xl shrink-0">
+                  <div className="flex bg-slate-100 p-1 rounded-xl shrink-0 overflow-x-auto">
                     <button
                       type="button"
-                      onClick={() => setFilterEstadoCaso("Todos")}
+                      onClick={() => setFilterEstadoCaso("ACTIVOS")}
                       className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
-                        filterEstadoCaso === "Todos"
+                        filterEstadoCaso === "ACTIVOS"
                           ? "bg-white text-indigo-700 shadow-sm"
                           : "text-slate-500 hover:text-slate-800"
                       }`}
                     >
-                      <span>Todos</span>
+                      <span>Activos</span>
                       <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
-                        filterEstadoCaso === "Todos" ? "bg-indigo-50 text-indigo-700" : "bg-slate-200/80 text-slate-600"
+                        filterEstadoCaso === "ACTIVOS" ? "bg-indigo-50 text-indigo-700" : "bg-slate-200/80 text-slate-600"
                       }`}>
-                        {casos.length}
+                        {activosCount}
                       </span>
                     </button>
 
@@ -1243,10 +1317,28 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
                         {enSeguimientoCount}
                       </span>
                     </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setFilterEstadoCaso("CERRADO")}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                        filterEstadoCaso === "CERRADO"
+                          ? "bg-white text-slate-700 shadow-sm"
+                          : "text-slate-500 hover:text-slate-800"
+                      }`}
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full bg-slate-400 shrink-0" />
+                      <span>Cerrados</span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                        filterEstadoCaso === "CERRADO" ? "bg-slate-200 text-slate-800" : "bg-slate-200/80 text-slate-600"
+                      }`}>
+                        {cerradosCount}
+                      </span>
+                    </button>
                   </div>
                 </div>
 
-                {/* Lado derecho: Selects, Mis Casos y Refrescar */}
+                {/* Lado derecho: Selects, Mis Casos, Exportar y Refrescar */}
                 <div className="flex items-center gap-2 flex-wrap">
                   <select
                     value={filterTipoCaso}
@@ -1286,6 +1378,16 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
 
                   <button
                     type="button"
+                    onClick={handleExportarCasosExcel}
+                    className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl transition shadow-sm shrink-0"
+                    title="Exportar casos filtrados a Excel"
+                  >
+                    <FileSpreadsheet size={14} className="text-emerald-600" />
+                    <span className="hidden sm:inline">Exportar</span>
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={cargarCasos}
                     disabled={loadingCasos}
                     className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 border border-slate-200 rounded-xl bg-white transition shrink-0"
@@ -1306,13 +1408,13 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
             <div className="flex flex-col items-center justify-center py-16 text-slate-400 border border-dashed border-slate-200 rounded-2xl bg-white">
               <Briefcase size={28} className="mb-2 opacity-30" />
               <p className="text-xs font-bold text-slate-600">No se encontraron casos con los filtros seleccionados.</p>
-              {(searchGestion || filterTipoCaso !== 'Todos' || filterEstadoCaso !== 'Todos' || filterSectorGestion !== 'Todos' || filterSoloMisCasos) && (
+              {(searchGestion || filterTipoCaso !== 'Todos' || filterEstadoCaso !== 'ACTIVOS' || filterSectorGestion !== 'Todos' || filterSoloMisCasos) && (
                 <button
                   type="button"
                   onClick={() => {
                     setSearchGestion("");
                     setFilterTipoCaso("Todos");
-                    setFilterEstadoCaso("Todos");
+                    setFilterEstadoCaso("ACTIVOS");
                     setFilterSectorGestion("Todos");
                     setFilterSoloMisCasos(false);
                   }}
@@ -1415,7 +1517,17 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
 
                         {/* 3. Gestor Asignado */}
                         <td className="px-4 py-3.5">
-                          {isSinGestor ? (
+                          {caso.estado === 'CERRADO' ? (
+                            <div>
+                              <p className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                                <User size={12} className="text-slate-400" />
+                                {caso.gestor_asignado_nombre || "Sin gestor asignado"}
+                              </p>
+                              <p className="text-[10px] text-slate-400 font-medium">
+                                Cerrado: {caso.fecha_cierre ? formatDate(caso.fecha_cierre) : "—"}
+                              </p>
+                            </div>
+                          ) : isSinGestor ? (
                             (() => {
                               const estamentoValido = caso.estamento_solicitado && 
                                 caso.estamento_solicitado.toUpperCase() !== 'SIN ASIGNAR' && 
@@ -1450,28 +1562,39 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
 
                         {/* 4. Tiempo / Urgencia */}
                         <td className="px-4 py-3.5 text-center">
-                          <div className="flex flex-col items-center gap-0.5">
-                            {caso.tipo === 'POST_HOSPITALIZADO' && isSinGestor ? (
-                              <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${semaforo.color}`}>
-                                <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${semaforo.dot}`} />
-                                Post-Alta: {semaforo.label}
-                              </div>
-                            ) : (
-                              <span className="text-xs font-medium text-slate-700">
-                                {tiempo.subtext || tiempo.label}
-                              </span>
-                            )}
-                            {tiempo.esAlerta && (
-                              <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.2 rounded border border-rose-200">
-                                &gt;6 meses
-                              </span>
-                            )}
-                          </div>
+                          {caso.estado === 'CERRADO' ? (
+                            <span className="text-xs font-medium text-slate-500">
+                              Finalizado
+                            </span>
+                          ) : (
+                            <div className="flex flex-col items-center gap-0.5">
+                              {caso.tipo === 'POST_HOSPITALIZADO' && isSinGestor ? (
+                                <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${semaforo.color}`}>
+                                  <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${semaforo.dot}`} />
+                                  Post-Alta: {semaforo.label}
+                                </div>
+                              ) : (
+                                <span className="text-xs font-medium text-slate-700">
+                                  {tiempo.subtext || tiempo.label}
+                                </span>
+                              )}
+                              {tiempo.esAlerta && (
+                                <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.2 rounded border border-rose-200">
+                                  &gt;6 meses
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </td>
 
                         {/* 5. Estado */}
                         <td className="px-4 py-3.5">
-                          {isSinGestor ? (
+                          {caso.estado === 'CERRADO' ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
+                              <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+                              Cerrado
+                            </span>
+                          ) : isSinGestor ? (
                             <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700">
                               <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
                               Sin Gestor
@@ -1487,23 +1610,51 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
                         {/* 6. Acciones */}
                         <td className="px-5 py-3.5 text-right">
                           <div className="flex items-center justify-end gap-1.5">
-                            {isSinGestor ? (
+                            {caso.estado === 'CERRADO' ? (
+                              <span 
+                                className="inline-block text-[11px] font-semibold text-slate-600 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg"
+                                title={caso.motivo_cierre || "Caso finalizado"}
+                              >
+                                {(() => {
+                                  switch (caso.motivo_cierre) {
+                                    case "OBJETIVO_CUMPLIDO": return "✅ Objetivo Cumplido";
+                                    case "ALTA_MEDICA": return "🏥 Alta Médica";
+                                    case "INUBICABLE": return "📞 Inubicable";
+                                    case "RECHAZA": return "🚫 Rechazo";
+                                    case "TRASLADO_FALLECIDO": return "🕊️ Traslado / Defunción";
+                                    default: return caso.motivo_cierre ? caso.motivo_cierre.replace(/_/g, " ") : "Finalizado";
+                                  }
+                                })()}
+                              </span>
+                            ) : isSinGestor ? (
                               <>
                                 <button
                                   type="button"
-                                  onClick={() => handleAnularCaso(caso.id)}
+                                  onClick={() => setModalAnular({
+                                    show: true,
+                                    casoId: caso.id,
+                                    pacienteNombre: caso.nombre_completo,
+                                    tipo: caso.tipo
+                                  })}
                                   className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
                                   title="Anular derivación"
                                 >
-                                  <X size={14} />
+                                  <Trash2 size={14} />
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => handleTomarCaso(caso.id)}
-                                  className="px-2.5 py-1 text-xs font-bold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition shadow-sm"
+                                  onClick={() => setModalTomar({
+                                    show: true,
+                                    casoId: caso.id,
+                                    pacienteNombre: caso.nombre_completo,
+                                    sector: caso.sector,
+                                    estamento: caso.estamento_solicitado || ""
+                                  })}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition shadow-sm"
                                   title="Tomar caso a mi nombre"
                                 >
-                                  ✋ Tomar
+                                  <UserCheck size={13} className="shrink-0" />
+                                  <span>Tomar</span>
                                 </button>
                                 <button
                                   type="button"
@@ -3278,6 +3429,128 @@ export default function EcicepClientViewV2({ data, user }: { data: any[], user: 
                 className="flex-1 px-4 py-2.5 rounded-xl text-xs font-bold bg-rose-600 text-white hover:bg-rose-700 transition-colors shadow-md disabled:opacity-50 flex items-center justify-center gap-1.5"
               >
                 {cerrarSaving ? "Cerrando..." : "Confirmar Cierre de Caso"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Modal: Confirmar Tomar Caso ───────────────────────────────────── */}
+      {modalTomar.show && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[70] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-indigo-50/50">
+              <div className="flex items-center space-x-3">
+                <div className="h-10 w-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center">
+                  <UserCheck size={20} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-800 text-base">Tomar Caso Clínico</h3>
+                  <p className="text-xs text-indigo-700 font-bold uppercase truncate max-w-[240px]">
+                    {modalTomar.pacienteNombre}
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setModalTomar({ show: false, casoId: null, pacienteNombre: "", sector: "", estamento: "" })} 
+                className="text-slate-400 hover:text-slate-600 p-1 bg-white border rounded-full"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-500 font-medium">Sector:</span>
+                  <span className="font-bold text-slate-800">{modalTomar.sector}</span>
+                </div>
+                {modalTomar.estamento && (
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-500 font-medium">Perfil Requerido:</span>
+                    <span className="font-bold text-slate-800">{modalTomar.estamento}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-500 font-medium">Gestor que asumirá:</span>
+                  <span className="font-bold text-indigo-600">{user?.nombre || "Tu usuario"}</span>
+                </div>
+              </div>
+
+              <p className="text-xs text-slate-600 leading-relaxed">
+                ¿Confirmas que deseas asumir el seguimiento de este caso? El paciente pasará a estado <strong>En Seguimiento</strong> bajo tu responsabilidad.
+              </p>
+            </div>
+
+            <div className="p-5 bg-slate-50 border-t border-slate-100 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setModalTomar({ show: false, casoId: null, pacienteNombre: "", sector: "", estamento: "" })}
+                className="flex-1 px-4 py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-200 transition-colors border border-slate-200 bg-white"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmarTomarCaso}
+                disabled={tomarSaving}
+                className="flex-1 px-4 py-2.5 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-md disabled:opacity-50 flex items-center justify-center gap-1.5"
+              >
+                {tomarSaving ? "Asignando..." : "Confirmar y Tomar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Modal: Confirmar Anular Caso ─────────────────────────────────── */}
+      {modalAnular.show && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[70] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-rose-50/50">
+              <div className="flex items-center space-x-3">
+                <div className="h-10 w-10 rounded-xl bg-rose-600 text-white flex items-center justify-center">
+                  <Trash2 size={20} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-800 text-base">Anular Derivación</h3>
+                  <p className="text-xs text-rose-700 font-bold uppercase truncate max-w-[240px]">
+                    {modalAnular.pacienteNombre}
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setModalAnular({ show: false, casoId: null, pacienteNombre: "", tipo: "" })} 
+                className="text-slate-400 hover:text-slate-600 p-1 bg-white border rounded-full"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="p-3.5 bg-rose-50/70 border border-rose-200 rounded-2xl flex items-start gap-2.5">
+                <AlertTriangle size={18} className="text-rose-600 shrink-0 mt-0.5" />
+                <p className="text-xs text-rose-800 leading-relaxed font-medium">
+                  Esta acción eliminará la derivación pendiente de la lista de gestión de casos. Solo debes anularla si se ingresó por error o ya no procede el seguimiento.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-5 bg-slate-50 border-t border-slate-100 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setModalAnular({ show: false, casoId: null, pacienteNombre: "", tipo: "" })}
+                className="flex-1 px-4 py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-200 transition-colors border border-slate-200 bg-white"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmarAnularCaso}
+                disabled={anularSaving}
+                className="flex-1 px-4 py-2.5 rounded-xl text-xs font-bold bg-rose-600 text-white hover:bg-rose-700 transition-colors shadow-md disabled:opacity-50 flex items-center justify-center gap-1.5"
+              >
+                {anularSaving ? "Anulando..." : "Sí, Anular Derivación"}
               </button>
             </div>
           </div>

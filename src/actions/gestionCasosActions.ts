@@ -210,15 +210,18 @@ export async function obtenerCasosGestion(): Promise<GestionCaso[]> {
         ORDER BY rut_paciente, fecha_atencion DESC, id DESC
       ) e ON e.rut_paciente = gc.rut_paciente
       LEFT JOIN gia_usuarios u ON u.rut = gc.profesional_rut
-      LEFT JOIN gia_usuarios gestor ON gestor.rut = gc.gestor_asignado_rut
-      WHERE gc.estado <> 'CERRADO'
       ORDER BY
         -- 1. Casos post-hosp pendientes primero por urgencia de 48h
         CASE WHEN gc.tipo = 'POST_HOSPITALIZADO' AND gc.estado = 'PENDIENTE_ASIGNACION' THEN 0 ELSE 1 END,
-        -- 2. Pendientes de asignación antes que los ya asignados
-        CASE WHEN gc.estado = 'PENDIENTE_ASIGNACION' THEN 0 ELSE 1 END,
+        -- 2. Pendientes de asignación antes que en seguimiento y cerrados
+        CASE 
+          WHEN gc.estado = 'PENDIENTE_ASIGNACION' THEN 0 
+          WHEN gc.estado = 'EN_SEGUIMIENTO' THEN 1 
+          ELSE 2 
+        END,
         gc.fecha_alta ASC NULLS LAST,
-        gc.fecha_registro ASC
+        gc.fecha_cierre DESC NULLS LAST,
+        gc.fecha_registro DESC
     `;
     return result as unknown as GestionCaso[];
   } catch (error) {
