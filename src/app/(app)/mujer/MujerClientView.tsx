@@ -122,7 +122,8 @@ export default function MujerClientView({ initialData, initialEmbarazadasData, u
     today.setHours(0, 0, 0, 0);
     const diffTime = today.getTime() - fumDate.getTime();
     if (diffTime < 0) return "-";
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    // Usar Math.round en lugar de Math.floor para compensar el cambio de horario de verano (DST)
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
     const weeks = Math.floor(diffDays / 7);
     const days = diffDays % 7;
     return `${weeks} Semanas, ${days} Días`;
