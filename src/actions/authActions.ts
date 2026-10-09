@@ -4,18 +4,23 @@ import { cookies } from "next/headers";
 import { sql } from "@/lib/db";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { encrypt, getSession } from "@/lib/auth";
+import { minutosDeBloqueo, registrarFallo, limpiarIntentos, mensajeBloqueo, mensajeFallo } from "@/lib/intentos";
 
 export async function loginAction(rut: string, pass: string) {
   try {
     // Normalizar RUT: Quitar puntos, guiones y espacios para la comparación
     const rutLimpio = rut.replace(/[^0-9kK]/g, "");
-    if (rutLimpio.length < 2) return { error: "RUT inválido" };
-    
+    if (rutLimpio.length < 2 || rutLimpio.length > 9) return { error: "RUT inválido" };
+
     // Reconstruir formato estándar (cuerpo-dv) para la DB
     const cuerpo = rutLimpio.slice(0, -1);
     const dv = rutLimpio.slice(-1).toUpperCase();
     const rutStandar = `${cuerpo}-${dv}`;
-    
+
+    // Límite de intentos: se cuenta por RUT, exista o no el usuario (no revela cuáles existen)
+    const minutosBloqueado = await minutosDeBloqueo(rutStandar, "login");
+    if (minutosBloqueado > 0) return { error: mensajeBloqueo(minutosBloqueado) };
+
     let isAuthenticated = false;
     let mustChange = false;
 
@@ -23,7 +28,8 @@ export async function loginAction(rut: string, pass: string) {
     const user = result[0];
 
     if (!user) {
-      return { error: "Credenciales incorrectas" };
+      const fallo = await registrarFallo(rutStandar, "login");
+      return { error: mensajeFallo(fallo.restantes, fallo.bloqueado, "Credenciales incorrectas") };
     }
 
     if (user.rol === "INACTIVO") {
@@ -34,8 +40,11 @@ export async function loginAction(rut: string, pass: string) {
     mustChange = user.debe_cambiar_password || false;
 
     if (!isAuthenticated) {
-      return { error: "Credenciales incorrectas" };
+      const fallo = await registrarFallo(rutStandar, "login");
+      return { error: mensajeFallo(fallo.restantes, fallo.bloqueado, "Credenciales incorrectas") };
     }
+
+    await limpiarIntentos(rutStandar, "login");
 
     const cookieStore = await cookies();
     const encryptedRut = await encrypt(rutStandar);
@@ -116,13 +125,24 @@ export async function resetPasswordAction(rut: string, respuesta: string, nuevaP
     const dv = rutLimpio.slice(-1).toUpperCase();
     const rutStandar = `${cuerpo}-${dv}`;
 
+    if (rutLimpio.length < 2 || rutLimpio.length > 9) return { error: "Usuario no encontrado" };
+
+    // L\u00edmite de intentos para adivinar la respuesta secreta
+    const minutosBloqueado = await minutosDeBloqueo(rutStandar, "reset");
+    if (minutosBloqueado > 0) return { error: mensajeBloqueo(minutosBloqueado) };
+
     const res = await sql`SELECT respuesta_seguridad FROM gia_usuarios WHERE rut = ${rutStandar}`;
     if (res.length === 0) return { error: "Usuario no encontrado" };
 
     const respuestaLimpia = respuesta.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     const isValid = verifyPassword(respuestaLimpia, res[0].respuesta_seguridad);
 
-    if (!isValid) return { error: "Respuesta incorrecta" };
+    if (!isValid) {
+      const fallo = await registrarFallo(rutStandar, "reset");
+      return { error: mensajeFallo(fallo.restantes, fallo.bloqueado, "Respuesta incorrecta") };
+    }
+
+    await limpiarIntentos(rutStandar, "reset");
 
     const hashedPassword = hashPassword(nuevaPass);
     await sql`UPDATE gia_usuarios SET password = ${hashedPassword} WHERE rut = ${rutStandar}`;
